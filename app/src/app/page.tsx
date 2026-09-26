@@ -1,69 +1,60 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { db } from "@/db/client";
+import { listings, productModels } from "@/db/schema";
+import { eq, and, like, desc } from "drizzle-orm";
+import Link from "next/link";
 
-export default function Home() {
+// 홈 — 리스트·검색 (P0 필수). 서버 컴포넌트에서 직접 조회.
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+
+  const conditions = [eq(listings.status, "ACTIVE")];
+  if (q) conditions.push(like(listings.title, `%${q}%`));
+
+  const rows = await db
+    .select({
+      id: listings.id,
+      title: listings.title,
+      price: listings.price,
+      conditionGrade: listings.conditionGrade,
+      modelName: productModels.modelName,
+      brand: productModels.brand,
+    })
+    .from(listings)
+    .leftJoin(productModels, eq(listings.modelId, productModels.id))
+    .where(and(...conditions))
+    .orderBy(desc(listings.createdAt));
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div>
+      <form action="/" method="get" style={{ marginBottom: 20 }}>
+        <input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="상품명 검색"
+          style={{ padding: 8, width: "70%", marginRight: 8 }}
         />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <button type="submit" style={{ padding: "8px 16px" }}>검색</button>
+      </form>
+
+      {rows.length === 0 && <p style={{ color: "#888" }}>등록된 상품이 없습니다.</p>}
+
+      <div style={{ display: "grid", gap: 12 }}>
+        {rows.map((r) => (
+          <Link
+            key={r.id}
+            href={`/listings/${r.id}`}
+            style={{ border: "1px solid #ddd", borderRadius: 8, padding: 14, textDecoration: "none", color: "#111" }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            <div style={{ fontSize: 12, color: "#888" }}>{r.brand} · {r.modelName}</div>
+            <div style={{ fontWeight: 600 }}>{r.title}</div>
+            <div>{r.price.toLocaleString()}원 · 상태 {r.conditionGrade}</div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
