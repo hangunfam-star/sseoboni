@@ -1,0 +1,11 @@
+node_modules/
+app/node_modules/
+app/.next/
+app/.env
+app/.env.local
+app/prisma/dev.db
+app/prisma/dev.db-journal
+.tmp_pg_deck/
+.tmp_excerpt_*.md
+.serena/cache/
+*.log
