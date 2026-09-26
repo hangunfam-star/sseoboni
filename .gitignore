@@ -5,6 +5,8 @@ app/.env
 app/.env.local
 app/dev.db
 app/dev.db-journal
+app/dev.db-shm
+app/dev.db-wal
 app/*.log
 .tmp_pg_deck/
 .tmp_excerpt_*.md
