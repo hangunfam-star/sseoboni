@@ -3,8 +3,9 @@ app/node_modules/
 app/.next/
 app/.env
 app/.env.local
-app/prisma/dev.db
-app/prisma/dev.db-journal
+app/dev.db
+app/dev.db-journal
+app/*.log
 .tmp_pg_deck/
 .tmp_excerpt_*.md
 .serena/cache/
