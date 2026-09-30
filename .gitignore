@@ -12,3 +12,5 @@ app/*.log
 .tmp_excerpt_*.md
 .serena/cache/
 *.log
+app/invites.local.json
+.codex-remote-attachments/

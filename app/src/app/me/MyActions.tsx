@@ -1,0 +1,44 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+// param: id 상품 id, status 현재 상태. return: 상태에 맞는 숨기기·판매완료·다시 올리기 버튼
+export function ListingStatusActions({ id, status }: { id: string; status: string }) {
+  const [pending, setPending] = useState(false);
+  const router = useRouter();
+
+  async function change(next: string) {
+    if (pending) return;
+    if (next === "SOLD" && !confirm("판매완료로 바꾸면 목록에서 내려가요. 계속할까요?")) return;
+    setPending(true);
+    const res = await fetch(`/api/listings/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    });
+    setPending(false);
+    if (!res.ok) {
+      alert("상태를 바꾸지 못했어요. 다시 시도해 주세요.");
+      return;
+    }
+    router.refresh();
+  }
+
+  return (
+    <div className="my-listing__actions">
+      {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("HIDDEN")}>숨기기</button>}
+      {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("SOLD")}>판매완료</button>}
+      {status !== "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("ACTIVE")}>다시 올리기</button>}
+    </div>
+  );
+}
+
+export function LogoutButton() {
+  const router = useRouter();
+  async function logout() {
+    await fetch("/api/session", { method: "DELETE" });
+    router.push("/login");
+    router.refresh();
+  }
+  return <button type="button" className="text-button" onClick={logout}>로그아웃</button>;
+}

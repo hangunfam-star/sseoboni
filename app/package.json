@@ -10,7 +10,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "invite": "node scripts/invite.mjs",
+    "test:ui": "tsx --test src/ui/navigation.test.ts src/ui/presentation.test.ts src/ui/market-contract.test.ts"
   },
   "dependencies": {
     "next": "16.3.6",

@@ -13,7 +13,7 @@ export default function WishlistButton({ listingId, initialWished }: { listingId
       body: JSON.stringify({ listingId }),
     });
     if (res.status === 401) {
-      alert("먼저 닉네임으로 로그인하세요.");
+      alert("먼저 초대 코드로 로그인하세요.");
       setLoading(false);
       return;
     }
@@ -23,8 +23,15 @@ export default function WishlistButton({ listingId, initialWished }: { listingId
   }
 
   return (
-    <button onClick={toggle} disabled={loading} style={{ padding: "8px 14px" }}>
-      {wished ? "찜 해제" : "찜하기"}
+    <button
+      className="wishlist-button"
+      type="button"
+      onClick={toggle}
+      disabled={loading}
+      aria-label={wished ? "찜 해제" : "찜하기"}
+      aria-pressed={wished}
+    >
+      <span aria-hidden="true">{wished ? "♥" : "♡"}</span>
     </button>
   );
 }

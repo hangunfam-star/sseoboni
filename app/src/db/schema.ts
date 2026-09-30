@@ -6,7 +6,7 @@
 //   Payment, Refund, Settlement, SettlementHold, Chargeback
 // 이유: §101 "Validation MVP는 실제 결제·정산·발송을 발생시키지 않는다"
 
-import { sqliteTable, text, integer, real, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const cuid = () => crypto.randomUUID();
