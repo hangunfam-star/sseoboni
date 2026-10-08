@@ -60,7 +60,7 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
   return rows;
 }
 
-export type ModelDemand = { modelId: string; brand: string; modelName: string; seekers: number; triers: number; onSale: number };
+export type ModelDemand = { modelId: string; brand: string; modelName: string; seekers: number; triers: number; onSale: number; categoryName: string | null; photo: string | null };
 
 // return: 모델별 찾는 사람(중복 제거)·써보고 싶은 사람·판매 중 수. 찾는 사람 많은 순
 export async function modelDemand(modelIds?: string[]): Promise<ModelDemand[]> {
@@ -73,6 +73,8 @@ export async function modelDemand(modelIds?: string[]): Promise<ModelDemand[]> {
       seekers: sql<number>`(select count(distinct di.user_id) from demand_intents di where di.model_id = "product_models"."id" and di.active = 1)`,
       triers: sql<number>`(select count(distinct di.user_id) from demand_intents di where di.model_id = "product_models"."id" and di.active = 1 and di.intent_type in ('WANT_TO_TRY','PAID_TRY_INTENT'))`,
       onSale: sql<number>`(select count(*) from listings l where l.model_id = "product_models"."id" and l.status = 'ACTIVE')`,
+      categoryName: sql<string | null>`(select c.name from categories c where c.id = "product_models"."category_id")`,
+      photo: sql<string | null>`(select p.file_name from listing_photos p join listings l on l.id = p.listing_id where l.model_id = "product_models"."id" and l.status = 'ACTIVE' order by l.created_at desc, p.sort_order limit 1)`,
     })
     .from(productModels)
     .where(modelIds ? inArray(productModels.id, modelIds) : eq(productModels.active, true));

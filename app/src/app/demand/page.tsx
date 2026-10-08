@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { modelDemand } from "@/lib/queries";
-import { demandLabel } from "@/ui/presentation";
+import { demandLabel, illustrationKind } from "@/ui/presentation";
+import { ListThumb } from "@/components/ListThumb";
 import { DemandForm } from "./DemandForm";
 
 const CARD_TONES = ["demand-card--coral", "demand-card--yellow", "demand-card--navy"];
@@ -19,9 +20,12 @@ export default async function DemandPage({ searchParams }: { searchParams: Promi
       <div className="demand-list">
         {demand.map((d, i) => (
           <Link key={d.modelId} className={`demand-card ${CARD_TONES[i % CARD_TONES.length]}`} href={`/?q=${encodeURIComponent(d.modelName)}`}>
-            <small>{d.brand}</small>
-            <strong>{d.modelName}</strong>
-            <span>{demandLabel(d.seekers) ?? "아직 찾는 사람이 없어요"} · 판매 중 {d.onSale}개</span>
+            <ListThumb photo={d.photo} seed={d.modelId} kind={illustrationKind(d.categoryName, d.modelName)} alt={`${d.brand} ${d.modelName}`} />
+            <div className="demand-card__body">
+              <small>{d.brand}</small>
+              <strong>{d.modelName}</strong>
+              <span>{demandLabel(d.seekers) ?? "아직 찾는 사람이 없어요"} · 판매 중 {d.onSale}개</span>
+            </div>
           </Link>
         ))}
       </div>

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { demandIntents, listings, productModels, users, wishlists } from "@/db/schema";
+import { categories, demandIntents, listings, productModels, users, wishlists } from "@/db/schema";
+import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
-import { conditionLabel, formatWon } from "@/ui/presentation";
+import { conditionLabel, formatWon, illustrationKind } from "@/ui/presentation";
 import { ListingStatusActions, LogoutButton } from "./MyActions";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", HIDDEN: "숨김", SOLD: "판매완료" };
@@ -25,9 +26,14 @@ export default async function MyPage() {
   const me = await db.query.users.findFirst({ where: eq(users.id, userId) });
   const nickname = me?.nickname ?? "테스터";
   const mine = await db
-    .select({ id: listings.id, title: listings.title, price: listings.price, status: listings.status, conditionGrade: listings.conditionGrade, modelName: productModels.modelName })
+    .select({
+      id: listings.id, title: listings.title, price: listings.price, status: listings.status, conditionGrade: listings.conditionGrade, modelName: productModels.modelName,
+      categoryName: categories.name,
+      photo: sql<string | null>`(select p.file_name from listing_photos p where p.listing_id = "listings"."id" order by p.sort_order, p.created_at limit 1)`,
+    })
     .from(listings)
     .leftJoin(productModels, eq(listings.modelId, productModels.id))
+    .leftJoin(categories, eq(productModels.categoryId, categories.id))
     .where(and(eq(listings.sellerId, userId), ne(listings.status, "REMOVED")))
     .orderBy(desc(listings.createdAt));
   const [{ wishCount }] = await db.select({ wishCount: sql<number>`count(*)` }).from(wishlists).where(eq(wishlists.userId, userId));
@@ -57,10 +63,13 @@ export default async function MyPage() {
         <div className="my-listings">
           {mine.map((m) => (
             <div key={m.id} className="my-listing">
-              <Link href={`/listings/${m.id}`} className="my-listing__body">
+              <Link href={`/listings/${m.id}`} className="my-listing__link">
+                <ListThumb photo={m.photo} seed={m.id} kind={illustrationKind(m.categoryName, m.modelName)} alt={m.title} />
+                <span className="my-listing__body">
                 <small>{m.modelName} · {conditionLabel(m.conditionGrade)} · <b data-status={m.status}>{STATUS_LABEL[m.status] ?? m.status}</b></small>
                 <strong>{m.title}</strong>
                 <span>{formatWon(m.price)}</span>
+                </span>
               </Link>
               <ListingStatusActions id={m.id} status={m.status} />
             </div>

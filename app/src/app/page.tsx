@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
+import { TryFlow } from "@/components/TryFlow";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
 import { listCards, modelDemand, PAGE_SIZE } from "@/lib/queries";
 import { demandLabel } from "@/ui/presentation";
@@ -87,11 +88,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <section className="try-hero" aria-labelledby="try-hero-title">
         <span className="try-hero__tag">베타테스터 미션</span>
         <h2 id="try-hero-title">마음에 드는 상품에서<br /><em>‘써보고 싶어요’</em>를 눌러 주세요</h2>
-        <ol className="try-flow" aria-label="써보기 흐름 (준비 중)">
-          <li><b>1</b><span>써보기 신청</span></li>
-          <li><b>2</b><span>집에서 써보기</span></li>
-          <li><b>3</b><span>사거나 돌려보내기</span></li>
-        </ol>
+        <TryFlow label="써보기 흐름 (준비 중)" />
         <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
         <Link className="try-hero__link" href="/feedback">망설여진다면 이유를 알려 주세요 →</Link>
       </section>

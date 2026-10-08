@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
@@ -9,14 +10,25 @@ export const metadata: Metadata = {
   other: { google: "notranslate" },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// return: 이 PC에서 직접 연 요청이면 true. 터널(ngrok)을 거치면 Host가 공개 주소이고 X-Forwarded-For에 바깥 IP가 붙는다.
+// Next 서버도 X-Forwarded-For를 붙이므로, 모든 값이 이 PC 자신의 주소(루프백)일 때만 로컬로 본다.
+const LOOPBACK = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
+async function isLocalRequest(): Promise<boolean> {
+  const h = await headers();
+  const host = (h.get("host") ?? "").replace(/:\d+$/, "");
+  const forwarded = (h.get("x-forwarded-for") ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+  return ["localhost", "127.0.0.1", "[::1]"].includes(host) && forwarded.every((ip) => LOOPBACK.includes(ip));
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const isLocal = await isLocalRequest();
   return (
     <html lang="ko" translate="no" className="notranslate">
       <head>
         {/* Pretendard(OFL) — 한글 본문·제목 공통 글꼴, 사용하는 글자만 나눠 받는 dynamic subset */}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
       </head>
-      <body><AppShell>{children}</AppShell></body>
+      <body><AppShell isLocal={isLocal}>{children}</AppShell></body>
     </html>
   );
 }

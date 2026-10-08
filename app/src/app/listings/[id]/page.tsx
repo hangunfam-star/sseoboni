@@ -9,6 +9,7 @@ import { modelDemand } from "@/lib/queries";
 import { IntentActionBar } from "@/components/IntentActionBar";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import { TryFlow } from "@/components/TryFlow";
 import { photosFor } from "@/lib/photos";
 import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel } from "@/ui/presentation";
 
@@ -114,11 +115,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         <section className="try-panel" aria-labelledby="try-panel-title">
           <span className="try-hero__tag">사기 전에 써보기 · 준비 중</span>
           <h2 id="try-panel-title">이 상품, 써보고 살 수 있게<br />준비하고 있어요</h2>
-          <ol className="try-flow" aria-label="써보기 흐름">
-            <li><b>1</b><span>써보기 신청</span></li>
-            <li><b>2</b><span>집에서 써보기</span></li>
-            <li><b>3</b><span>사거나 돌려보내기</span></li>
-          </ol>
+          <TryFlow label="써보기 흐름" />
           <ul className="try-panel__facts">
             <li>{sellerTryText}</li>
             <li>{tryWantLabel(tryWanters) ?? "아직 써보고 싶다는 사람이 없어요. 첫 의견을 남겨 주세요"}</li>
