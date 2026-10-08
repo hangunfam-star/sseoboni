@@ -1,9 +1,9 @@
 // 판매자 상품 사진 저장. 원본을 그대로 두지 않고 다시 인코딩해 위치(GPS) 등 메타데이터를 지우고 크기를 줄인다.
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import sharp from "sharp";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listingPhotos } from "@/db/schema";
 
@@ -66,4 +66,15 @@ export async function photosFor(listingIds: string[]): Promise<Map<string, Photo
 
 export async function photoCount(listingId: string): Promise<number> {
   return (await db.select({ id: listingPhotos.id }).from(listingPhotos).where(eq(listingPhotos.listingId, listingId))).length;
+}
+
+// param: listingId 상품 id, fileName 지울 사진 파일 이름
+// return: 지웠으면 true, 그 상품의 사진이 아니면 false. 파일이 이미 없어도 DB 행은 지운다.
+export async function deletePhoto(listingId: string, fileName: string): Promise<boolean> {
+  const p = photoPath(fileName);
+  if (!p) return false;
+  const removed = await db.delete(listingPhotos).where(and(eq(listingPhotos.listingId, listingId), eq(listingPhotos.fileName, fileName))).returning();
+  if (removed.length === 0) return false;
+  await unlink(p).catch(() => undefined);
+  return true;
 }

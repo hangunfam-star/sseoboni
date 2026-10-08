@@ -67,6 +67,7 @@ export default async function MyPage() {
           ))}
         </div>
       )}
+      <Link className="feedback-banner" href="/feedback"><strong>써보니에 의견 보내기</strong><small>망설인 이유, 바라는 점을 알려 주세요</small></Link>
       <p className="page-lead">로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 새로 시작하면 새 계정이 만들어져요.</p>
       <LogoutButton />
     </div>

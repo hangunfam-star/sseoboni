@@ -1,0 +1,108 @@
+// 운영자 결과 화면 집계. 모든 숫자는 DB 원자료를 중복 제거해 센 실제 값이다(추정·보정 없음).
+import { sql } from "drizzle-orm";
+import { db } from "@/db/client";
+
+export type Totals = {
+  users: number; activeListings: number; views: number; viewers: number;
+  tryWant: number; buyWant: number; wishes: number; seekers: number; feedbacks: number;
+};
+export type ListingStat = {
+  id: string; title: string; status: string; price: number; category: string | null; seller: string | null;
+  views: number; viewers: number; tryWant: number; buyWant: number; wishes: number; sellerTry: string | null; createdAt: string;
+};
+export type CategoryStat = {
+  category: string; listings: number; viewers: number; tryWant: number; buyWant: number; wishes: number; seekers: number;
+  sellerYes: number; sellerConditional: number; sellerNo: number; sellerUnknown: number;
+};
+export type FeedbackRow = { createdAt: string; nickname: string | null; reason: string; tryLater: string | null; message: string | null };
+
+// return: 전체 요약 숫자
+export function totals(): Totals {
+  return db.get<Totals>(sql`select
+    (select count(*) from users where status = 'ACTIVE') as users,
+    (select count(*) from listings where status = 'ACTIVE') as activeListings,
+    (select count(*) from market_validation_events where event_type = 'VIEW_LISTING') as views,
+    (select count(distinct user_id) from market_validation_events where event_type = 'VIEW_LISTING') as viewers,
+    (select count(distinct user_id || '|' || listing_id) from market_validation_events where event_type = 'CLICK_TRY_WANT') as tryWant,
+    (select count(distinct user_id || '|' || listing_id) from market_validation_events where event_type = 'CLICK_BUY_WANT') as buyWant,
+    (select count(*) from wishlists) as wishes,
+    (select count(distinct user_id) from demand_intents where active = 1) as seekers,
+    (select count(*) from market_validation_events where event_type = 'FEEDBACK') as feedbacks`);
+}
+
+// return: 상품별 반응(삭제된 상품 제외, 최신 등록순)
+export function listingStats(): ListingStat[] {
+  return db.all<ListingStat>(sql`select l.id, l.title, l.status, l.price, c.name as category, u.nickname as seller, l.created_at as createdAt,
+    (select count(*) from market_validation_events e where e.listing_id = l.id and e.event_type = 'VIEW_LISTING') as views,
+    (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'VIEW_LISTING') as viewers,
+    (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'CLICK_TRY_WANT') as tryWant,
+    (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'CLICK_BUY_WANT') as buyWant,
+    (select count(*) from wishlists w where w.listing_id = l.id) as wishes,
+    (select e.event_type from market_validation_events e where e.listing_id = l.id and e.event_type like 'SELLER_TRY_%' order by e.created_at desc limit 1) as sellerTry
+    from listings l
+    left join product_models m on m.id = l.model_id
+    left join categories c on c.id = m.category_id
+    left join users u on u.id = l.seller_id
+    where l.status != 'REMOVED'
+    order by l.created_at desc`);
+}
+
+// param: rows 상품별 반응. return: 상품 종류별 합계(찾는 사람 수 포함)
+export function categoryStats(rows: ListingStat[]): CategoryStat[] {
+  const map = new Map<string, CategoryStat>();
+  const get = (name: string) => {
+    let c = map.get(name);
+    if (!c) {
+      c = { category: name, listings: 0, viewers: 0, tryWant: 0, buyWant: 0, wishes: 0, seekers: 0, sellerYes: 0, sellerConditional: 0, sellerNo: 0, sellerUnknown: 0 };
+      map.set(name, c);
+    }
+    return c;
+  };
+  for (const r of rows) {
+    const c = get(r.category ?? "미분류");
+    c.listings += 1;
+    c.viewers += r.viewers;
+    c.tryWant += r.tryWant;
+    c.buyWant += r.buyWant;
+    c.wishes += r.wishes;
+    if (r.sellerTry === "SELLER_TRY_YES") c.sellerYes += 1;
+    else if (r.sellerTry === "SELLER_TRY_CONDITIONAL") c.sellerConditional += 1;
+    else if (r.sellerTry === "SELLER_TRY_NO") c.sellerNo += 1;
+    else c.sellerUnknown += 1;
+  }
+  const seekers = db.all<{ category: string | null; seekers: number }>(sql`select c.name as category, count(distinct d.user_id) as seekers
+    from demand_intents d join product_models m on m.id = d.model_id left join categories c on c.id = m.category_id
+    where d.active = 1 group by c.name`);
+  for (const s of seekers) get(s.category ?? "미분류").seekers = s.seekers;
+  return [...map.values()].sort((a, b) => b.tryWant + b.seekers - (a.tryWant + a.seekers));
+}
+
+// param: limit 최대 개수. return: 최근 의견(이탈 사유)
+export function recentFeedback(limit = 50): FeedbackRow[] {
+  const rows = db.all<{ createdAt: string; nickname: string | null; metadata: string | null }>(sql`select e.created_at as createdAt, u.nickname as nickname, e.metadata as metadata
+    from market_validation_events e left join users u on u.id = e.user_id
+    where e.event_type = 'FEEDBACK' order by e.created_at desc limit ${limit}`);
+  return rows.map((r) => {
+    let m: { reason?: string; tryLater?: string | null; message?: string | null } = {};
+    try { m = JSON.parse(r.metadata ?? "{}"); } catch { /* 깨진 metadata는 빈 값으로 둔다 */ }
+    return { createdAt: r.createdAt, nickname: r.nickname, reason: m.reason ?? "미확인", tryLater: m.tryLater ?? null, message: m.message ?? null };
+  });
+}
+
+// return: 이유별 의견 수(많은 순)
+export function feedbackReasons(): { reason: string; count: number }[] {
+  return db.all<{ reason: string; count: number }>(sql`select coalesce(json_extract(metadata, '$.reason'), '미확인') as reason, count(*) as count
+    from market_validation_events where event_type = 'FEEDBACK' group by reason order by count desc`);
+}
+
+// return: CSV로 내보낼 전체 이벤트(오래된 순)
+export function eventRows(): Record<string, string | number | null>[] {
+  return db.all(sql`select e.created_at, e.event_type, e.listing_id, l.title as listing_title, c.name as category,
+    m.brand, m.model_name, e.user_id, u.nickname, e.metadata
+    from market_validation_events e
+    left join listings l on l.id = e.listing_id
+    left join product_models m on m.id = coalesce(e.model_id, l.model_id)
+    left join categories c on c.id = m.category_id
+    left join users u on u.id = e.user_id
+    order by e.created_at`);
+}

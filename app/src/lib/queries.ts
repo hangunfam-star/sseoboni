@@ -3,6 +3,10 @@ import { and, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categories, listings, productModels } from "@/db/schema";
 
+const WISH_COUNT = sql<number>`(select count(distinct w.user_id) from wishlists w where w.listing_id = "listings"."id")`;
+
+export const PAGE_SIZE = 20;
+
 export type CardRow = {
   id: string;
   title: string;
@@ -18,9 +22,9 @@ export type CardRow = {
   tryWanters: number; // '써보고 싶어요'를 누른 사람 수(중복 제거)
 };
 
-// param: opts.q 제목·모델 검색어, opts.categoryId 카테고리, opts.brand 브랜드, opts.ids 특정 상품만, opts.sort 최신(new)·찜 많은 순(popular)
+// param: opts.q 제목·모델 검색어, opts.categoryId 카테고리, opts.brand 브랜드, opts.ids 특정 상품만, opts.sort 최신(new)·찜 많은 순(popular), opts.limit 최대 개수
 // return: ACTIVE 상품 카드 목록
-export async function listCards(opts: { q?: string; categoryId?: string; brand?: string; ids?: string[]; sort?: "new" | "popular" } = {}): Promise<CardRow[]> {
+export async function listCards(opts: { q?: string; categoryId?: string; brand?: string; ids?: string[]; sort?: "new" | "popular"; limit?: number } = {}): Promise<CardRow[]> {
   const where: SQL[] = [eq(listings.status, "ACTIVE")];
   if (opts.q) {
     const k = `%${opts.q}%`;
@@ -42,7 +46,7 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
       brand: productModels.brand,
       modelName: productModels.modelName,
       categoryName: categories.name,
-      wishCount: sql<number>`(select count(distinct w.user_id) from wishlists w where w.listing_id = "listings"."id")`,
+      wishCount: WISH_COUNT,
       photo: sql<string | null>`(select p.file_name from listing_photos p where p.listing_id = "listings"."id" order by p.sort_order, p.created_at limit 1)`,
       tryOk: sql<number>`(select count(*) from market_validation_events e where e.listing_id = "listings"."id" and e.event_type in ('SELLER_TRY_YES','SELLER_TRY_CONDITIONAL'))`,
       tryWanters: sql<number>`(select count(distinct e.user_id) from market_validation_events e where e.listing_id = "listings"."id" and e.event_type = 'CLICK_TRY_WANT')`,
@@ -51,8 +55,9 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
     .leftJoin(productModels, eq(listings.modelId, productModels.id))
     .leftJoin(categories, eq(productModels.categoryId, categories.id))
     .where(and(...where))
-    .orderBy(desc(listings.createdAt));
-  return opts.sort === "popular" ? [...rows].sort((x, y) => y.wishCount - x.wishCount) : rows;
+    .orderBy(...(opts.sort === "popular" ? [desc(WISH_COUNT), desc(listings.createdAt)] : [desc(listings.createdAt)]))
+    .limit(opts.limit ?? -1);
+  return rows;
 }
 
 export type ModelDemand = { modelId: string; brand: string; modelName: string; seekers: number; triers: number; onSale: number };

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listingPhotos, listings } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { MAX_PHOTO_BYTES, MAX_PHOTOS, photoCount, photoUrl, savePhoto } from "@/lib/photos";
+import { deletePhoto, MAX_PHOTO_BYTES, MAX_PHOTOS, photoCount, photoUrl, savePhoto } from "@/lib/photos";
 
 // POST /api/listings/[id]/photos (multipart, 필드명 photo, 여러 장) — 판매자 본인만, 상품당 최대 5장
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,4 +39,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
   return NextResponse.json({ photos: saved }, { status: 201 });
+}
+
+// DELETE /api/listings/[id]/photos?file=파일이름 — 판매자 본인만 사진 한 장 지우기
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+  const listing = await db.query.listings.findFirst({ where: eq(listings.id, id) });
+  if (!listing || listing.sellerId !== userId || listing.status === "REMOVED") {
+    return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });
+  }
+  const file = req.nextUrl.searchParams.get("file") ?? "";
+  if (!(await deletePhoto(id, file))) return NextResponse.json({ error: "사진을 찾을 수 없습니다." }, { status: 404 });
+  return NextResponse.json({ deleted: file });
 }

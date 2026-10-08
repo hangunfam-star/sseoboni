@@ -80,3 +80,40 @@ test("상세 찜 버튼은 좁은 행동 바에서도 한 글자 아이콘과 �
   assert.match(source, /aria-label=\{wished \? "찜 해제" : "찜하기"\}/);
   assert.doesNotMatch(source, /style=\{/);
 });
+
+test("상품 수정·사진 삭제는 판매자 본인만 할 수 있다", () => {
+  const api = read("src/app/api/listings/[id]/route.ts");
+  assert.match(api, /listing\.sellerId !== userId/);
+  assert.match(api, /SELLER_LISTING_EDITED/);
+  assert.doesNotMatch(api, /trialEnabled/);
+  const photos = read("src/app/api/listings/[id]/photos/route.ts");
+  assert.equal((photos.match(/listing\.sellerId !== userId/g) ?? []).length, 2);
+  const edit = read("src/app/listings/[id]/edit/page.tsx");
+  assert.match(edit, /d\.isOwner/);
+});
+
+test("직접 입력 모델은 판매·찾는 상품이 같은 규칙으로 묶인다", () => {
+  const models = read("src/lib/models.ts");
+  assert.match(models, /lower\(trim\(/);
+  assert.match(read("src/app/api/listings/route.ts"), /resolveCustomModel/);
+  assert.match(read("src/app/api/demand-intents/route.ts"), /resolveCustomModel/);
+});
+
+test("의견 보내기는 연락처를 받지 않고 하루 횟수를 제한한다", () => {
+  const api = read("src/app/api/feedback/route.ts");
+  assert.match(api, /FEEDBACK_DAILY_MAX/);
+  assert.doesNotMatch(api, /phone|email|연락처를 받/i);
+  assert.doesNotMatch(read("src/app/feedback/page.tsx"), /type="tel"|type="email"/);
+});
+
+test("운영자 결과·CSV는 운영자 쿠키가 있어야 보이고, CSV는 수식 실행을 막는다", () => {
+  const page = read("src/app/admin/page.tsx");
+  assert.match(page, /await isAdmin\(\)/);
+  assert.match(page, /판정 보류/);
+  const csv = read("src/app/api/admin/export/route.ts");
+  assert.match(csv, /await isAdmin\(\)/);
+  assert.ok(csv.includes("/^[=+\\-@]/"));
+  const admin = read("src/lib/admin.ts");
+  assert.match(admin, /timingSafeEqual/);
+  assert.match(admin, /httpOnly: true/);
+});

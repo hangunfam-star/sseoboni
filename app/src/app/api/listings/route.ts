@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
-import { categories, listings, marketValidationEvents, productModels } from "@/db/schema";
+import { listingComponents, listings, marketValidationEvents, productModels } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { CONDITION_GRADES } from "@/ui/presentation";
-import { isSellCategory } from "@/ui/categories";
-import { eq, like, and, desc, sql } from "drizzle-orm";
+import { parseComponents, parseCustomModel, resolveCustomModel, validateCustomModel } from "@/lib/models";
+import { eq, like, and, desc } from "drizzle-orm";
 
 const PRICE_MIN = 1000;
 const PRICE_MAX = 100_000_000;
@@ -49,9 +49,8 @@ export async function POST(req: NextRequest) {
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   let modelId = str(body?.modelId);
   // 직접 입력: 목록에 없는 상품을 판매자가 브랜드·모델명·종류로 적어 올린다.
-  const custom = body?.customModel && typeof body.customModel === "object"
-    ? { brand: str(body.customModel.brand), modelName: str(body.customModel.modelName), category: str(body.customModel.category) }
-    : null;
+  const custom = parseCustomModel(body?.customModel);
+  const components = parseComponents(body?.components);
   const title = str(body?.title);
   const description = str(body?.description);
   const conditionGrade = str(body?.conditionGrade);
@@ -62,10 +61,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "필수 항목이 누락됐습니다." }, { status: 400 });
   }
   if (!modelId && custom) {
-    if (custom.brand.length < 1 || custom.brand.length > 30) return NextResponse.json({ error: "브랜드는 1~30자로 입력하세요." }, { status: 400 });
-    if (custom.modelName.length < 2 || custom.modelName.length > 60) return NextResponse.json({ error: "모델명은 2~60자로 입력하세요." }, { status: 400 });
-    if (!isSellCategory(custom.category)) return NextResponse.json({ error: "상품 종류를 골라 주세요." }, { status: 400 });
+    const bad = validateCustomModel(custom);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
   }
+  if (typeof components === "string") return NextResponse.json({ error: components }, { status: 400 });
   if (title.length < 2 || title.length > 60) return NextResponse.json({ error: "제목은 2~60자로 입력하세요." }, { status: 400 });
   if (description.length > 2000) return NextResponse.json({ error: "설명은 2,000자 이하로 입력하세요." }, { status: 400 });
   if (!CONDITION_GRADES.includes(conditionGrade as (typeof CONDITION_GRADES)[number])) {
@@ -90,31 +89,16 @@ export async function POST(req: NextRequest) {
   const created = db.transaction((tx) => {
     let createdModel = false;
     if (!modelId && custom) {
-      // 같은 브랜드·모델명(대소문자·앞뒤 공백 무시)이 이미 있으면 그 모델을 쓴다 → 수요 집계가 한 모델로 모인다.
-      const existing = tx.select({ id: productModels.id }).from(productModels)
-        .where(and(eq(productModels.active, true),
-          sql`lower(trim(${productModels.brand})) = lower(${custom.brand})`,
-          sql`lower(trim(${productModels.modelName})) = lower(${custom.modelName})`))
-        .get();
-      if (existing) {
-        modelId = existing.id;
-      } else {
-        const category = tx.select({ id: categories.id }).from(categories).where(eq(categories.name, custom.category)).get()
-          ?? tx.insert(categories).values({ name: custom.category, trialEnabled: false }).returning({ id: categories.id }).get();
-        modelId = tx.insert(productModels).values({
-          brand: custom.brand,
-          modelName: custom.modelName,
-          categoryId: category.id,
-          canonicalSpec: JSON.stringify({ source: "SELLER_INPUT", createdBy: userId }),
-        }).returning({ id: productModels.id }).get().id;
-        createdModel = true;
-      }
+      const r = resolveCustomModel(tx, custom, userId);
+      modelId = r.modelId;
+      createdModel = r.created;
     }
     const row = tx
       .insert(listings)
       .values({ sellerId: userId, modelId, title, price, conditionGrade, description, directSaleEnabled: true, trialEnabled: false })
       .returning()
       .get();
+    for (const name of components) tx.insert(listingComponents).values({ listingId: row.id, name }).run();
     tx.insert(marketValidationEvents).values({ eventType: "SELLER_LISTING_COMPLETE", listingId: row.id, modelId, userId }).run();
     if (createdModel) {
       tx.insert(marketValidationEvents).values({ eventType: "SELLER_MODEL_CREATED", listingId: row.id, modelId, userId }).run();

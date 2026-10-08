@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { demandIntents, productModels, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { and, eq, desc } from "drizzle-orm";
+import { parseCustomModel, resolveCustomModel, validateCustomModel } from "@/lib/models";
 
 // GET /api/demand-intents?modelId=... — 찾는 상품 목록 (P0 필수: 시장검증 신호)
 export async function GET(req: NextRequest) {
@@ -35,10 +36,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
   }
   const body = await req.json().catch(() => null);
-  const modelId = typeof body?.modelId === "string" ? body.modelId : "";
+  let modelId = typeof body?.modelId === "string" ? body.modelId : "";
   const intentType = typeof body?.intentType === "string" ? body.intentType : "";
+  // 직접 입력: 목록에 없는 모델을 브랜드·모델명·종류로 남긴다.
+  const custom = modelId ? null : parseCustomModel(body?.customModel);
 
-  if (!modelId || !intentType) {
+  if ((!modelId && !custom) || !intentType) {
     return NextResponse.json({ error: "모델과 목적을 선택하세요." }, { status: 400 });
   }
   if (!["LOOKING_TO_BUY", "WANT_TO_TRY", "PAID_TRY_INTENT"].includes(intentType)) {
@@ -59,17 +62,28 @@ export async function POST(req: NextRequest) {
   if (min !== null && max !== null && min > max) {
     return NextResponse.json({ error: "최소 가격이 최대 가격보다 클 수 없어요." }, { status: 400 });
   }
-  const model = await db.query.productModels.findFirst({ where: and(eq(productModels.id, modelId), eq(productModels.active, true)) });
-  if (!model) {
-    return NextResponse.json({ error: "존재하지 않는 상품 모델입니다." }, { status: 400 });
+  if (custom) {
+    const bad = validateCustomModel(custom);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+  } else {
+    const model = await db.query.productModels.findFirst({ where: and(eq(productModels.id, modelId), eq(productModels.active, true)) });
+    if (!model) {
+      return NextResponse.json({ error: "존재하지 않는 상품 모델입니다." }, { status: 400 });
+    }
   }
 
   // 같은 사람·모델·목적의 요청은 새로 만들지 않고 조건만 고친다(수요 부풀림 방지).
   const values = { desiredPriceMin: min, desiredPriceMax: max, desiredTrialHours: hours, active: true };
-  const existing = await db.query.demandIntents.findFirst({
-    where: and(eq(demandIntents.userId, userId), eq(demandIntents.modelId, modelId), eq(demandIntents.intentType, intentType)),
-  });
+  let existing: typeof demandIntents.$inferSelect | undefined;
   const saved = db.transaction((tx) => {
+    if (custom) {
+      const r = resolveCustomModel(tx, custom, userId);
+      modelId = r.modelId;
+      if (r.created) tx.insert(marketValidationEvents).values({ eventType: "BUYER_MODEL_CREATED", modelId, userId }).run();
+    }
+    existing = tx.select().from(demandIntents)
+      .where(and(eq(demandIntents.userId, userId), eq(demandIntents.modelId, modelId), eq(demandIntents.intentType, intentType)))
+      .get();
     const row = existing
       ? tx.update(demandIntents).set(values).where(eq(demandIntents.id, existing.id)).returning().get()
       : tx.insert(demandIntents).values({ userId, modelId, intentType, ...values }).returning().get();

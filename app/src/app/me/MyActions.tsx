@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 // param: id 상품 id, status 현재 상태. return: 상태에 맞는 숨기기·판매완료·다시 올리기 버튼
@@ -26,6 +27,7 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
 
   return (
     <div className="my-listing__actions">
+      <Link className="my-listing__edit" href={`/listings/${id}/edit`}>수정</Link>
       {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("HIDDEN")}>숨기기</button>}
       {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("SOLD")}>판매완료</button>}
       {status !== "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("ACTIVE")}>다시 올리기</button>}

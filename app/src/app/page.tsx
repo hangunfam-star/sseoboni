@@ -4,17 +4,31 @@ import { db } from "@/db/client";
 import { productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
-import { listCards, modelDemand } from "@/lib/queries";
+import { listCards, modelDemand, PAGE_SIZE } from "@/lib/queries";
 import { demandLabel } from "@/ui/presentation";
 
 // 홈 — 피드(검색어 없음) / 검색 결과(검색어 있음). 서버 컴포넌트에서 직접 조회.
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string; c?: string; b?: string; s?: string }> }) {
-  const { q: rawQ, c, b, s } = await searchParams;
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string; c?: string; b?: string; s?: string; n?: string }> }) {
+  const { q: rawQ, c, b, s, n } = await searchParams;
   const q = rawQ?.trim() || undefined;
   const sort = s === "popular" ? "popular" : "new";
   const brands = (await db.selectDistinct({ brand: productModels.brand }).from(productModels).where(eq(productModels.active, true)).orderBy(asc(productModels.brand))).map((r) => r.brand);
   const brand = b && brands.includes(b) ? b : undefined;
-  const rows = await listCards({ q, categoryId: c, brand, sort });
+  // 목록 나누기: n쪽까지 보여 준다(한 쪽 20개). 하나 더 가져와 다음 쪽이 있는지 안다.
+  const pages = Math.min(Math.max(Number.parseInt(n ?? "1", 10) || 1, 1), 50);
+  const fetched = await listCards({ q, categoryId: c, brand, sort, limit: pages * PAGE_SIZE + 1 });
+  const hasMore = fetched.length > pages * PAGE_SIZE;
+  const rows = fetched.slice(0, pages * PAGE_SIZE);
+  const moreHref = (() => {
+    const p = new URLSearchParams();
+    if (q) p.set("q", q);
+    if (c) p.set("c", c);
+    if (brand) p.set("b", brand);
+    if (sort === "popular") p.set("s", "popular");
+    p.set("n", String(pages + 1));
+    return `/?${p.toString()}`;
+  })();
+  const more = hasMore && <Link className="more-link" href={moreHref} scroll={false}>더 보기</Link>;
   const href = (next: { b?: string; s?: string }) => {
     const p = new URLSearchParams();
     if (next.b) p.set("b", next.b);
@@ -47,7 +61,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <Link href={`/demand?model=${top.modelId}`}>나도 기다리기</Link>
           </div>
         )}
-        <p className="result-count">판매 중 <b>{rows.length}</b>개</p>
+        <p className="result-count">판매 중 <b>{rows.length}{hasMore ? "+" : ""}</b>개</p>
         {rows.length === 0 ? (
           <div className="empty-card">
             <strong>‘{q}’로 올라온 상품이 아직 없어요.</strong>
@@ -56,6 +70,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         ) : (
           <div className="product-list">{rows.map((r) => <ProductRow key={r.id} {...r} />)}</div>
         )}
+        {more}
       </div>
     );
   }
@@ -75,6 +90,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <li><b>3</b><span>사거나 돌려보내기</span></li>
         </ol>
         <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
+        <Link className="try-hero__link" href="/feedback">망설여진다면 이유를 알려 주세요 →</Link>
       </section>
       <form className="search-bar" action="/" method="get">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
@@ -105,6 +121,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         ) : (
           <div className="product-grid">{rows.map((row) => <ProductCard key={row.id} {...row} />)}</div>
         )}
+        {more}
       </section>
       <Link className="demand-banner" href="/demand">
         <strong>찾는 물건이 없나요?</strong>

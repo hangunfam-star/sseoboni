@@ -819,3 +819,50 @@ input, textarea { caret-color: var(--w-ink); }
 .home-story__toggle { position: absolute; right: 16px; bottom: 20px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.9); color: var(--w-ink); }
 /* 2026-10-08 Grok 6초 영상(정사각 560px)으로 교체 → 정사각 비율 */
 .home-story { aspect-ratio: 1 / 1; }
+
+/* ── 2026-10-08 미개발 항목: 구성품·수정·더 보기·의견·운영자 결과 ── */
+.component-picker legend small, .field legend small, .field > span small { font-weight: 400; color: var(--w-sub); }
+.component-picker__chips, .feedback-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.component-picker .chip, .feedback-options .chip { min-height: 44px; padding: 0 14px; border: 1px solid var(--w-chip-line); border-radius: 999px; background: var(--w-bg); font-size: 14px; font-weight: 500; color: var(--w-ink); }
+.component-picker .chip[aria-pressed="true"], .feedback-options .chip[aria-pressed="true"] { background: var(--w-ink); border-color: var(--w-ink); color: #fff; font-weight: 600; }
+.component-picker__add { display: flex; gap: 8px; margin-top: 10px; }
+.component-picker__add input { flex: 1; min-width: 0; min-height: 48px; padding: 0 14px; border: 1.5px solid transparent; border-radius: var(--radius-field); background: var(--w-surface); font-size: 15px; }
+.component-picker__add input:focus { border-color: var(--w-ink); background: var(--w-bg); outline: none; }
+.component-picker__add .secondary-button { min-height: 48px; padding: 0 18px; }
+
+.owner-bar { gap: 8px; }
+.owner-bar strong { margin-right: auto; }
+.owner-bar .secondary-button { min-height: 48px; padding: 0 16px; }
+.my-listing__edit { flex: 1; min-height: 44px; display: grid; place-items: center; border-radius: 999px; background: var(--w-ink); color: #fff; font-size: 14px; font-weight: 600; }
+
+.more-link { display: grid; place-items: center; min-height: 52px; margin-top: 16px; border-radius: 999px; background: var(--w-surface); color: var(--w-ink); font-size: 15px; font-weight: 600; }
+
+.try-hero__link { justify-self: start; min-height: 44px; display: inline-flex; align-items: center; color: #fff; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.feedback-banner { display: grid; gap: 4px; padding: 18px 20px; border-radius: 24px; background: var(--w-surface); color: var(--w-ink); }
+.feedback-banner strong { font-size: 16px; font-weight: 700; }
+.feedback-banner small { color: var(--w-sub); }
+
+/* 운영자 결과: 표는 칸 안에서만 가로로 넘긴다 */
+.admin-page { display: grid; gap: 22px; }
+.admin-page section { display: grid; gap: 12px; }
+.admin-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.admin-stats div { display: grid; gap: 2px; padding: 12px; border-radius: 16px; background: var(--w-surface); }
+.admin-stats small { font-size: 11px; color: var(--w-sub); word-break: keep-all; }
+.admin-stats strong { font-size: 22px; font-weight: 700; }
+.admin-export { display: grid; place-items: center; }
+.admin-table-wrap { overflow-x: auto; border-radius: 16px; background: var(--w-surface); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--w-divider); }
+.admin-table thead th { font-size: 12px; color: var(--w-sub); font-weight: 600; }
+.admin-table tbody th { font-weight: 600; max-width: 200px; white-space: normal; }
+.admin-table tbody th a { text-decoration: underline; }
+.admin-table tbody th small { display: block; font-weight: 400; color: var(--w-sub); }
+.admin-reasons { list-style: none; display: grid; gap: 6px; }
+.admin-reasons li { display: flex; justify-content: space-between; padding: 10px 14px; border-radius: 12px; background: var(--w-surface); font-size: 14px; }
+.admin-feedback { list-style: none; display: grid; gap: 8px; }
+.admin-feedback li { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--w-chip-line); }
+.admin-feedback small { color: var(--w-sub); font-size: 12px; }
+.admin-feedback p { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+.component-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.component-list li { padding: 7px 14px; border-radius: 999px; background: var(--w-surface); font-size: 14px; font-weight: 500; }

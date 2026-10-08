@@ -125,6 +125,12 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           </ul>
           <p>아래 ‘써보고 싶어요’를 누르면 의견만 기록돼요. 결제와 배송은 일어나지 않아요.</p>
         </section>
+        {components.length > 0 && (
+          <section className="listing-section">
+            <h2>구성품</h2>
+            <ul className="component-list">{components.map((c) => <li key={c.id}>{c.name}</li>)}</ul>
+          </section>
+        )}
         <section className="listing-section">
           <h2>상품 설명</h2>
           <p className="listing-description">{listing.description}</p>
@@ -139,7 +145,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} />
       )}
       {isOwner && (
-        <div className="owner-bar"><strong>{formatWon(listing.price)}</strong><Link className="secondary-button" href="/me">내 상품 관리</Link></div>
+        <div className="owner-bar"><strong>{formatWon(listing.price)}</strong><Link className="secondary-button" href={`/listings/${id}/edit`}>수정</Link><Link className="secondary-button" href="/me">내 상품 관리</Link></div>
       )}
     </div>
   );

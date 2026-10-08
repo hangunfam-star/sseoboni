@@ -22,7 +22,7 @@ function NavIcon({ label, active }: { label: NavItem["label"]; active: boolean }
 
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname === "/login" || /^\/listings\/(?!new$)[^/]+$/.test(pathname)) return null;
+  if (pathname === "/login" || pathname.startsWith("/admin") || /^\/listings\/(?!new$)[^/]+$/.test(pathname)) return null;
 
   return (
     <nav className="bottom-nav" aria-label="주요 메뉴">

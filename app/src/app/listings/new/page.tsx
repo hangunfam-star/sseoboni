@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CONDITION_GRADES, conditionLabel, demandLabel } from "@/ui/presentation";
 import { SELL_CATEGORIES } from "@/ui/categories";
+import { ComponentPicker } from "@/components/ComponentPicker";
 
 type ProductModel = { id: string; brand: string; modelName: string; seekers: number };
 
@@ -28,6 +29,7 @@ export default function NewListingPage() {
   const [conditionGrade, setConditionGrade] = useState("A");
   const [description, setDescription] = useState("");
   const [tryWillingness, setTryWillingness] = useState("");
+  const [components, setComponents] = useState<string[]>(["본체"]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
@@ -71,7 +73,7 @@ export default function NewListingPage() {
       body: JSON.stringify({
         modelId: isCustom ? "" : modelId,
         customModel: isCustom ? { brand: customBrand, modelName: customModelName, category: customCategory } : undefined,
-        title, price: price.replace(/,/g, ""), conditionGrade, description, tryWillingness,
+        title, price: price.replace(/,/g, ""), conditionGrade, description, tryWillingness, components,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -173,9 +175,11 @@ export default function NewListingPage() {
           </div>
         </fieldset>
 
+        <ComponentPicker value={components} onChange={setComponents} />
+
         <label className="field">
           <span>설명</span>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="사용 기간, 흠집, 배터리 상태, 구성품을 적어 주세요" rows={5} maxLength={2000} required />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="사용 기간, 흠집, 배터리 상태를 적어 주세요" rows={5} maxLength={2000} required />
         </label>
 
         <fieldset className="try-question">
