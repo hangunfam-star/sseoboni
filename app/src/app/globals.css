@@ -898,3 +898,35 @@ input, textarea { caret-color: var(--w-ink); }
 .page { grid-template-columns: minmax(0, 1fr); }
 /* 카드 써보기 표시는 사진 왼쪽 아래(등급 표시와 겹치지 않게, 긴 문구도 들어가게) */
 .product-card .try-badge { right: auto; top: auto; left: 8px; bottom: 8px; max-width: calc(100% - 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── 2026-10-08 써보기 예상 비용(검증용) ── */
+.trial-cost { display: grid; gap: 12px; }
+.trial-cost__toggle { min-height: 48px; border: 1.5px solid rgba(255, 255, 255, 0.5); border-radius: 999px; background: transparent; color: #fff; font-size: 15px; font-weight: 700; }
+.trial-cost__body { display: grid; gap: 12px; padding: 16px; border-radius: 18px; background: #fff; color: var(--w-ink); }
+.trial-cost__body .trial-cost__tag { justify-self: start; padding: 4px 10px; border-radius: 999px; background: var(--w-surface); font-size: 12px; font-weight: 700; color: #b8432f; }
+.trial-cost__hours { border: 0; display: grid; gap: 6px; }
+.trial-cost__hours legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.trial-cost__hours div { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.trial-cost__hours button { min-height: 44px; border: 1px solid var(--w-chip-line); border-radius: 12px; background: var(--w-bg); font-size: 14px; font-weight: 600; }
+.trial-cost__hours button[aria-pressed="true"] { background: var(--w-ink); border-color: var(--w-ink); color: #fff; }
+.trial-cost__table { display: grid; gap: 0; border-radius: 14px; background: var(--w-surface); }
+.trial-cost__table div { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; font-size: 14px; }
+.trial-cost__table div + div { border-top: 1px solid var(--w-divider); }
+.trial-cost__table dt small { margin-left: 6px; color: var(--w-sub); font-size: 12px; }
+.trial-cost__table dd { font-weight: 700; white-space: nowrap; }
+.trial-cost__result { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.trial-cost__result div { display: grid; gap: 3px; padding: 12px; border-radius: 14px; border: 1px solid var(--w-chip-line); }
+.trial-cost__result small { font-size: 12px; color: var(--w-sub); word-break: keep-all; }
+.trial-cost__result strong { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.trial-cost__body .trial-cost__note { font-size: 12px; line-height: 1.5; color: var(--w-sub); word-break: keep-all; }
+.trial-cost__actions { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px; }
+.trial-cost__actions button { min-height: 50px; border: 0; border-radius: 999px; font-size: 15px; font-weight: 700; }
+.trial-cost__yes { background: var(--w-ink); color: #fff; }
+.trial-cost__no { background: var(--w-surface); color: var(--w-ink); }
+.trial-cost__body .trial-cost__notice { padding: 10px 12px; border-radius: 12px; background: var(--w-surface); font-size: 13px; color: var(--w-ink); }
+
+.pricing-details { border-radius: 16px; background: var(--w-surface); padding: 4px 14px; }
+.pricing-details summary { min-height: 48px; display: flex; align-items: center; font-weight: 700; cursor: pointer; }
+.pricing-form { display: grid; gap: 12px; padding-bottom: 14px; }
+.pricing-form .field input { background: var(--w-bg); }
+.pricing-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

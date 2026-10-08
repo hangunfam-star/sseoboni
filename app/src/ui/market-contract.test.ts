@@ -117,3 +117,15 @@ test("운영자 결과·CSV는 운영자 쿠키가 있어야 보이고, CSV는 �
   assert.match(admin, /timingSafeEqual/);
   assert.match(admin, /httpOnly: true/);
 });
+
+test("써보기 예상 비용은 결제·신청 없이 반응만 기록하고, 가격안 변경은 운영자만 한다", () => {
+  const api = read("src/app/api/trial-cost/route.ts");
+  assert.match(api, /TRIAL_COST_VIEW/);
+  assert.match(api, /STILL_TRY_CLICK/);
+  assert.match(api, /computeTrialCost\(listing\.price/);
+  assert.doesNotMatch(api, /trialEnabled|insert\(listings\)|payment/i);
+  const sheet = read("src/components/TrialCostSheet.tsx");
+  assert.match(sheet, /검증용 예상 금액 · 확정 전 · 결제 없음/);
+  assert.doesNotMatch(sheet, /결제하기|신청하기/);
+  assert.match(read("src/app/api/admin/pricing/route.ts"), /await isAdmin\(\)/);
+});

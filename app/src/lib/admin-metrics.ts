@@ -115,3 +115,16 @@ export function eventRows(): Record<string, string | number | null>[] {
     left join users u on u.id = e.user_id
     order by e.created_at`);
 }
+
+export type CostReaction = { version: string; viewers: number; anonViews: number; stillTry: number; decline: number };
+
+// return: 가격안(version)별 써보기 비용 반응. 사람 수는 중복 제거, 비로그인 조회는 건수로 따로 센다.
+export function costReactions(): CostReaction[] {
+  return db.all<CostReaction>(sql`select coalesce(json_extract(metadata, '$.pricingVersion'), '미확인') as version,
+    count(distinct case when event_type = 'TRIAL_COST_VIEW' then user_id end) as viewers,
+    sum(case when event_type = 'TRIAL_COST_VIEW' and user_id is null then 1 else 0 end) as anonViews,
+    count(distinct case when event_type = 'STILL_TRY_CLICK' then user_id end) as stillTry,
+    count(distinct case when event_type = 'TRIAL_COST_DECLINE' then user_id end) as decline
+    from market_validation_events where event_type in ('TRIAL_COST_VIEW','STILL_TRY_CLICK','TRIAL_COST_DECLINE')
+    group by version order by min(created_at) desc`);
+}

@@ -10,6 +10,8 @@ import { IntentActionBar } from "@/components/IntentActionBar";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { TryFlow } from "@/components/TryFlow";
+import { TrialCostSheet } from "@/components/TrialCostSheet";
+import { loadTrialPricing } from "@/lib/trial-pricing-store";
 import { photosFor } from "@/lib/photos";
 import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel } from "@/ui/presentation";
 
@@ -65,6 +67,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     .select({ tryWanters: sql<number>`count(distinct ${marketValidationEvents.userId})` })
     .from(marketValidationEvents)
     .where(and(eq(marketValidationEvents.listingId, id), eq(marketValidationEvents.eventType, "CLICK_TRY_WANT")));
+  const pricing = await loadTrialPricing();
   const sellerTryText = {
     SELLER_TRY_YES: "판매자가 써보기를 허용했어요",
     SELLER_TRY_CONDITIONAL: "판매자가 조건부로 써보기를 허용했어요",
@@ -121,6 +124,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <li>{tryWantLabel(tryWanters) ?? "아직 써보고 싶다는 사람이 없어요. 첫 의견을 남겨 주세요"}</li>
           </ul>
           <p>아래 ‘써보고 싶어요’를 누르면 의견만 기록돼요. 결제와 배송은 일어나지 않아요.</p>
+          {!isOwner && listing.status === "ACTIVE" && sellerTry[0]?.eventType !== "SELLER_TRY_NO" && (
+            <TrialCostSheet listingId={id} price={listing.price} pricing={pricing} conditional={sellerTry[0]?.eventType === "SELLER_TRY_CONDITIONAL"} />
+          )}
         </section>
         {components.length > 0 && (
           <section className="listing-section">

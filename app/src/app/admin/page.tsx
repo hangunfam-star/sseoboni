@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { adminConfigured, isAdmin } from "@/lib/admin";
-import { categoryStats, feedbackReasons, listingStats, recentFeedback, totals } from "@/lib/admin-metrics";
+import { categoryStats, costReactions, feedbackReasons, listingStats, recentFeedback, totals } from "@/lib/admin-metrics";
+import { loadTrialPricing } from "@/lib/trial-pricing-store";
+import { computeTrialCost } from "@/ui/trial-pricing";
+import { PricingForm } from "./PricingForm";
 import { formatWon, relativeTime } from "@/ui/presentation";
 import { AdminLogin, AdminLogout } from "./AdminControls";
 
@@ -34,6 +37,9 @@ export default async function AdminPage() {
   const reasons = feedbackReasons();
   const feedback = recentFeedback(30);
   const intents = t.tryWant + t.buyWant;
+  const pricing = await loadTrialPricing();
+  const reactions = costReactions();
+  const SAMPLE_PRICES = [150000, 500000, 1000000];
 
   return (
     <div className="page admin-page">
@@ -57,6 +63,47 @@ export default async function AdminPage() {
           <div><small>의견</small><strong>{t.feedbacks}</strong></div>
         </div>
         <a className="secondary-button admin-export" href="/api/admin/export">전체 기록 CSV 내려받기</a>
+      </section>
+
+      <section aria-labelledby="price-title">
+        <h2 className="section-title" id="price-title">써보기 가격 가설 · 비용 반응</h2>
+        <p className="field-hint">마스터 기획 §8 써보기 비용은 아직 가설(HYPOTHESIS·VALIDATE_FIRST)이에요. 구매자 화면에는 &quot;검증용 예상 금액 · 확정 전 · 결제 없음&quot;으로 보여요. 지금 가격안: <b>{pricing.version}</b></p>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>상품 가격</th>{pricing.hours.map((h) => <th key={h}>{h}시간 체험비</th>)}<th>{pricing.hours.at(-1)}시간 사면</th><th>{pricing.hours.at(-1)}시간 돌려보내면</th></tr></thead>
+            <tbody>
+              {SAMPLE_PRICES.map((p) => {
+                const last = computeTrialCost(p, pricing.hours.at(-1)!, pricing);
+                return (
+                  <tr key={p}>
+                    <th scope="row">{formatWon(p)}</th>
+                    {pricing.hours.map((h) => <td key={h}>{formatWon(computeTrialCost(p, h, pricing).optionFee)}</td>)}
+                    <td>{formatWon(last.purchaseTotal ?? last.purchaseWithoutShipping)}{last.purchaseTotal === null ? " + 배송" : ""}</td>
+                    <td>{formatWon(last.returnTotal ?? last.returnWithoutShipping)}{last.returnTotal === null ? " + 왕복 배송" : ""}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>가격안</th><th>비용 본 사람</th><th>비로그인 조회</th><th>그래도 써볼래요</th><th>부담돼요</th><th>써볼래요 비율</th></tr></thead>
+            <tbody>
+              {reactions.length === 0 && <tr><td colSpan={6}>데이터 없음</td></tr>}
+              {reactions.map((r) => (
+                <tr key={r.version}>
+                  <th scope="row">{r.version}</th><td>{r.viewers}</td><td>{r.anonViews}</td><td>{r.stillTry}</td><td>{r.decline}</td>
+                  <td>{pct(r.stillTry, r.stillTry + r.decline)}{r.stillTry + r.decline < SMALL_SAMPLE ? " · 표본 적음" : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <details className="pricing-details">
+          <summary>가격안 바꾸기</summary>
+          <PricingForm current={pricing} />
+        </details>
       </section>
 
       <section aria-labelledby="cat-title">
