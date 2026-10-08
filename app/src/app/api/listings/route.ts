@@ -8,9 +8,8 @@ import { eq, like, and, desc } from "drizzle-orm";
 import { saveTrialTermsTx } from "@/lib/trial-terms";
 import { parseTrialTerms } from "@/ui/trial-pricing";
 import { feePctNow } from "@/lib/platform-fee-store";
+import { PRICE_MAX, PRICE_MIN } from "@/ui/listing-price";
 
-const PRICE_MIN = 1000;
-const PRICE_MAX = 100_000_000;
 const TRY_EVENT = { YES: "SELLER_TRY_YES", CONDITIONAL: "SELLER_TRY_CONDITIONAL", NO: "SELLER_TRY_NO" } as const;
 
 // GET /api/listings?q=검색어&modelId=... — 리스트·검색 (P0 필수)

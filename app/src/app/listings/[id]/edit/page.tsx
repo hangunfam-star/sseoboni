@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ComponentPicker } from "@/components/ComponentPicker";
 import { EMPTY_TERMS, TrialTermsFields, termsPayload, type TermsDraft } from "@/components/TrialTermsFields";
 import { photoUrl } from "@/lib/photo-url";
+import { priceProblem } from "@/ui/listing-price";
 import { CONDITION_GRADES, conditionLabel } from "@/ui/presentation";
 
 const MAX_PHOTOS = 5;
@@ -95,6 +96,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (priceProblem(price)) { setError(priceProblem(price)); return; }
     setError(null);
     setBusy(true);
     const res = await fetch(`/api/listings/${id}`, {
@@ -160,6 +162,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             <input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))} required />
             <b>원</b>
           </div>
+          {priceProblem(price) ? <small className="form-error" role="alert">{priceProblem(price)}</small> : <small className="field-hint">1,000원 이상만 올릴 수 있어요.</small>}
         </label>
         <fieldset className="field">
           <legend>상태</legend>
@@ -185,7 +188,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} feePct={feePct} />}
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="dark-button" type="submit" disabled={busy}>{busy ? "저장 중…" : "저장하기"}</button>
+        <button className="dark-button" type="submit" disabled={busy || priceProblem(price) !== null}>{busy ? "저장 중…" : "저장하기"}</button>
       </form>
     </div>
   );

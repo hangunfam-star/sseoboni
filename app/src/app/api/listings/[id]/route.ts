@@ -7,6 +7,7 @@ import { parseTrialTerms, platformFee, type TrialTerms } from "@/ui/trial-pricin
 import { feePctNow } from "@/lib/platform-fee-store";
 import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
+import { PRICE_MAX, PRICE_MIN } from "@/ui/listing-price";
 import { getCurrentUserId } from "@/lib/session";
 import { and, desc, eq, sql } from "drizzle-orm";
 
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if ("price" in body) {
     const price = Number(body.price);
-    if (body.price === "" || !Number.isSafeInteger(price) || price < 1000 || price > 100_000_000) {
+    if (body.price === "" || !Number.isSafeInteger(price) || price < PRICE_MIN || price > PRICE_MAX) {
       return NextResponse.json({ error: "가격은 1,000원 이상 1억 원 이하 정수로 입력하세요." }, { status: 400 });
     }
     set.price = price;

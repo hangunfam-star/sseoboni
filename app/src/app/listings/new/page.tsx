@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { priceProblem } from "@/ui/listing-price";
 import { CONDITION_GRADES, conditionLabel, demandLabel } from "@/ui/presentation";
 import { SELL_CATEGORIES } from "@/ui/categories";
 import { ComponentPicker } from "@/components/ComponentPicker";
@@ -68,6 +69,7 @@ export default function NewListingPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (pending) return;
+    if (priceProblem(price)) { setError(priceProblem(price)); return; }
     setError(null);
     setPending(true);
     const res = await fetch("/api/listings", {
@@ -168,6 +170,7 @@ export default function NewListingPage() {
             <input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))} placeholder="0" required />
             <b>원</b>
           </div>
+          {priceProblem(price) ? <small className="form-error" role="alert">{priceProblem(price)}</small> : <small className="field-hint">1,000원 이상만 올릴 수 있어요.</small>}
         </label>
 
         <fieldset className="field">
@@ -198,7 +201,7 @@ export default function NewListingPage() {
         </fieldset>
 
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="dark-button" type="submit" disabled={pending}>{pending ? "등록 중…" : "등록하기"}</button>
+        <button className="dark-button" type="submit" disabled={pending || priceProblem(price) !== null}>{pending ? "등록 중…" : "등록하기"}</button>
       </form>
     </div>
   );
