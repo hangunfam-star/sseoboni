@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { formatWon } from "@/ui/presentation";
-import { TRIAL_HOURS, computeTrialCost, recommendDailyFee, type TrialTerms } from "@/ui/trial-pricing";
+import { TRIAL_HOURS, platformFee, recommendTierFee, type TrialTerms } from "@/ui/trial-pricing";
 
 export type MyProposal = { id: string; hours: number; offerFee: number; status: string; sellerReply: string | null } | null;
 
@@ -17,19 +17,19 @@ const STATUS_TEXT: Record<string, string> = {
 
 // param: listingId 상품, price 상품가, terms 판매자 조건(없으면 null), sellerNo 판매자가 '바로 판매만'이면 true, mine 내 최근 제안, onClose 닫기
 // return: 써보기 제안 시트(기간·체험비·한마디 → 제안 보내기, 보낸 제안 상태·취소). 결제는 없다.
-export function ProposalSheet({ listingId, price, terms, sellerNo, mine, onClose }: {
-  listingId: string; price: number; terms: TrialTerms | null; sellerNo: boolean; mine: MyProposal; onClose: () => void;
+export function ProposalSheet({ listingId, price, terms, sellerNo, mine, feePct, onClose }: {
+  listingId: string; price: number; terms: TrialTerms | null; sellerNo: boolean; mine: MyProposal; feePct: number; onClose: () => void;
 }) {
   const [current, setCurrent] = useState<MyProposal>(mine);
-  const [hours, setHours] = useState<number>(terms?.hours.includes(48) ? 48 : terms?.hours[0] ?? 48);
+  const [hours, setHours] = useState<number>(terms?.tiers.some((t) => t.hours === 48) ? 48 : terms?.tiers[0]?.hours ?? 48);
   const [fee, setFee] = useState("");
   const [message, setMessage] = useState("");
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, setPending] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
-  const days = Math.ceil(hours / 24);
-  const recommended = recommendDailyFee(price) * days;
-  const sellerFee = terms && terms.hours.includes(hours) ? computeTrialCost(price, hours, terms).optionFee : null;
+  const recommended = recommendTierFee(price, hours);
+  const sellerFee = terms?.tiers.find((t) => t.hours === hours)?.fee ?? null;
+  const platformCharge = platformFee(price, feePct);
   const showForm = !current || current.status !== "PENDING";
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, onClose
                 <b>원</b>
               </div>
               <small className="field-hint">
-                {sellerFee !== null ? `판매자 조건 ${formatWon(sellerFee)} · ` : ""}참고 금액 {formatWon(recommended)}(상품 가격의 약 0.7% × {days}일)
+                {sellerFee !== null ? `판매자 조건 ${formatWon(sellerFee)} · ` : ""}참고 금액 {formatWon(recommended)} · 수수료 {feePct}%({formatWon(platformCharge)})는 따로 붙어요
               </small>
             </label>
             <label className="field">

@@ -1,17 +1,17 @@
 "use client";
 
 import { formatWon } from "@/ui/presentation";
-import { TRIAL_HOURS, computeTrialCost, recommendDailyFee } from "@/ui/trial-pricing";
+import { TRIAL_HOURS, recommendTierFee } from "@/ui/trial-pricing";
 
-export type TermsDraft = { hours: number[]; dailyFee: string; shippingOneWay: string; conditionNote: string };
+// fees: 구간(시간) → 입력 중인 체험비 문자열. 고른 구간만 보낸다.
+export type TermsDraft = { hours: number[]; fees: Record<number, string>; shippingOneWay: string; conditionNote: string };
 
-export const EMPTY_TERMS: TermsDraft = { hours: [48], dailyFee: "", shippingOneWay: "", conditionNote: "" };
+export const EMPTY_TERMS: TermsDraft = { hours: [24, 48, 72], fees: {}, shippingOneWay: "", conditionNote: "" };
 
 // param: d 입력 중인 조건. return: API로 보낼 값(숫자 변환)
 export function termsPayload(d: TermsDraft) {
   return {
-    hours: d.hours,
-    dailyFee: d.dailyFee === "" ? NaN : Number(d.dailyFee),
+    tiers: [...d.hours].sort((a, b) => a - b).map((h) => ({ hours: h, fee: d.fees[h] === undefined || d.fees[h] === "" ? NaN : Number(d.fees[h]) })),
     shippingOneWay: d.shippingOneWay === "" ? null : Number(d.shippingOneWay),
     conditionNote: d.conditionNote,
   };
@@ -19,25 +19,27 @@ export function termsPayload(d: TermsDraft) {
 
 const digits = (v: string) => v.replace(/[^0-9]/g, "");
 
-// param: value 입력 중인 조건, onChange 바뀐 값, price 상품 가격(원, 아직 없으면 0)
-// return: 판매자가 정하는 써보기 조건 입력칸(기간·하루 체험비·사면 돌려줄 비율·배송비·추가 조건)과 구매자에게 보일 금액 미리보기
-export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft; onChange: (v: TermsDraft) => void; price: number }) {
+// param: value 입력 중인 조건, onChange 바뀐 값, price 상품 가격(원, 아직 없으면 0), feePct 지금 수수료율(%)
+// return: 판매자가 정하는 써보기 조건 입력칸(구간별 체험비·배송비·추가 조건)과 구매자에게 보일 금액 미리보기
+export function TrialTermsFields({ value, onChange, price, feePct }: { value: TermsDraft; onChange: (v: TermsDraft) => void; price: number; feePct: number }) {
   const set = (patch: Partial<TermsDraft>) => onChange({ ...value, ...patch });
-  const recommended = price > 0 ? recommendDailyFee(price) : null;
-  const fee = value.dailyFee === "" ? null : Number(value.dailyFee);
-  const longest = value.hours.length > 0 ? Math.max(...value.hours) : null;
-  const preview = price > 0 && fee !== null && longest !== null
-    ? computeTrialCost(price, longest, { hours: value.hours, dailyFee: fee, shippingOneWay: value.shippingOneWay === "" ? null : Number(value.shippingOneWay), conditionNote: null })
-    : null;
+  const fee = price > 0 ? Math.round((price * feePct) / 100) : null;
 
   function toggleHour(h: number) {
     const next = value.hours.includes(h) ? value.hours.filter((x) => x !== h) : [...value.hours, h].sort((a, b) => a - b);
     set({ hours: next });
   }
 
+  function fillRecommended() {
+    if (price <= 0) return;
+    const fees = { ...value.fees };
+    for (const h of value.hours) fees[h] = String(recommendTierFee(price, h));
+    set({ fees });
+  }
+
   return (
     <div className="trial-terms">
-      <p className="trial-terms__title">써보기 조건 <small>써보고 사면 체험비 0원, 사지 않고 돌려보내면 체험비를 받아요</small></p>
+      <p className="trial-terms__title">써보기 조건 <small>써보고 사면 체험비 0원, 돌려보내면 체험비를 받아요. 정한 구간을 넘기면 다음 구간 요금이에요.</small></p>
       <fieldset className="field">
         <legend>써보게 할 기간 <small>(여러 개 고를 수 있어요)</small></legend>
         <div className="segmented">
@@ -46,18 +48,25 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
           ))}
         </div>
       </fieldset>
-      <label className="field">
-        <span>하루 체험비 <small>(돌려보낼 때만 받아요)</small></span>
-        <div className="price-input">
-          <input inputMode="numeric" value={value.dailyFee} onChange={(e) => set({ dailyFee: digits(e.target.value) })} placeholder={recommended ? String(recommended) : "0"} aria-describedby="fee-hint" />
-          <b>원</b>
+      <fieldset className="field">
+        <legend>구간별 체험비 <small>(돌려보낼 때만 받아요)</small></legend>
+        <div className="tier-fees">
+          {[...value.hours].sort((a, b) => a - b).map((h) => (
+            <label key={h} className="tier-fees__row">
+              <span>{h}시간</span>
+              <div className="price-input">
+                <input inputMode="numeric" value={value.fees[h] ?? ""} onChange={(e) => set({ fees: { ...value.fees, [h]: digits(e.target.value) } })} placeholder={price > 0 ? String(recommendTierFee(price, h)) : "0"} aria-label={`${h}시간 체험비`} />
+                <b>원</b>
+              </div>
+            </label>
+          ))}
         </div>
-        <small className="field-hint" id="fee-hint">
-          {recommended
-            ? <>추천 {formatWon(recommended)}(상품 가격의 약 0.7%) · <button type="button" className="link-button" onClick={() => set({ dailyFee: String(recommended) })}>추천 금액 넣기</button></>
+        <small className="field-hint">
+          {price > 0
+            ? <>추천: 하루 상품 가격의 약 0.7% · <button type="button" className="link-button" onClick={fillRecommended}>추천 금액 넣기</button></>
             : "가격을 먼저 입력하면 추천 금액을 보여 드려요."}
         </small>
-      </label>
+      </fieldset>
       <label className="field">
         <span>편도 배송비 <small>(모르면 비워 두세요)</small></span>
         <div className="price-input">
@@ -69,9 +78,10 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
         <span>추가 조건 <small>(선택)</small></span>
         <input value={value.conditionNote} onChange={(e) => set({ conditionNote: e.target.value })} maxLength={100} placeholder="예: 흠집이 생기면 수리비는 구매자 부담" />
       </label>
-      {preview && (
+      {fee !== null && (
         <p className="trial-terms__preview">
-          {preview.hours}시간 써보고 돌려보내면 <b>{formatWon(preview.returnTotal ?? preview.returnWithoutShipping)}</b>{preview.returnTotal === null ? "(왕복 배송비 별도)" : ""}을 받아요 · 써보고 사면 체험비 0원, 상품 가격 <b>{formatWon(preview.purchaseTotal ?? preview.purchaseWithoutShipping)}</b>{preview.purchaseTotal === null ? "(배송비 별도)" : ""}
+          구매자는 상품 가격을 미리 결제해요. 써보고 사면 체험비 0원(수수료 {feePct}% {formatWon(fee)}는 구매자 부담), 돌려보내면 체험비 + 수수료를 빼고 환불돼요.
+          {value.hours.some((h) => value.fees[h]) && <> 예: {[...value.hours].sort((a, b) => a - b).filter((h) => value.fees[h]).map((h) => `${h}시간 ${formatWon(Number(value.fees[h]))}`).join(" · ")}</>}
         </p>
       )}
     </div>

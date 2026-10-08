@@ -5,6 +5,7 @@ import { listings, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { getTrialTerms } from "@/lib/trial-terms";
 import { computeTrialCost } from "@/ui/trial-pricing";
+import { feePctNow } from "@/lib/platform-fee-store";
 
 // POST /api/trial-cost { listingId, action: VIEW | STILL_TRY | DECLINE, hours }
 // 판매자 조건으로 계산한 예상 비용을 본 것·"이 조건으로 써볼래요"·"부담돼요"를 기록한다(§59). 결제·신청은 없다.
@@ -27,9 +28,10 @@ export async function POST(req: NextRequest) {
 
   const terms = await getTrialTerms(listingId);
   if (!terms) return NextResponse.json({ error: "판매자가 써보기 조건을 정하지 않았어요." }, { status: 409 });
-  if (!terms.hours.includes(hours)) return NextResponse.json({ error: "써보기 기간이 올바르지 않습니다." }, { status: 400 });
+  if (!terms.tiers.some((t) => t.hours === hours)) return NextResponse.json({ error: "써보기 기간이 올바르지 않습니다." }, { status: 400 });
 
-  const cost = computeTrialCost(listing.price, hours, terms);
+  const feePct = await feePctNow();
+  const cost = computeTrialCost(listing.price, hours, terms, feePct);
   const eventType = EVENT[action as keyof typeof EVENT];
   // 같은 사람이 같은 상품의 비용을 30분 안에 다시 보면 한 번으로 센다.
   if (action === "VIEW" && userId) {
@@ -41,8 +43,8 @@ export async function POST(req: NextRequest) {
   await db.insert(marketValidationEvents).values({
     eventType, listingId, modelId: listing.modelId, userId,
     metadata: JSON.stringify({
-      hours, price: listing.price, dailyFee: terms.dailyFee, optionFee: cost.optionFee, purchaseFee: 0,
-      shippingOneWay: cost.shippingOneWay, purchaseTotal: cost.purchaseTotal, returnTotal: cost.returnTotal, source: "SELLER_TERMS",
+      hours, price: listing.price, tierFee: cost.tierFee, feePct, fee: cost.fee, purchaseTotal: cost.purchaseTotal, refund: cost.refund,
+      shippingOneWay: cost.shippingOneWay, tiers: terms.tiers, source: "SELLER_TERMS",
     }),
   });
   return NextResponse.json({ ok: true }, { status: 201 });

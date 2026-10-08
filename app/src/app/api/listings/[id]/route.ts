@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
-import { listings, listingTrialTerms, productModels, listingComponents, marketValidationEvents } from "@/db/schema";
+import { listings, productModels, listingComponents, marketValidationEvents } from "@/db/schema";
 import { parseComponents } from "@/lib/models";
-import { deleteTrialTermsTx, getTrialTerms, saveTrialTermsTx } from "@/lib/trial-terms";
+import { deleteTrialTermsTx, getTrialTerms, maxTierFeeTx, saveTrialTermsTx } from "@/lib/trial-terms";
 import { parseTrialTerms, type TrialTerms } from "@/ui/trial-pricing";
 import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
@@ -89,17 +89,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .where(and(eq(marketValidationEvents.listingId, id), sql`${marketValidationEvents.eventType} like 'SELLER_TRY_%'`))
       .orderBy(desc(marketValidationEvents.createdAt), sql`rowid desc`).limit(1).get()?.t;
     const effective = tryWillingness || (latest ? latest.replace("SELLER_TRY_", "") : "");
-    const existing = tx.select({ dailyFee: listingTrialTerms.dailyFee }).from(listingTrialTerms).where(eq(listingTrialTerms.listingId, id)).get();
+    const existingMax = maxTierFeeTx(tx, id);
     const newPrice = set.price ?? listing.price;
     let terms: TrialTerms | null = null;
     if (effective !== "NO" && termsInput !== undefined) {
       const t = parseTrialTerms(termsInput, newPrice);
       if (typeof t === "string") return { error: t };
       terms = t;
-    } else if (effective !== "NO" && existing && set.price !== undefined && existing.dailyFee > Math.min(newPrice, 1_000_000)) {
+    } else if (effective !== "NO" && existingMax !== null && set.price !== undefined && existingMax > Math.min(newPrice, 1_000_000)) {
       return { error: "가격을 낮추면 하루 체험비도 새 가격 이하로 고쳐 주세요." };
     }
-    if (effective === "YES" && !terms && !existing) return { error: "써보기 조건을 입력해 주세요." };
+    if (effective === "YES" && !terms && existingMax === null) return { error: "써보기 조건을 입력해 주세요." };
 
     const row = Object.keys(set).length > 0
       ? tx.update(listings).set(set).where(eq(listings.id, id)).returning().get()

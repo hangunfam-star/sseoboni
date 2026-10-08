@@ -1,0 +1,1 @@
+ALTER TABLE `listing_trial_terms` ADD `tier_fees` text;

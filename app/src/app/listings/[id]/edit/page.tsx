@@ -35,11 +35,13 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [tryWillingness, setTryWillingness] = useState("");
   const [savedTry, setSavedTry] = useState("");
   const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
+  const [feePct, setFeePct] = useState(3);
   const [photos, setPhotos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    fetch("/api/platform-fee").then((r) => r.json()).then((d) => { if (typeof d.pct === "number") setFeePct(d.pct); }).catch(() => undefined);
     fetch(`/api/listings/${id}`).then(async (r) => {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { setLoadError(d.error ?? "상품을 불러오지 못했어요."); return; }
@@ -54,8 +56,9 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
       setTryWillingness(d.tryWillingness ?? "");
       setSavedTry(d.tryWillingness ?? "");
       if (d.trialTerms) {
+        const tiers: { hours: number; fee: number }[] = d.trialTerms.tiers;
         setTerms({
-          hours: d.trialTerms.hours, dailyFee: String(d.trialTerms.dailyFee),
+          hours: tiers.map((t) => t.hours), fees: Object.fromEntries(tiers.map((t) => [t.hours, String(t.fee)])),
           shippingOneWay: d.trialTerms.shippingOneWay === null ? "" : String(d.trialTerms.shippingOneWay), conditionNote: d.trialTerms.conditionNote ?? "",
         });
       }
@@ -179,7 +182,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
               <button key={o.value} type="button" aria-pressed={tryWillingness === o.value} onClick={() => setTryWillingness(o.value)}>{o.label}</button>
             ))}
           </div>
-          {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} />}
+          {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} feePct={feePct} />}
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="dark-button" type="submit" disabled={busy}>{busy ? "저장 중…" : "저장하기"}</button>

@@ -974,3 +974,11 @@ input, textarea { caret-color: var(--w-ink); }
 /* 조건·제안의 기간/돌려주기 선택은 한 줄에 나란히 */
 .trial-terms .segmented, .proposal-form .segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .trial-terms .segmented button, .proposal-form .segmented button { min-height: 44px; padding: 0 4px; font-size: 14px; word-break: keep-all; }
+
+.tier-fees { display: grid; gap: 8px; }
+.tier-fees__row { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 10px; font-weight: 600; }
+.trial-cost__hours button small { display: block; font-size: 12px; font-weight: 500; opacity: 0.8; }
+.trial-cost__hours button { min-height: 56px; }
+.fee-now { display: grid; gap: 8px; padding: 12px 14px; border-radius: 16px; background: var(--w-surface); font-size: 14px; }
+.fee-promo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; border-radius: 12px; background: var(--w-bg); }
+.fee-promo input { min-height: 44px; padding: 0 10px; border: 1px solid var(--w-chip-line); border-radius: 10px; min-width: 0; }

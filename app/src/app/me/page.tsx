@@ -4,7 +4,6 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categories, demandIntents, listings, productModels, trialProposals, users, wishlists } from "@/db/schema";
 import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
-import { computeTrialCost } from "@/ui/trial-pricing";
 import { ProposalActions } from "./ProposalActions";
 import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
@@ -78,7 +77,7 @@ export default async function MyPage() {
           <ul className="proposal-list">
             {received.map((r) => {
               const t = sellerTerms.get(r.listingId);
-              const mineFee = t && t.hours.includes(r.hours) ? computeTrialCost(r.price, r.hours, t).optionFee : null;
+              const mineFee = t?.tiers.find((x) => x.hours === r.hours)?.fee ?? null;
               return (
                 <li key={r.id} className="proposal-card">
                   <small><Link href={`/listings/${r.listingId}`}>{r.title}</Link> · {r.buyer ?? "구매자"} · {relativeTime(r.createdAt)}</small>

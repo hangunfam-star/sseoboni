@@ -14,7 +14,7 @@ import { TrialCostSheet } from "@/components/TrialCostSheet";
 import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { photosFor } from "@/lib/photos";
 import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel } from "@/ui/presentation";
-import { computeTrialCost } from "@/ui/trial-pricing";
+import { feePctNow } from "@/lib/platform-fee-store";
 
 function BackButton() {
   return (
@@ -69,9 +69,10 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     .from(marketValidationEvents)
     .where(and(eq(marketValidationEvents.listingId, id), eq(marketValidationEvents.eventType, "CLICK_TRY_WANT")));
   const terms = await getTrialTerms(id);
+  const feePct = await feePctNow();
   const sellerNo = sellerTry[0]?.eventType === "SELLER_TRY_NO";
   const termsSummary = terms
-    ? `${terms.hours.join("·")}시간 · 하루 ${formatWon(terms.dailyFee)}${terms.hours.includes(48) ? ` (48시간 ${formatWon(computeTrialCost(listing.price, 48, terms).optionFee)})` : ""}`
+    ? terms.tiers.map((t) => `${t.hours}시간 ${formatWon(t.fee)}`).join(" · ")
     : null;
   const sellerTryText = sellerNo
     ? "판매자는 바로 판매를 원해요 · 써보기 제안은 받아요"
@@ -138,7 +139,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           </ul>
           <p>아래 ‘써보고 싶어요’를 누르면 원하는 기간과 체험비를 판매자에게 제안할 수 있어요. 결제와 배송은 아직 일어나지 않아요.</p>
           {!isOwner && listing.status === "ACTIVE" && !sellerNo && terms && (
-            <TrialCostSheet listingId={id} price={listing.price} terms={terms} />
+            <TrialCostSheet listingId={id} price={listing.price} terms={terms} feePct={feePct} />
           )}
           {isOwner && pendingCount > 0 && <Link className="trial-cost__toggle owner-proposals" href="/me#proposals">받은 써보기 제안 {pendingCount}개 보기</Link>}
         </section>
@@ -159,7 +160,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         {seekers && <p className="listing-stats">{seekers}</p>}
       </div>
       {!isOwner && listing.status === "ACTIVE" && (
-        <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} />
+        <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct} />
       )}
       {isOwner && (
         <div className="owner-bar"><strong>{formatWon(listing.price)}</strong><Link className="secondary-button" href={`/listings/${id}/edit`}>수정</Link><Link className="secondary-button" href="/me">내 상품 관리</Link></div>

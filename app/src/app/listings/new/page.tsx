@@ -30,6 +30,7 @@ export default function NewListingPage() {
   const [description, setDescription] = useState("");
   const [tryWillingness, setTryWillingness] = useState("");
   const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
+  const [feePct, setFeePct] = useState(3);
   const [components, setComponents] = useState<string[]>(["본체"]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -38,6 +39,7 @@ export default function NewListingPage() {
 
   useEffect(() => {
     fetch("/api/models").then((r) => r.json()).then((d) => setModels(d.models ?? []));
+    fetch("/api/platform-fee").then((r) => r.json()).then((d) => { if (typeof d.pct === "number") setFeePct(d.pct); }).catch(() => undefined);
   }, []);
 
   const isCustom = modelId === CUSTOM;
@@ -192,7 +194,7 @@ export default function NewListingPage() {
               <button key={o.value} type="button" aria-pressed={tryWillingness === o.value} onClick={() => setTryWillingness(o.value)}>{o.label}</button>
             ))}
           </div>
-          {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} />}
+          {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} feePct={feePct} />}
         </fieldset>
 
         {error && <p className="form-error" role="alert">{error}</p>}

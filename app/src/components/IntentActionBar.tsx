@@ -8,7 +8,7 @@ import type { TrialTerms } from "@/ui/trial-pricing";
 type Kind = "TRY" | "BUY";
 
 // 상세 하단 가격 바. '써보고 싶어요'는 의향을 기록하고 써보기 제안 시트를 연다. '사고 싶어요'는 의향만 기록한다. 결제는 없다.
-export function IntentActionBar({ listingId, wished, priceLabel, initial, price, terms, sellerNo, mine }: {
+export function IntentActionBar({ listingId, wished, priceLabel, initial, price, terms, sellerNo, mine, feePct }: {
   listingId: string;
   wished: boolean;
   priceLabel: string;
@@ -17,6 +17,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial, price,
   terms: TrialTerms | null;
   sellerNo: boolean;
   mine: MyProposal;
+  feePct: number;
 }) {
   const [done, setDone] = useState(initial);
   const [sheet, setSheet] = useState(false);
@@ -48,7 +49,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial, price,
 
   return (
     <>
-    {sheet && <ProposalSheet listingId={listingId} price={price} terms={terms} sellerNo={sellerNo} mine={mine} onClose={() => setSheet(false)} />}
+    {sheet && <ProposalSheet listingId={listingId} price={price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct} onClose={() => setSheet(false)} />}
     <div className="intent-action-bar" aria-label="상품 행동">
       {notice && <p className="intent-notice" role="status">{notice}</p>}
       <div className="intent-action-bar__row">

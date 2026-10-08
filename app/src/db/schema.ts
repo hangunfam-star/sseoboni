@@ -99,7 +99,8 @@ export const listingPhotos = sqliteTable("listing_photos", {
 export const listingTrialTerms = sqliteTable("listing_trial_terms", {
   listingId: text("listing_id").primaryKey().references(() => listings.id),
   hours: text("hours").notNull(), // 고를 수 있는 기간(시간) JSON 배열, 예: [24,48]
-  dailyFee: integer("daily_fee").notNull(), // 하루 체험비(원)
+  dailyFee: integer("daily_fee").notNull(), // 가장 짧은 구간 체험비(원) — 과거 호환·정렬용
+  tierFees: text("tier_fees"), // 구간별 체험비 JSON [{"hours":24,"fee":1000},...] (2026-10-08부터 기준)
   purchaseCreditPct: integer("purchase_credit_pct").notNull().default(0), // 과거 호환용. 정책(2026-10-08): 사면 체험비 0원 → 항상 100 저장
   shippingOneWay: integer("shipping_one_way"), // 편도 배송비 예상(원), 모르면 null
   conditionNote: text("condition_note"), // 조건 메모(조건부 허용일 때)
