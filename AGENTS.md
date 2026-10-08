@@ -1,5 +1,10 @@
 
 
+<!-- PROJECT_WORK_RULES:v1.0 -->
+## 공통 작업규칙
+
+먼저 `E:\PROJECT_CONTROL_CENTER\00_공통\PROJECT_WORK_RULES.md`를 읽고 따른다. GPT는 제품 코드를 직접 수정하지 않고 작업 관리·독립 검수·보고·문서화만 담당한다. 아래 기존 보고 규칙은 보존하며 충돌 시 새 정본이 우선한다.
+
 <!-- ALL_PROJECT_REPORTING_RULES:v1.0 -->
 ## 전체 프로젝트 공통 보고 방식 — 사용자 지시 2026-09-26
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, visualInitial } from "./presentation";
+import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel, visualInitial } from "./presentation";
 
 test("가격과 상태를 사용자 문구로 변환한다", () => {
   assert.equal(formatWon(1290000), "1,290,000원");
@@ -39,4 +39,10 @@ test("사진이 없으면 카테고리·모델로 일러스트를 고른다", ()
   assert.equal(illustrationKind("노트북", "MacBook Air M2"), "laptop");
   assert.equal(illustrationKind(null, "iPad Air"), "tablet");
   assert.equal(illustrationKind("기타", "무언가"), "generic");
+});
+
+test("써보고 싶은 사람 수도 3명 이상일 때만 숫자로 보여 준다", () => {
+  assert.equal(tryWantLabel(0), null);
+  assert.equal(tryWantLabel(2), "써보고 싶은 사람이 있어요");
+  assert.equal(tryWantLabel(3), "써보고 싶은 사람 3명");
 });

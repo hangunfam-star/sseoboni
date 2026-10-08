@@ -1,17 +1,27 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categories } from "@/db/schema";
+import { productModels } from "@/db/schema";
+import { HomeStory } from "@/components/HomeStory";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
 import { listCards, modelDemand } from "@/lib/queries";
 import { demandLabel } from "@/ui/presentation";
 
 // 홈 — 피드(검색어 없음) / 검색 결과(검색어 있음). 서버 컴포넌트에서 직접 조회.
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string; c?: string }> }) {
-  const { q: rawQ, c } = await searchParams;
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string; c?: string; b?: string; s?: string }> }) {
+  const { q: rawQ, c, b, s } = await searchParams;
   const q = rawQ?.trim() || undefined;
-  const cats = await db.select().from(categories).orderBy(asc(categories.name));
-  const rows = await listCards({ q, categoryId: c });
+  const sort = s === "popular" ? "popular" : "new";
+  const brands = (await db.selectDistinct({ brand: productModels.brand }).from(productModels).where(eq(productModels.active, true)).orderBy(asc(productModels.brand))).map((r) => r.brand);
+  const brand = b && brands.includes(b) ? b : undefined;
+  const rows = await listCards({ q, categoryId: c, brand, sort });
+  const href = (next: { b?: string; s?: string }) => {
+    const p = new URLSearchParams();
+    if (next.b) p.set("b", next.b);
+    if (next.s === "popular") p.set("s", "popular");
+    const qs = p.toString();
+    return qs ? `/?${qs}` : "/";
+  };
 
   if (q) {
     const names = new Set(rows.map((r) => r.modelName));
@@ -55,20 +65,38 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <header className="home-header">
         <Link className="wordmark" href="/">써보니<span>.</span></Link>
       </header>
-      <h1 className="home-title">오늘은 어떤 중고를<br />써볼까요?</h1>
+      <HomeStory />
+      <section className="try-hero" aria-labelledby="try-hero-title">
+        <span className="try-hero__tag">베타테스터 미션</span>
+        <h2 id="try-hero-title">마음에 드는 상품에서<br /><em>‘써보고 싶어요’</em>를 눌러 주세요</h2>
+        <ol className="try-flow" aria-label="써보기 흐름 (준비 중)">
+          <li><b>1</b><span>써보기 신청</span></li>
+          <li><b>2</b><span>집에서 써보기</span></li>
+          <li><b>3</b><span>사거나 돌려보내기</span></li>
+        </ol>
+        <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
+      </section>
       <form className="search-bar" action="/" method="get">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
         <label className="sr-only" htmlFor="home-search">상품 검색</label>
         <input id="home-search" name="q" placeholder="모델명으로 찾아보세요 (예: 맥북 에어)" />
       </form>
-      <nav className="chip-row" aria-label="카테고리">
-        <Link className="chip" href="/" aria-current={!c ? "true" : undefined}>전체</Link>
-        {cats.map((cat) => (
-          <Link key={cat.id} className="chip" href={`/?c=${cat.id}`} aria-current={c === cat.id ? "true" : undefined}>{cat.name}</Link>
-        ))}
-      </nav>
+      <section className="brand-section" aria-labelledby="brand-title">
+        <h2 className="section-title" id="brand-title">브랜드로 찾기</h2>
+        <nav className="brand-row" aria-label="브랜드">
+          {brands.map((name) => (
+            <Link key={name} className="brand-tile" href={href({ b: brand === name ? undefined : name, s: sort })} aria-current={brand === name ? "true" : undefined}>
+              <span className="brand-tile__mark" aria-hidden="true">{Array.from(name)[0]}</span>
+              <span>{name}</span>
+            </Link>
+          ))}
+        </nav>
+      </section>
       <section className="product-section">
-        <h2 className="section-title">방금 올라온 중고</h2>
+        <div className="feed-tabs" role="tablist" aria-label="정렬">
+          <Link role="tab" aria-selected={sort === "new"} className="feed-tab" href={href({ b: brand, s: "new" })}>방금 올라온 중고</Link>
+          <Link role="tab" aria-selected={sort === "popular"} className="feed-tab" href={href({ b: brand, s: "popular" })}>찜 많은 순</Link>
+        </div>
         {rows.length === 0 ? (
           <div className="empty-card">
             <strong>아직 등록된 상품이 없어요.</strong>
@@ -80,7 +108,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </section>
       <Link className="demand-banner" href="/demand">
         <strong>찾는 물건이 없나요?</strong>
-        <small>찾는 상품을 남기면 사람들이 찾고 있어요 목록에 모여요</small>
+        <small>원하는 모델을 남기면 판매자가 등록할 때 볼 수 있어요</small>
         <span>찾는 상품 남기기</span>
       </Link>
     </div>

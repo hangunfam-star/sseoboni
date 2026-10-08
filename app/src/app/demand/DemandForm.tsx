@@ -30,7 +30,7 @@ export function DemandForm({ models, initialModelId }: { models: { id: string; l
     const data = await res.json().catch(() => ({}));
     setPending(false);
     if (!res.ok) {
-      setMessage({ ok: false, text: res.status === 401 ? "초대 코드로 로그인한 뒤 남길 수 있어요." : data.error ?? "등록에 실패했습니다." });
+      setMessage({ ok: false, text: res.status === 401 ? "닉네임을 정하고 시작한 뒤 남길 수 있어요." : data.error ?? "등록에 실패했습니다." });
       return;
     }
     setMessage({ ok: true, text: data.updated ? "같은 요청이 있어 조건을 고쳤어요." : "찾는 상품을 남겼어요." });

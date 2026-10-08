@@ -1,6 +1,6 @@
 import type { IllustrationKind } from "@/ui/presentation";
 
-const TINTS = ["#ffe3df", "#fff3c4", "#e3e9f8", "#f3f1f0"];
+const TINTS = ["#f4f4f5", "#eeeef0", "#e9e9ec"]; // v1.1 화이트 테마 회색 계열
 
 // param: seed 상품 id(배경색을 고정하기 위한 값), kind 일러스트 종류, size 아이콘 폭(px)
 // return: 사진이 없을 때 쓰는 모델 일러스트. 실제 사진이 아님을 aria-label로 밝힌다.

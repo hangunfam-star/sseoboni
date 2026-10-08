@@ -36,6 +36,7 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
 export function LogoutButton() {
   const router = useRouter();
   async function logout() {
+    if (!confirm("로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 계속할까요?")) return;
     await fetch("/api/session", { method: "DELETE" });
     router.push("/login");
     router.refresh();

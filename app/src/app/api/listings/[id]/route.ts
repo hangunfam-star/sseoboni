@@ -25,7 +25,7 @@ const ALLOWED = ["ACTIVE", "HIDDEN", "SOLD"];
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "먼저 초대 코드로 로그인하세요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const status = typeof body?.status === "string" ? body.status : "";

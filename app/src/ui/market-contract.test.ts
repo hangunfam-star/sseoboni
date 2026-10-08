@@ -14,15 +14,24 @@ test("전역 스타일시트는 기본 레이아웃 계약과 역할별 강조�
   assert.match(css.toLowerCase(), /--color-yellow:\s*#f6d74a/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /max-width:\s*480px/);
+  assert.match(css, /\.home-header\s+\.wordmark\s*\{[^}]*min-height:\s*44px/);
+  assert.match(css, /\.chip\s*\{[^}]*min-height:\s*44px/);
 });
 
-test("로그인은 테스트 범위와 초대 코드 동작을 정확히 안내한다", () => {
-  const source = read("src/app/login/page.tsx");
-  assert.match(source, /사기 전에, 써보니/);
-  assert.match(source, /결제와 배송은 일어나지 않아요/);
-  assert.match(source, /JSON\.stringify\(\{ code \}\)/);
-  assert.match(source, /disabled=\{pending\}/);
-  assert.doesNotMatch(source, /닉네임으로 시작하기/);
+test("링크를 받은 누구나 닉네임만으로 시작하고, 닉네임은 식별에 쓰지 않는다", () => {
+  const session = read("src/lib/session.ts");
+  assert.match(session, /randomBytes\(/);
+  assert.match(session, /timingSafeEqual/);
+  assert.doesNotMatch(session, /invites/);
+  const api = read("src/app/api/session/route.ts");
+  assert.match(api, /createUser\(nickname\)/);
+  assert.doesNotMatch(api, /where\(eq\(users\.nickname/);
+  const login = read("src/app/login/page.tsx");
+  assert.match(login, /사기 전에, 써보니/);
+  assert.match(login, /결제와 배송은 일어나지 않아요/);
+  assert.match(login, /JSON\.stringify\(\{ nickname \}\)/);
+  assert.match(login, /disabled=\{pending\}/);
+  assert.doesNotMatch(login, /초대 코드/);
 });
 
 test("홈은 사진 중심 피드와 검색 결과를 실제 데이터로만 그린다", () => {

@@ -1,5 +1,10 @@
 
 
+<!-- PROJECT_WORK_RULES:v1.0 -->
+## 공통 작업규칙
+
+먼저 `E:\PROJECT_CONTROL_CENTER\00_공통\PROJECT_WORK_RULES.md`를 읽고 따른다. Claude는 제품 개발과 개발자 검증을 담당한다. 아래 기존 보고 규칙은 보존하며 충돌 시 새 정본이 우선한다.
+
 <!-- ALL_PROJECT_REPORTING_RULES:v1.0 -->
 ## 전체 프로젝트 공통 보고 방식 — 사용자 지시 2026-09-26
 

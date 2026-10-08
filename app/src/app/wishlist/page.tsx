@@ -14,8 +14,8 @@ export default async function WishlistPage() {
       <div className="page wishlist-page">
         <h1 className="page-title">찜</h1>
         <div className="empty-card">
-          <strong>초대 코드로 로그인하면 찜한 상품을 모아볼 수 있어요.</strong>
-          <Link href="/login">로그인하기</Link>
+          <strong>닉네임만 정하면 찜한 상품을 모아볼 수 있어요.</strong>
+          <Link href="/login">닉네임 정하고 시작하기</Link>
         </div>
       </div>
     );

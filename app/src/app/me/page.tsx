@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { demandIntents, listings, productModels, wishlists } from "@/db/schema";
+import { demandIntents, listings, productModels, users, wishlists } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { findActiveInviteByUserId } from "@/lib/invites";
 import { conditionLabel, formatWon } from "@/ui/presentation";
 import { ListingStatusActions, LogoutButton } from "./MyActions";
 
@@ -16,14 +15,15 @@ export default async function MyPage() {
       <div className="page my-page">
         <h1 className="page-title">MY</h1>
         <div className="empty-card">
-          <strong>초대 코드로 로그인하면 내 판매 상품과 찜을 모아볼 수 있어요.</strong>
-          <Link href="/login">로그인하기</Link>
+          <strong>닉네임만 정하면 내 판매 상품과 찜을 모아볼 수 있어요.</strong>
+          <Link href="/login">닉네임 정하고 시작하기</Link>
         </div>
       </div>
     );
   }
 
-  const nickname = findActiveInviteByUserId(userId)?.nickname ?? "테스터";
+  const me = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  const nickname = me?.nickname ?? "테스터";
   const mine = await db
     .select({ id: listings.id, title: listings.title, price: listings.price, status: listings.status, conditionGrade: listings.conditionGrade, modelName: productModels.modelName })
     .from(listings)
@@ -67,6 +67,7 @@ export default async function MyPage() {
           ))}
         </div>
       )}
+      <p className="page-lead">로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 새로 시작하면 새 계정이 만들어져요.</p>
       <LogoutButton />
     </div>
   );

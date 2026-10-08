@@ -27,7 +27,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial }: {
     });
     setPending(null);
     if (res.status === 401) {
-      setNotice("초대 코드로 로그인하면 의견을 남길 수 있어요.");
+      setNotice("닉네임을 정하고 시작하면 의견을 남길 수 있어요.");
       return;
     }
     if (!res.ok) {
@@ -35,7 +35,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial }: {
       return;
     }
     setDone((d) => ({ ...d, [kind]: true }));
-    setNotice(kind === "TRY" ? "써보고 싶다는 의견을 남겼어요. 써보기는 아직 준비 중이에요." : "사고 싶다는 의견을 남겼어요. 테스트 기간이라 거래는 아직 열리지 않아요.");
+    setNotice(kind === "TRY" ? "써보고 싶다는 의견을 남겼어요. 이 의견으로 써보기를 열 상품을 정해요." : "사고 싶다는 의견을 남겼어요. 테스트 기간이라 거래는 아직 열리지 않아요.");
   }
 
   return (
@@ -43,7 +43,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial }: {
       {notice && <p className="intent-notice" role="status">{notice}</p>}
       <div className="intent-action-bar__row">
         <WishlistButton listingId={listingId} initialWished={wished} />
-        <div className="intent-price"><strong>{priceLabel}</strong><small>테스트 기간 · 결제 없음</small></div>
+        <div className="intent-price"><strong>{priceLabel}</strong><small>사기 전에 써보기 · 준비 중</small></div>
       </div>
       <div className="intent-action-bar__buttons">
         <button type="button" className="intent-button intent-button--try" onClick={() => record("TRY")} disabled={pending !== null} aria-pressed={done.TRY}>

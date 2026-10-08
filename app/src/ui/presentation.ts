@@ -41,6 +41,13 @@ export function demandLabel(count: number): string | null {
   return count >= DEMAND_PUBLIC_MIN ? `찾는 사람 ${count}명` : "찾는 사람이 있어요";
 }
 
+// param: count '써보고 싶어요'를 누른 사람 수
+// return: 3명 이상이면 숫자, 1~2명이면 숫자 없는 문구, 0명이면 null
+export function tryWantLabel(count: number): string | null {
+  if (count <= 0) return null;
+  return count >= DEMAND_PUBLIC_MIN ? `써보고 싶은 사람 ${count}명` : "써보고 싶은 사람이 있어요";
+}
+
 export type IllustrationKind = "laptop" | "tablet" | "audio" | "camera" | "generic";
 
 // param: 카테고리·모델 이름. return: 사진이 없을 때 쓰는 모델 일러스트 종류

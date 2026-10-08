@@ -13,21 +13,26 @@ export type CardRow = {
   modelName: string | null;
   categoryName: string | null;
   wishCount: number;
+  photo: string | null; // 첫 번째 사진 파일 이름(없으면 null)
+  tryOk: number; // 판매자가 써보기 허용(YES·CONDITIONAL)이라고 답했으면 1 이상
+  tryWanters: number; // '써보고 싶어요'를 누른 사람 수(중복 제거)
 };
 
-// param: opts.q 제목·모델 검색어, opts.categoryId 카테고리, opts.ids 특정 상품만. return: ACTIVE 상품 카드 목록(최신순)
-export async function listCards(opts: { q?: string; categoryId?: string; ids?: string[] } = {}): Promise<CardRow[]> {
+// param: opts.q 제목·모델 검색어, opts.categoryId 카테고리, opts.brand 브랜드, opts.ids 특정 상품만, opts.sort 최신(new)·찜 많은 순(popular)
+// return: ACTIVE 상품 카드 목록
+export async function listCards(opts: { q?: string; categoryId?: string; brand?: string; ids?: string[]; sort?: "new" | "popular" } = {}): Promise<CardRow[]> {
   const where: SQL[] = [eq(listings.status, "ACTIVE")];
   if (opts.q) {
     const k = `%${opts.q}%`;
     where.push(or(like(listings.title, k), like(productModels.modelName, k), like(productModels.brand, k))!);
   }
   if (opts.categoryId) where.push(eq(productModels.categoryId, opts.categoryId));
+  if (opts.brand) where.push(eq(productModels.brand, opts.brand));
   if (opts.ids) {
     if (opts.ids.length === 0) return [];
     where.push(inArray(listings.id, opts.ids));
   }
-  return db
+  const rows = await db
     .select({
       id: listings.id,
       title: listings.title,
@@ -38,12 +43,16 @@ export async function listCards(opts: { q?: string; categoryId?: string; ids?: s
       modelName: productModels.modelName,
       categoryName: categories.name,
       wishCount: sql<number>`(select count(distinct w.user_id) from wishlists w where w.listing_id = "listings"."id")`,
+      photo: sql<string | null>`(select p.file_name from listing_photos p where p.listing_id = "listings"."id" order by p.sort_order, p.created_at limit 1)`,
+      tryOk: sql<number>`(select count(*) from market_validation_events e where e.listing_id = "listings"."id" and e.event_type in ('SELLER_TRY_YES','SELLER_TRY_CONDITIONAL'))`,
+      tryWanters: sql<number>`(select count(distinct e.user_id) from market_validation_events e where e.listing_id = "listings"."id" and e.event_type = 'CLICK_TRY_WANT')`,
     })
     .from(listings)
     .leftJoin(productModels, eq(listings.modelId, productModels.id))
     .leftJoin(categories, eq(productModels.categoryId, categories.id))
     .where(and(...where))
     .orderBy(desc(listings.createdAt));
+  return opts.sort === "popular" ? [...rows].sort((x, y) => y.wishCount - x.wishCount) : rows;
 }
 
 export type ModelDemand = { modelId: string; brand: string; modelName: string; seekers: number; triers: number; onSale: number };

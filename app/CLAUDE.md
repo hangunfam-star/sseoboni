@@ -1,1 +1,4 @@
 @AGENTS.md
+
+<!-- PROJECT_WORK_RULES:v1.0 -->
+모든 작업 전에 `E:\PROJECT_CONTROL_CENTER\00_공통\PROJECT_WORK_RULES.md`를 읽고 따른다.

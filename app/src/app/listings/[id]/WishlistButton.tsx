@@ -13,7 +13,7 @@ export default function WishlistButton({ listingId, initialWished }: { listingId
       body: JSON.stringify({ listingId }),
     });
     if (res.status === 401) {
-      alert("먼저 초대 코드로 로그인하세요.");
+      alert("먼저 닉네임을 정하고 시작하세요.");
       setLoading(false);
       return;
     }

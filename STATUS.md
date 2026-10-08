@@ -1,3 +1,22 @@
+<!-- AI_NEUTRAL_HANDOFF:2026-10-01 -->
+# 써보니 AI 중립 인계 최신 스냅샷
+
+- 마지막 독립 대조: 2026-10-01 22:20 KST
+- 공통 정본: `E:\PROJECT_CONTROL_CENTER\00_공통\PROJECT_WORK_RULES.md`
+- 실제 저장소: `E:\PROJECTS\04_써보니`
+- Git 기준: branch `gate0/market-ui`, HEAD `a6b45a57c784e1011b2fe75ddc53aa5658494874`.
+- 인계 갱신 직전 working tree: tracked modified 9개, untracked 1개(`CODEX_REVIEW_RESULT_GATE0_UI_v1.1.md`). 수정에는 관리 문서와 invite/UI/test 파일이 함께 있으므로 병합·정리 전 파일별 diff를 확인한다.
+- 현재 담당·진행: 제품 작업 착수자는 `미확인`; GPT는 이번에 문서 상태만 기록했다. 기존 Claude 세션은 `7eb1f6e0-b5b6-4f06-ac1d-bac1a8a43430`.
+- 기존 작성자 자료: 아래 STATUS와 `CODEX_REVIEW_REQUEST_GATE0_UI_v1.1.md`는 Gate 0 범위와 과거 개발 상태를 설명한다.
+- 과거 2차 검수 자료: `CODEX_REVIEW_RESULT_GATE0_UI_v1.1.md`는 당시 차단 0, P2 `F-02`(탭 높이), `G-02`(Turbopack 추적 경고)를 기록한다. 현재 working tree가 두 항목을 해소했는지는 이번에 실행 검증하지 않았다.
+- 독립 대조: branch·HEAD·변경 파일 목록만 확인했다. 현재 변경의 Claude 1차 재검수와 GPT 2차 재검수는 `NOT_RUN`; 새 규칙 기준 기능 완료를 선언하지 않는다.
+- 결함대장: 최소 열린 후보 `F-02`, `G-02`. 담당·수정 근거·PC/모바일·링크·간격/겹침/잘림·1차/2차 재검수와 종결 여부를 다음 검수에서 갱신한다.
+- 실행 방법: `app\package.json` 실측 기준 `npm run test:ui`, `npm run build`, `npm run dev`가 현재 진입점이다. `CODEX_REVIEW_RESULT_GATE0_UI_v1.1.md`의 당시 판정은 `PASS WITH NON-BLOCKING NOTES`, 차단 0, P2 F-02/G-02다. 이번 문서 작업에서는 npm 실행·DB 복제·브라우저·ngrok·배포·commit/push/merge를 하지 않았으므로 현재 종결 여부는 여전히 `NOT_RUN`이다.
+- 승인·차단: main 병합, 외부 테스터 공개, 운영성 데이터·권한 변경은 사용자 승인 전 실행하지 않는다.
+- 다음 행동: 현재 diff와 F-02/G-02 대응을 Claude가 1차 검수하고, GPT가 PC·모바일 포함 2차 독립검수한 뒤 교차 결과를 보고한다.
+- 비밀·복구: 초대 코드·쿠키·비밀값은 기록하지 않는다. 이 스냅샷 변경 전 원문은 GPT 관리 백업에 보존했다.
+
+---
 # 써보니 — STATUS (Claude → Codex 인계)
 
 작성: Claude Code · 2026-09-26

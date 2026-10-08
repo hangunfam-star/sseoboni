@@ -14,6 +14,7 @@ const cuid = () => crypto.randomUUID();
 export const users = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(cuid),
   role: text("role").notNull(), // BUYER | SELLER | BOTH | ADMIN
+  nickname: text("nickname"), // 화면 표시용 이름(로그인 식별에 쓰지 않음)
   status: text("status").notNull().default("ACTIVE"),
   identityVerified: integer("identity_verified", { mode: "boolean" }).notNull().default(false),
   phoneVerified: integer("phone_verified", { mode: "boolean" }).notNull().default(false),
@@ -80,6 +81,17 @@ export const listingComponents = sqliteTable("listing_components", {
   name: text("name").notNull(),
   requiredOnReturn: integer("required_on_return", { mode: "boolean" }).notNull().default(false),
   replacementValue: integer("replacement_value"),
+});
+
+// 판매자가 올린 상품 사진. 파일은 runtime-data/uploads에 저장(git 제외)하고, 여기에는 파일 이름과 순서만 둔다.
+export const listingPhotos = sqliteTable("listing_photos", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  listingId: text("listing_id").notNull().references(() => listings.id),
+  fileName: text("file_name").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 
 // 마스터기획 §60에는 없지만 P0 요구사항("리스트·검색·상세·찜")을 위해 추가한 최소 모델

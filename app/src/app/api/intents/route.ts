@@ -10,7 +10,7 @@ const EVENT = { TRY: "CLICK_TRY_WANT", BUY: "CLICK_BUY_WANT" } as const;
 
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "먼저 초대 코드로 로그인하세요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const listingId = typeof body?.listingId === "string" ? body.listingId : "";
