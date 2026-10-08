@@ -8,6 +8,8 @@ export const SELL_CATEGORIES = [
   "카메라",
   "게임기",
   "키보드·주변기기",
+  "신발",
+  "의류",
   "생활가전",
   "기타",
 ] as const;
