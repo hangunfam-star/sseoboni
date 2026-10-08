@@ -116,10 +116,13 @@ export function parseProposal(v: unknown, price: number): { hours: number; offer
 // 사용자끼리 주고받는 글에 연락처·계좌가 섞이지 않게 막는다(직거래 유도·개인정보 노출 방지).
 // param: text 검사할 글. return: 발견한 종류 이름(전화번호·이메일·메신저 아이디·계좌번호), 없으면 null
 export function findContactInfo(text: string): string | null {
-  const t = text.normalize("NFKC");
-  if (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.test(t)) return "이메일";
+  // 전각·호환 문자 통일, 보이지 않는 문자 제거
+  const t = text.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "");
+  // 숫자 사이 공백·점·하이픈·괄호 등 구분자를 지운 문자열(01 0-12 34. 5678 같은 우회 대응)
+  const digitsJoined = t.replace(/(?<=\d)[\s.\-·_/()]+(?=\d)/g, "");
+  if (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.test(t) || /[\w.+-]+\s*(골뱅이|\(at\)|\[at\])\s*[\w-]+/i.test(t) || /(지메일|gmail|네이버\s*메일|naver\.com|daum\.net|hanmail)/i.test(t)) return "이메일";
   if (/(카톡|카카오톡|kakao|오픈\s*채팅|open\.kakao|텔레그램|telegram|t\.me\/|라인\s*아이디|line\s*id|인스타|instagram)/i.test(t)) return "메신저 아이디";
-  if (/(01[016789]|0\d{1,2})[\s.-]?\d{3,4}[\s.-]?\d{4}/.test(t)) return "전화번호";
-  if (/(계좌|입금|송금)/.test(t) || /\d[\d\s-]{9,}\d/.test(t)) return "계좌번호";
+  if (/(01[016789]|0\d{1,2})\d{3,4}\d{4}/.test(digitsJoined) || /(공일공|영일영)/.test(t)) return "전화번호";
+  if (/(계좌|입금|송금)/.test(t) || /\d{10,}/.test(digitsJoined)) return "계좌번호";
   return null;
 }

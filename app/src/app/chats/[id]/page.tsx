@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { categories, listings, productModels, users } from "@/db/schema";
 import { ListThumb } from "@/components/ListThumb";
 import { photosFor } from "@/lib/photos";
-import { markRead, messagesOf, threadFor } from "@/lib/chat";
+import { markReadUpTo, messagesOf, threadFor } from "@/lib/chat";
 import { getCurrentUserId } from "@/lib/session";
 import { formatWon, illustrationKind } from "@/ui/presentation";
 import { ChatRoom } from "./ChatRoom";
@@ -22,12 +22,12 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, t.thread.listingId) });
   const otherId = t.role === "buyer" ? t.thread.sellerId : t.thread.buyerId;
   const other = await db.query.users.findFirst({ where: eq(users.id, otherId) });
-  const messages = await messagesOf(id);
+  const { messages } = await messagesOf(id);
   // 상단 상품 썸네일: 첫 사진, 없으면 모델 일러스트
   const photo = listing ? ((await photosFor([listing.id])).get(listing.id)?.[0]?.fileName ?? null) : null;
   const model = listing ? await db.query.productModels.findFirst({ where: eq(productModels.id, listing.modelId) }) : undefined;
   const category = model ? await db.query.categories.findFirst({ where: eq(categories.id, model.categoryId) }) : undefined;
-  markRead(id, t.role);
+  if (messages.length > 0) markReadUpTo(id, t.role, messages[messages.length - 1].seq);
 
   return (
     <div className="chat-page">

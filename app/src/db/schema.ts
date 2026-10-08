@@ -6,7 +6,7 @@
 //   Payment, Refund, Settlement, SettlementHold, Chargeback
 // 이유: §101 "Validation MVP는 실제 결제·정산·발송을 발생시키지 않는다"
 
-import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const cuid = () => crypto.randomUUID();
@@ -132,16 +132,28 @@ export const chatThreads = sqliteTable("chat_threads", {
   lastMessageAt: text("last_message_at"),
   buyerReadAt: text("buyer_read_at"),
   sellerReadAt: text("seller_read_at"),
-}, (t) => [uniqueIndex("chat_threads_listing_buyer").on(t.listingId, t.buyerId)]);
+  // 읽음 커서: 마지막으로 화면에 보여 준 메시지의 순번(chat_messages.seq). 시각(초 단위) 대신 순번으로 정확히 센다.
+  buyerReadSeq: integer("buyer_read_seq").notNull().default(0),
+  sellerReadSeq: integer("seller_read_seq").notNull().default(0),
+}, (t) => [
+  uniqueIndex("chat_threads_listing_buyer").on(t.listingId, t.buyerId),
+  index("chat_threads_buyer").on(t.buyerId),
+  index("chat_threads_seller").on(t.sellerId),
+]);
 
 // 채팅 메시지. 연락처·계좌는 서버에서 막는다. 시장검증 이벤트에는 본문을 남기지 않는다.
 export const chatMessages = sqliteTable("chat_messages", {
   id: text("id").primaryKey().$defaultFn(cuid),
+  // 순번: 저장할 때 1씩 커지는 번호(폴링·읽음 커서용). 같은 초에 여러 개가 와도 순서가 정확하다.
+  seq: integer("seq").notNull().default(0),
   threadId: text("thread_id").notNull().references(() => chatThreads.id),
   senderId: text("sender_id").notNull().references(() => users.id),
   body: text("body").notNull(),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
-});
+}, (t) => [
+  index("chat_messages_thread_seq").on(t.threadId, t.seq),
+  index("chat_messages_sender_created").on(t.senderId, t.createdAt),
+]);
 
 // 마스터기획 §60에는 없지만 P0 요구사항("리스트·검색·상세·찜")을 위해 추가한 최소 모델
 export const wishlists = sqliteTable("wishlists", {

@@ -69,3 +69,15 @@ test("수수료 설정: 기본 3%, 특정 기간(한국 날짜, 끝 포함)에�
   assert.equal(typeof parsePlatformFee({ defaultPct: 3, promos: [{ start: "2026-10-10", end: "2026-10-12", pct: 0 }, { start: "2026-10-12", end: "2026-10-13", pct: 1 }] }), "string");
   assert.equal(typeof parsePlatformFee({ defaultPct: 50, promos: [] }), "string");
 });
+
+test("연락처 필터: 구분자·보이지 않는 문자·우회 표기도 막고, 가격·날짜는 통과", () => {
+  assert.equal(findContactInfo("01 0-12 34. 5678"), "전화번호");
+  assert.equal(findContactInfo("010​1234​5678"), "전화번호");
+  assert.equal(findContactInfo("０１０－１２３４－５６７８"), "전화번호");
+  assert.equal(findContactInfo("공일공 일이삼사"), "전화번호");
+  assert.equal(findContactInfo("abc123 골뱅이 naver"), "이메일");
+  assert.equal(findContactInfo("지메일로 주세요"), "이메일");
+  assert.notEqual(findContactInfo("110-123-456789"), null);
+  assert.equal(findContactInfo("1,050,000원에 48시간 써볼게요"), null);
+  assert.equal(findContactInfo("2026-10-08 토요일 가능해요"), null);
+});

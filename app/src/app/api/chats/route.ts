@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { chatThreads, listings, marketValidationEvents } from "@/db/schema";
-import { listThreads, unreadThreads } from "@/lib/chat";
+import { CHAT_START_DAILY_MAX, listThreads, unreadThreads } from "@/lib/chat";
 import { getCurrentUserId } from "@/lib/session";
 
 // GET /api/chats — 내 채팅방 목록과 안 읽은 채팅방 수
@@ -26,10 +26,14 @@ export async function POST(req: NextRequest) {
     const existing = tx.select().from(chatThreads).where(and(eq(chatThreads.listingId, listingId), eq(chatThreads.buyerId, userId))).get();
     if (existing) return { thread: existing, created: false };
     if (listing.status !== "ACTIVE") return null; // 판매 중이 아닌 상품에는 새 채팅을 열지 않는다(기존 채팅은 계속 가능)
+    const today = tx.select({ n: sql<number>`count(*)` }).from(chatThreads)
+      .where(and(eq(chatThreads.buyerId, userId), sql`${chatThreads.createdAt} > datetime('now','-1 day')`)).get()?.n ?? 0;
+    if (today >= CHAT_START_DAILY_MAX) return "LIMIT" as const;
     const thread = tx.insert(chatThreads).values({ listingId, buyerId: userId, sellerId: listing.sellerId }).returning().get();
     tx.insert(marketValidationEvents).values({ eventType: "CHAT_STARTED", listingId, modelId: listing.modelId, userId }).run();
     return { thread, created: true };
   });
   if (!result) return NextResponse.json({ error: "판매 중인 상품에만 새 채팅을 열 수 있어요." }, { status: 409 });
+  if (result === "LIMIT") return NextResponse.json({ error: "오늘은 새 채팅을 충분히 열었어요. 내일 다시 시도해 주세요." }, { status: 429 });
   return NextResponse.json({ threadId: result.thread.id, created: result.created }, { status: result.created ? 201 : 200 });
 }

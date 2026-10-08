@@ -164,13 +164,14 @@ export type ChatReport = { createdAt: string; reporter: string | null; reason: s
 // return: 채팅 합계와 최근 신고(신고된 메시지 본문만, 채팅 전체는 보여 주지 않는다)
 export function chatStats(): { threads: number; messages: number; reports: ChatReport[] } {
   const c = db.get<{ threads: number; messages: number }>(sql`select (select count(*) from chat_threads) as threads, (select count(*) from chat_messages) as messages`)!;
-  const rows = db.all<{ createdAt: string; reporter: string | null; metadata: string | null; title: string | null }>(sql`select e.created_at as createdAt, u.nickname as reporter, e.metadata, l.title
+  const rows = db.all<{ createdAt: string; reporter: string | null; metadata: string | null; title: string | null; reportedBody: string | null }>(sql`select e.created_at as createdAt, u.nickname as reporter, e.metadata, l.title,
+      (select m.body from chat_messages m where m.id = json_extract(e.metadata, '$.messageId')) as reportedBody
     from market_validation_events e left join users u on u.id = e.user_id left join listings l on l.id = e.listing_id
     where e.event_type = 'CHAT_REPORTED' order by e.created_at desc limit 30`);
   const reports = rows.map((r) => {
-    let m: { reason?: string; body?: string | null; threadId?: string } = {};
+    let m: { reason?: string; threadId?: string } = {};
     try { m = JSON.parse(r.metadata ?? "{}"); } catch { /* 깨진 값은 비워 둔다 */ }
-    return { createdAt: r.createdAt, reporter: r.reporter, reason: m.reason ?? "미확인", body: m.body ?? null, threadId: m.threadId ?? null, title: r.title };
+    return { createdAt: r.createdAt, reporter: r.reporter, reason: m.reason ?? "미확인", body: r.reportedBody, threadId: m.threadId ?? null, title: r.title };
   });
   return { ...c, reports };
 }

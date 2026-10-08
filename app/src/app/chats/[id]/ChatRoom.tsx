@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-type Msg = { id: string; senderId: string; body: string; createdAt: string };
-const POLL_MS = 4000;
+type Msg = { id: string; seq: number; senderId: string; body: string; createdAt: string };
+const POLL_STEPS = [4000, 4000, 4000, 8000, 8000, 15000]; // 새 메시지가 없을수록 천천히 확인
 const REASONS = ["욕설·비방", "직거래·외부 연락 유도", "사기 의심", "기타"];
 
 // param: threadId 채팅방, me 내 사용자 id, initial 처음 메시지, otherName 상대 닉네임
@@ -15,25 +15,43 @@ export function ChatRoom({ threadId, me, initial, otherName }: { threadId: strin
   const [reporting, setReporting] = useState<string | null>(null); // 신고할 메시지 id
   const [notice, setNotice] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
-  const lastAt = messages.length > 0 ? messages[messages.length - 1].createdAt : undefined;
+  const lastSeq = useRef(initial.length > 0 ? initial[initial.length - 1].seq : 0);
+  const quiet = useRef(0);
 
   function merge(incoming: Msg[]) {
+    if (incoming.length === 0) return;
+    lastSeq.current = Math.max(lastSeq.current, ...incoming.map((m) => m.seq));
     setMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id));
       const add = incoming.filter((m) => !seen.has(m.id));
-      return add.length > 0 ? [...prev, ...add] : prev;
+      return add.length > 0 ? [...prev, ...add].sort((a, b) => a.seq - b.seq) : prev;
     });
   }
 
+  // 새 메시지 확인: 순번 커서 다음부터, 남은 게 있으면(hasMore) 끝까지 이어서 가져온다.
   useEffect(() => {
-    const timer = setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      const q = lastAt ? `?after=${encodeURIComponent(lastAt)}` : "";
-      const res = await fetch(`/api/chats/${threadId}${q}`).catch(() => null);
-      if (res?.ok) merge((await res.json()).messages ?? []);
-    }, POLL_MS);
-    return () => clearInterval(timer);
-  }, [threadId, lastAt]);
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      if (stop) return;
+      if (document.visibilityState === "visible") {
+        let more = true;
+        let got = 0;
+        while (more && !stop) {
+          const res = await fetch(`/api/chats/${threadId}?after=${lastSeq.current}`).catch(() => null);
+          if (!res?.ok) break;
+          const d = await res.json();
+          merge(d.messages ?? []);
+          got += (d.messages ?? []).length;
+          more = Boolean(d.hasMore);
+        }
+        quiet.current = got > 0 ? 0 : Math.min(quiet.current + 1, POLL_STEPS.length - 1);
+      }
+      timer = setTimeout(poll, POLL_STEPS[quiet.current]);
+    }
+    timer = setTimeout(poll, POLL_STEPS[0]);
+    return () => { stop = true; clearTimeout(timer); };
+  }, [threadId]);
 
   useEffect(() => { bottom.current?.scrollIntoView({ block: "end" }); }, [messages.length]);
 
@@ -47,6 +65,7 @@ export function ChatRoom({ threadId, me, initial, otherName }: { threadId: strin
     setPending(false);
     if (!res.ok) { setError(d.error ?? "보내지 못했어요."); return; }
     merge([d.message]);
+    quiet.current = 0;
     setText("");
   }
 
