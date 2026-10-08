@@ -930,3 +930,6 @@ input, textarea { caret-color: var(--w-ink); }
 .pricing-form { display: grid; gap: 12px; padding-bottom: 14px; }
 .pricing-form .field input { background: var(--w-bg); }
 .pricing-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* 써보기 답 두 개(써보기 허용 / 바로 판매만) */
+.try-question__options { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -13,9 +13,8 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const CUSTOM = "__custom__"; // 모델 목록에 없을 때 직접 입력
 
 const TRY_OPTIONS = [
-  { value: "YES", label: "괜찮아요" },
-  { value: "CONDITIONAL", label: "조건 따라" },
-  { value: "NO", label: "아니요" },
+  { value: "YES", label: "써보기 허용" },
+  { value: "NO", label: "바로 판매만" },
 ] as const;
 
 export default function NewListingPage() {
@@ -183,7 +182,7 @@ export default function NewListingPage() {
         </label>
 
         <fieldset className="try-question">
-          <legend>구매자가 먼저 써봐도 괜찮으세요?</legend>
+          <legend>구매자가 사기 전에 써보게 할까요?</legend>
           <small>답만 기록해요. 써보기는 아직 열리지 않았어요.</small>
           <div className="try-question__options">
             {TRY_OPTIONS.map((o) => (

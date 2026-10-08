@@ -94,6 +94,18 @@ export const listingPhotos = sqliteTable("listing_photos", {
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 
+// 판매자가 상품 등록·수정 때 정하는 써보기 조건(판매자 WTA 신호, §101-5). 상품당 1개.
+// 실제 거래·결제는 Gate 2 전까지 없고, 구매자에게는 이 조건으로 계산한 "예상 비용"만 보여 준다.
+export const listingTrialTerms = sqliteTable("listing_trial_terms", {
+  listingId: text("listing_id").primaryKey().references(() => listings.id),
+  hours: text("hours").notNull(), // 고를 수 있는 기간(시간) JSON 배열, 예: [24,48]
+  dailyFee: integer("daily_fee").notNull(), // 하루 체험비(원)
+  purchaseCreditPct: integer("purchase_credit_pct").notNull().default(0), // 사면 체험비 중 돌려주는 비율(%)
+  shippingOneWay: integer("shipping_one_way"), // 편도 배송비 예상(원), 모르면 null
+  conditionNote: text("condition_note"), // 조건 메모(조건부 허용일 때)
+  updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
+});
+
 // 마스터기획 §60에는 없지만 P0 요구사항("리스트·검색·상세·찜")을 위해 추가한 최소 모델
 export const wishlists = sqliteTable("wishlists", {
   id: text("id").primaryKey().$defaultFn(cuid),
