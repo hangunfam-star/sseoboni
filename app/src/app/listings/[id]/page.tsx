@@ -58,7 +58,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     .select({ eventType: marketValidationEvents.eventType })
     .from(marketValidationEvents)
     .where(and(eq(marketValidationEvents.listingId, id), inArray(marketValidationEvents.eventType, ["SELLER_TRY_YES", "SELLER_TRY_CONDITIONAL", "SELLER_TRY_NO"])))
-    .orderBy(desc(marketValidationEvents.createdAt))
+    .orderBy(desc(marketValidationEvents.createdAt), sql`rowid desc`)
     .limit(1);
   const [{ tryWanters }] = await db
     .select({ tryWanters: sql<number>`count(distinct ${marketValidationEvents.userId})` })

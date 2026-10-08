@@ -20,16 +20,18 @@ export async function POST(req: NextRequest) {
   if (tryLater && !(TRY_LATER as readonly string[]).includes(tryLater)) return NextResponse.json({ error: "답이 올바르지 않습니다." }, { status: 400 });
   if (message.length > FEEDBACK_MESSAGE_MAX) return NextResponse.json({ error: `의견은 ${FEEDBACK_MESSAGE_MAX.toLocaleString()}자 이하로 적어 주세요.` }, { status: 400 });
 
-  const [{ today }] = await db
-    .select({ today: sql<number>`count(*)` })
-    .from(marketValidationEvents)
-    .where(and(eq(marketValidationEvents.userId, userId), eq(marketValidationEvents.eventType, "FEEDBACK"), sql`${marketValidationEvents.createdAt} > datetime('now','-1 day')`));
-  if (today >= FEEDBACK_DAILY_MAX) return NextResponse.json({ error: "오늘은 의견을 충분히 남겨 주셨어요. 내일 다시 남겨 주세요." }, { status: 429 });
-
-  await db.insert(marketValidationEvents).values({
-    eventType: "FEEDBACK",
-    userId,
-    metadata: JSON.stringify({ reason, tryLater: tryLater || null, message: message || null }),
+  const saved = db.transaction((tx) => {
+    const today = tx.select({ n: sql<number>`count(*)` }).from(marketValidationEvents)
+      .where(and(eq(marketValidationEvents.userId, userId), eq(marketValidationEvents.eventType, "FEEDBACK"), sql`${marketValidationEvents.createdAt} > datetime('now','-1 day')`))
+      .get()?.n ?? 0;
+    if (today >= FEEDBACK_DAILY_MAX) return false;
+    tx.insert(marketValidationEvents).values({
+      eventType: "FEEDBACK",
+      userId,
+      metadata: JSON.stringify({ reason, tryLater: tryLater || null, message: message || null }),
+    }).run();
+    return true;
   });
+  if (!saved) return NextResponse.json({ error: "오늘은 의견을 충분히 남겨 주셨어요. 내일 다시 남겨 주세요." }, { status: 429 });
   return NextResponse.json({ ok: true }, { status: 201 });
 }

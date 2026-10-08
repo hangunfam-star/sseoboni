@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/admin";
 import { eventRows } from "@/lib/admin-metrics";
 
-// param: v 칸 값. return: CSV 한 칸(쉼표·따옴표·줄바꿈을 감싼다, 수식 실행 방지로 =+-@ 앞에 ' 를 붙인다)
+// param: v 칸 값. return: CSV 한 칸(쉼표·따옴표·줄바꿈을 감싼다, 수식 실행 방지로 =+-@·탭·CR 앞에 ' 를 붙인다)
 function cell(v: unknown): string {
   if (v === null || v === undefined) return "";
   let s = String(v);
-  if (/^[=+\-@]/.test(s)) s = `'${s}`;
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

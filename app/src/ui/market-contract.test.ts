@@ -112,7 +112,7 @@ test("운영자 결과·CSV는 운영자 쿠키가 있어야 보이고, CSV는 �
   assert.match(page, /판정 보류/);
   const csv = read("src/app/api/admin/export/route.ts");
   assert.match(csv, /await isAdmin\(\)/);
-  assert.ok(csv.includes("/^[=+\\-@]/"));
+  assert.ok(csv.includes("/^[=+\\-@\\t\\r]/"));
   const admin = read("src/lib/admin.ts");
   assert.match(admin, /timingSafeEqual/);
   assert.match(admin, /httpOnly: true/);

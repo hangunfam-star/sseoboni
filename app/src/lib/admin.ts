@@ -22,19 +22,19 @@ function same(a: string, b: string): boolean {
 
 // return: ADMIN_KEY·SESSION_SECRET이 모두 설정돼 있으면 true
 export function adminConfigured(): boolean {
-  return Boolean(process.env.ADMIN_KEY && secret());
+  return (process.env.ADMIN_KEY?.length ?? 0) >= 16 && Boolean(secret());
 }
 
 // param: key 사용자가 입력한 키. return: ADMIN_KEY와 같으면 true
 export function checkAdminKey(key: string): boolean {
   const real = process.env.ADMIN_KEY;
-  return Boolean(real) && same(key, real!);
+  return adminConfigured() && same(key, real!);
 }
 
 // return: 지금 요청이 유효한 운영자 쿠키를 가졌으면 true
 export async function isAdmin(): Promise<boolean> {
   const key = secret();
-  if (!key || !process.env.ADMIN_KEY) return false;
+  if (!key || !adminConfigured()) return false;
   const raw = (await cookies()).get(COOKIE)?.value ?? "";
   const [exp, sig] = raw.split(".");
   if (!exp || !sig || !/^\d+$/.test(exp) || Number(exp) < Date.now() / 1000) return false;

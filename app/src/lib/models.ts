@@ -27,6 +27,14 @@ export function validateCustomModel(c: CustomModelInput): string | null {
   return null;
 }
 
+export const MODEL_CREATE_DAILY_MAX = 10;
+
+// param: userId 사용자. return: 최근 24시간에 이 사람이 새로 만든 모델 수
+export function modelsCreatedToday(userId: string): number {
+  return db.get<{ n: number }>(sql`select count(*) as n from market_validation_events
+    where user_id = ${userId} and event_type in ('SELLER_MODEL_CREATED','BUYER_MODEL_CREATED') and created_at > datetime('now','-1 day')`)?.n ?? 0;
+}
+
 // param: tx 트랜잭션, c 검증된 직접 입력 모델, userId 입력한 사람
 // return: { modelId, created } — 같은 브랜드·모델명(대소문자·앞뒤 공백 무시)이 있으면 그 모델을 쓴다(수요가 한 모델로 모인다).
 export function resolveCustomModel(tx: Tx, c: CustomModelInput, userId: string): { modelId: string; created: boolean } {

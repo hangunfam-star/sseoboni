@@ -38,7 +38,7 @@ export function listingStats(): ListingStat[] {
     (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'CLICK_TRY_WANT') as tryWant,
     (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'CLICK_BUY_WANT') as buyWant,
     (select count(*) from wishlists w where w.listing_id = l.id) as wishes,
-    (select e.event_type from market_validation_events e where e.listing_id = l.id and e.event_type like 'SELLER_TRY_%' order by e.created_at desc limit 1) as sellerTry
+    (select e.event_type from market_validation_events e where e.listing_id = l.id and e.event_type like 'SELLER_TRY_%' order by e.created_at desc, e.rowid desc limit 1) as sellerTry
     from listings l
     left join product_models m on m.id = l.model_id
     left join categories c on c.id = m.category_id
@@ -61,9 +61,6 @@ export function categoryStats(rows: ListingStat[]): CategoryStat[] {
   for (const r of rows) {
     const c = get(r.category ?? "미분류");
     c.listings += 1;
-    c.viewers += r.viewers;
-    c.tryWant += r.tryWant;
-    c.buyWant += r.buyWant;
     c.wishes += r.wishes;
     if (r.sellerTry === "SELLER_TRY_YES") c.sellerYes += 1;
     else if (r.sellerTry === "SELLER_TRY_CONDITIONAL") c.sellerConditional += 1;
@@ -74,6 +71,18 @@ export function categoryStats(rows: ListingStat[]): CategoryStat[] {
     from demand_intents d join product_models m on m.id = d.model_id left join categories c on c.id = m.category_id
     where d.active = 1 group by c.name`);
   for (const s of seekers) get(s.category ?? "미분류").seekers = s.seekers;
+  // 본 사람·써보고·사고는 상품별 값을 더하지 않고 종류 단위로 사람을 중복 없이 센다.
+  const people = db.all<{ category: string | null; viewers: number; tryWant: number; buyWant: number }>(sql`select c.name as category,
+    count(distinct case when e.event_type = 'VIEW_LISTING' then e.user_id end) as viewers,
+    count(distinct case when e.event_type = 'CLICK_TRY_WANT' then e.user_id end) as tryWant,
+    count(distinct case when e.event_type = 'CLICK_BUY_WANT' then e.user_id end) as buyWant
+    from market_validation_events e join listings l on l.id = e.listing_id
+    join product_models m on m.id = l.model_id left join categories c on c.id = m.category_id
+    where l.status != 'REMOVED' group by c.name`);
+  for (const p of people) {
+    const c = map.get(p.category ?? "미분류");
+    if (c) { c.viewers = p.viewers; c.tryWant = p.tryWant; c.buyWant = p.buyWant; }
+  }
   return [...map.values()].sort((a, b) => b.tryWant + b.seekers - (a.tryWant + a.seekers));
 }
 

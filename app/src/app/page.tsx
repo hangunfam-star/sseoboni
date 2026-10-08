@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { productModels } from "@/db/schema";
+import { listings, productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
 import { listCards, modelDemand, PAGE_SIZE } from "@/lib/queries";
@@ -12,7 +12,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { q: rawQ, c, b, s, n } = await searchParams;
   const q = rawQ?.trim() || undefined;
   const sort = s === "popular" ? "popular" : "new";
-  const brands = (await db.selectDistinct({ brand: productModels.brand }).from(productModels).where(eq(productModels.active, true)).orderBy(asc(productModels.brand))).map((r) => r.brand);
+  // 브랜드 칩은 판매 중 상품이 있는 모델의 브랜드만(찾는 상품 직접 입력으로 생긴 빈 브랜드 제외)
+  const brands = (await db.selectDistinct({ brand: productModels.brand }).from(productModels)
+    .innerJoin(listings, and(eq(listings.modelId, productModels.id), eq(listings.status, "ACTIVE")))
+    .where(eq(productModels.active, true)).orderBy(asc(productModels.brand))).map((r) => r.brand);
   const brand = b && brands.includes(b) ? b : undefined;
   // 목록 나누기: n쪽까지 보여 준다(한 쪽 20개). 하나 더 가져와 다음 쪽이 있는지 안다.
   const pages = Math.min(Math.max(Number.parseInt(n ?? "1", 10) || 1, 1), 50);

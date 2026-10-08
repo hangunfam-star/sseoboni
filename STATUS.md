@@ -1,3 +1,12 @@
+<!-- CLAUDE_UPDATE:2026-10-08 -->
+# 써보니 최신 상태 (Claude, 2026-10-08)
+- 브랜치 `gate0/market-ui`, 커밋 24ba087(푸시 완료). main 병합은 사용자 승인 전 금지.
+- Gate 0 범위 개발 완료: 닉네임 시작, 상품 등록(직접 입력·사진·구성품), 수정·사진 삭제, 리스트·검색(20개씩), 상세, 찜, 찾는 상품(직접 입력), 써보기 의향 기록, 의견 보내기, 운영자 결과(/admin, CSV).
+- 운영자 키: `app/.env`의 `ADMIN_KEY`(값 기록 금지).
+- 1차 검증: tsc·eslint 0, test:ui 21/21, Playwright 34/34(격리 서버). 2차 검수 요청서: `CODEX_REVIEW_REQUEST_GATE0_v1.2.md`.
+- 정책 결정 대기: 써보기 비용 공개 화면, GO/MODIFY/STOP 판정 기준.
+
+---
 <!-- AI_NEUTRAL_HANDOFF:2026-10-01 -->
 # 써보니 AI 중립 인계 최신 스냅샷
 

@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { demandIntents, productModels, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { and, eq, desc } from "drizzle-orm";
-import { parseCustomModel, resolveCustomModel, validateCustomModel } from "@/lib/models";
+import { MODEL_CREATE_DAILY_MAX, modelsCreatedToday, parseCustomModel, resolveCustomModel, validateCustomModel } from "@/lib/models";
 
 // GET /api/demand-intents?modelId=... — 찾는 상품 목록 (P0 필수: 시장검증 신호)
 export async function GET(req: NextRequest) {
@@ -65,6 +65,9 @@ export async function POST(req: NextRequest) {
   if (custom) {
     const bad = validateCustomModel(custom);
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+    if (modelsCreatedToday(userId) >= MODEL_CREATE_DAILY_MAX) {
+      return NextResponse.json({ error: "오늘은 새 모델을 충분히 만들었어요. 목록에서 골라 주세요." }, { status: 429 });
+    }
   } else {
     const model = await db.query.productModels.findFirst({ where: and(eq(productModels.id, modelId), eq(productModels.active, true)) });
     if (!model) {

@@ -5,7 +5,7 @@ import { parseComponents } from "@/lib/models";
 import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { getCurrentUserId } from "@/lib/session";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 // GET /api/listings/[id] — 상세 (P0 필수). ACTIVE가 아니면 판매자 본인에게만 보인다.
 // 조회 이벤트는 상세 화면(page.tsx)에서만 기록한다(API·화면 이중 기록 방지).
@@ -20,7 +20,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const model = await db.query.productModels.findFirst({ where: eq(productModels.id, listing.modelId) });
   const components = await db.select().from(listingComponents).where(eq(listingComponents.listingId, id));
   const photos = (await photosFor([id])).get(id) ?? [];
-  return NextResponse.json({ listing, model, components, photos, isOwner: listing.sellerId === userId });
+  const isOwner = listing.sellerId === userId;
+  // 판매자 본인에게만 가장 최근 써보기 의향을 돌려준다(수정 화면 초기값)
+  const latestTry = isOwner
+    ? db.get<{ t: string }>(sql`select event_type as t from market_validation_events where listing_id = ${id} and event_type like 'SELLER_TRY_%' order by created_at desc, rowid desc limit 1`)?.t ?? null
+    : null;
+  return NextResponse.json({ listing, model, components, photos, isOwner, tryWillingness: latestTry ? latestTry.replace("SELLER_TRY_", "") : null });
 }
 
 // PATCH /api/listings/[id] — 판매자 본인만. 보낸 항목만 고친다.

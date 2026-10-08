@@ -33,6 +33,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [description, setDescription] = useState("");
   const [components, setComponents] = useState<string[]>([]);
   const [tryWillingness, setTryWillingness] = useState("");
+  const [savedTry, setSavedTry] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,6 +50,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
       setDescription(d.listing.description);
       setComponents(d.components.map((c: { name: string }) => c.name));
       setPhotos(d.photos.map((p: { fileName: string }) => p.fileName));
+      setTryWillingness(d.tryWillingness ?? "");
+      setSavedTry(d.tryWillingness ?? "");
     });
   }, [id]);
 
@@ -63,9 +66,11 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     files.forEach((f) => form.append("photo", f));
     const res = await fetch(`/api/listings/${id}/photos`, { method: "POST", body: form });
     const d = await res.json().catch(() => ({}));
+    // 일부만 저장됐을 수도 있으니 서버의 사진 목록으로 다시 맞춘다
+    const latest = await fetch(`/api/listings/${id}`).then((r) => r.json()).catch(() => null);
+    if (latest?.photos) setPhotos(latest.photos.map((p: { fileName: string }) => p.fileName));
     setBusy(false);
-    if (!res.ok) { setError(d.error ?? "사진을 올리지 못했어요."); return; }
-    setPhotos((prev) => [...prev, ...d.photos.map((p: { url: string }) => p.url.split("/").pop() as string)]);
+    if (!res.ok) setError(d.error ?? "사진을 올리지 못했어요.");
   }
 
   async function removePhoto(fileName: string) {
@@ -85,7 +90,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     const res = await fetch(`/api/listings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, price, conditionGrade, description, components, ...(tryWillingness ? { tryWillingness } : {}) }),
+      body: JSON.stringify({ title, price, conditionGrade, description, components, ...(tryWillingness && tryWillingness !== savedTry ? { tryWillingness } : {}) }),
     });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
@@ -157,10 +162,10 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         </label>
         <fieldset className="try-question">
           <legend>구매자가 먼저 써봐도 괜찮으세요?</legend>
-          <small>바꿀 때만 골라 주세요. 답만 기록해요.</small>
+          <small>지금 저장된 답이 선택돼 있어요. 답만 기록해요.</small>
           <div className="try-question__options">
             {TRY_OPTIONS.map((o) => (
-              <button key={o.value} type="button" aria-pressed={tryWillingness === o.value} onClick={() => setTryWillingness(tryWillingness === o.value ? "" : o.value)}>{o.label}</button>
+              <button key={o.value} type="button" aria-pressed={tryWillingness === o.value} onClick={() => setTryWillingness(o.value)}>{o.label}</button>
             ))}
           </div>
         </fieldset>
