@@ -14,7 +14,6 @@ export function ProductCard(props: CardRow) {
         {props.photo
           ? <Image className="product-photo" src={photoUrl(props.photo)} alt={props.title} fill sizes="(max-width: 480px) 45vw, 220px" />
           : <ProductIllustration seed={props.id} kind={illustrationKind(props.categoryName, props.modelName)} size={110} />}
-        <span className="grade-badge">{conditionLabel(props.conditionGrade)}</span>
         {tryBadgeLabel(props.tryOk) && <span className="try-badge">{tryBadgeLabel(props.tryOk)}</span>}
       </div>
       <div className="product-card__body">

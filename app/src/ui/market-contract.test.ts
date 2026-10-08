@@ -38,7 +38,9 @@ test("홈은 사진 중심 피드와 검색 결과를 실제 데이터로만 그
   const source = read("src/app/page.tsx");
   assert.match(source, /ProductCard/);
   assert.match(source, /ProductRow/);
-  assert.match(source, /방금 올라온 중고/);
+  assert.match(source, /써보고 사는 상품/);
+  assert.match(source, /일반 중고/);
+  assert.match(source, /section\(true/);
   assert.match(source, /demandLabel/);
   assert.doesNotMatch(source, /관심\s*12|조회\s*243|신뢰도\s*98|매너온도/);
 });
