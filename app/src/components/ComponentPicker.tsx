@@ -33,7 +33,7 @@ export function ComponentPicker({ value, onChange }: { value: string[]; onChange
         ))}
       </div>
       <div className="component-picker__add">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder="직접 추가 (예: 펜슬, 여분 이어팁)" maxLength={30} aria-label="구성품 직접 추가" disabled={full} />
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); add(); } }} onBlur={add} placeholder="직접 추가 (예: 펜슬, 여분 이어팁)" maxLength={30} aria-label="구성품 직접 추가" disabled={full} />
         <button type="button" className="secondary-button" onClick={add} disabled={full || !draft.trim()}>추가</button>
       </div>
     </fieldset>
