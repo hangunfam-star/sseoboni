@@ -55,7 +55,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
       setSavedTry(d.tryWillingness ?? "");
       if (d.trialTerms) {
         setTerms({
-          hours: d.trialTerms.hours, dailyFee: String(d.trialTerms.dailyFee), purchaseCreditPct: d.trialTerms.purchaseCreditPct,
+          hours: d.trialTerms.hours, dailyFee: String(d.trialTerms.dailyFee),
           shippingOneWay: d.trialTerms.shippingOneWay === null ? "" : String(d.trialTerms.shippingOneWay), conditionNote: d.trialTerms.conditionNote ?? "",
         });
       }

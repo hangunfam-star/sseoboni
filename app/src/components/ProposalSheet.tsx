@@ -87,7 +87,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, onClose
           {sellerNo
             ? "판매자는 바로 판매를 원하지만, 좋은 조건이면 써보게 해 줄 수도 있어요."
             : terms ? "판매자 조건이 맞지 않으면 원하는 기간과 체험비를 제안해 보세요." : "판매자에게 원하는 기간과 체험비를 제안해 보세요."}
-          {" "}결제·배송은 아직 일어나지 않아요.
+          {" "}써보고 사면 체험비는 0원이에요. 결제·배송은 아직 일어나지 않아요.
         </p>
 
         {current && (
@@ -108,7 +108,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, onClose
               </div>
             </fieldset>
             <label className="field">
-              <span>제안 체험비 <small>({hours}시간 전체)</small></span>
+              <span>제안 체험비 <small>({hours}시간 전체 · 사지 않고 돌려보낼 때만 내요)</small></span>
               <div className="price-input">
                 <input inputMode="numeric" value={fee} onChange={(e) => setFee(e.target.value.replace(/[^0-9]/g, ""))} placeholder={String(sellerFee ?? recommended)} required />
                 <b>원</b>

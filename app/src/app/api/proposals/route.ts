@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, marketValidationEvents, trialProposals } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { expireOldProposals } from "@/lib/trial-terms";
+import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { parseProposal } from "@/ui/trial-pricing";
 
 const DAILY_MAX = 10; // 한 사람이 하루에 보낼 수 있는 제안 수
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   if (typeof p === "string") return NextResponse.json({ error: p }, { status: 400 });
 
   expireOldProposals([listingId]);
+  const sellerTerms = await getTrialTerms(listingId); // 제안 당시 판매자 조건(기록용 스냅샷)
   const result = db.transaction((tx) => {
     const pending = tx.select({ id: trialProposals.id }).from(trialProposals)
       .where(and(eq(trialProposals.listingId, listingId), eq(trialProposals.buyerId, userId), eq(trialProposals.status, "PENDING"))).get();
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     const row = tx.insert(trialProposals).values({ listingId, buyerId: userId, hours: p.hours, offerFee: p.offerFee, message: p.message }).returning().get();
     tx.insert(marketValidationEvents).values({
       eventType: "TRIAL_PROPOSAL_SENT", listingId, modelId: listing.modelId, userId,
-      metadata: JSON.stringify({ proposalId: row.id, hours: p.hours, offerFee: p.offerFee, price: listing.price }),
+      metadata: JSON.stringify({ proposalId: row.id, hours: p.hours, offerFee: p.offerFee, price: listing.price, sellerTerms }),
     }).run();
     return row;
   });

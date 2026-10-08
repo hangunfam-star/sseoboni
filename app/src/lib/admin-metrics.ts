@@ -117,13 +117,13 @@ export function eventRows(): Record<string, string | number | null>[] {
 }
 
 export type TermsStat = {
-  id: string; title: string; price: number; dailyFee: number | null; hours: string | null; creditPct: number | null; shipping: number | null;
+  id: string; title: string; price: number; dailyFee: number | null; hours: string | null; shipping: number | null;
   costViewers: number; stillTry: number; decline: number; proposals: number; accepted: number; avgOfferPct: number | null;
 };
 
 // return: 상품별 판매자 써보기 조건과 반응(비용 본 사람·이 조건으로 써볼래요·부담돼요·제안). 사람 수는 중복 제거.
 export function termsStats(): TermsStat[] {
-  return db.all<TermsStat>(sql`select l.id, l.title, l.price, t.daily_fee as dailyFee, t.hours, t.purchase_credit_pct as creditPct, t.shipping_one_way as shipping,
+  return db.all<TermsStat>(sql`select l.id, l.title, l.price, t.daily_fee as dailyFee, t.hours, t.shipping_one_way as shipping,
     (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'TRIAL_COST_VIEW') as costViewers,
     (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'STILL_TRY_CLICK') as stillTry,
     (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'TRIAL_COST_DECLINE') as decline,

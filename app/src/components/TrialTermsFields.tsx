@@ -1,18 +1,17 @@
 "use client";
 
 import { formatWon } from "@/ui/presentation";
-import { CREDIT_OPTIONS, TRIAL_HOURS, computeTrialCost, recommendDailyFee } from "@/ui/trial-pricing";
+import { TRIAL_HOURS, computeTrialCost, recommendDailyFee } from "@/ui/trial-pricing";
 
-export type TermsDraft = { hours: number[]; dailyFee: string; purchaseCreditPct: number; shippingOneWay: string; conditionNote: string };
+export type TermsDraft = { hours: number[]; dailyFee: string; shippingOneWay: string; conditionNote: string };
 
-export const EMPTY_TERMS: TermsDraft = { hours: [48], dailyFee: "", purchaseCreditPct: 0, shippingOneWay: "", conditionNote: "" };
+export const EMPTY_TERMS: TermsDraft = { hours: [48], dailyFee: "", shippingOneWay: "", conditionNote: "" };
 
 // param: d 입력 중인 조건. return: API로 보낼 값(숫자 변환)
 export function termsPayload(d: TermsDraft) {
   return {
     hours: d.hours,
     dailyFee: d.dailyFee === "" ? NaN : Number(d.dailyFee),
-    purchaseCreditPct: d.purchaseCreditPct,
     shippingOneWay: d.shippingOneWay === "" ? null : Number(d.shippingOneWay),
     conditionNote: d.conditionNote,
   };
@@ -28,7 +27,7 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
   const fee = value.dailyFee === "" ? null : Number(value.dailyFee);
   const longest = value.hours.length > 0 ? Math.max(...value.hours) : null;
   const preview = price > 0 && fee !== null && longest !== null
-    ? computeTrialCost(price, longest, { hours: value.hours, dailyFee: fee, purchaseCreditPct: value.purchaseCreditPct, shippingOneWay: value.shippingOneWay === "" ? null : Number(value.shippingOneWay), conditionNote: null })
+    ? computeTrialCost(price, longest, { hours: value.hours, dailyFee: fee, shippingOneWay: value.shippingOneWay === "" ? null : Number(value.shippingOneWay), conditionNote: null })
     : null;
 
   function toggleHour(h: number) {
@@ -38,7 +37,7 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
 
   return (
     <div className="trial-terms">
-      <p className="trial-terms__title">써보기 조건 <small>구매자에게 이 조건과 예상 금액이 보여요</small></p>
+      <p className="trial-terms__title">써보기 조건 <small>써보고 사면 체험비 0원, 사지 않고 돌려보내면 체험비를 받아요</small></p>
       <fieldset className="field">
         <legend>써보게 할 기간 <small>(여러 개 고를 수 있어요)</small></legend>
         <div className="segmented">
@@ -48,7 +47,7 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
         </div>
       </fieldset>
       <label className="field">
-        <span>하루 체험비</span>
+        <span>하루 체험비 <small>(돌려보낼 때만 받아요)</small></span>
         <div className="price-input">
           <input inputMode="numeric" value={value.dailyFee} onChange={(e) => set({ dailyFee: digits(e.target.value) })} placeholder={recommended ? String(recommended) : "0"} aria-describedby="fee-hint" />
           <b>원</b>
@@ -59,14 +58,6 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
             : "가격을 먼저 입력하면 추천 금액을 보여 드려요."}
         </small>
       </label>
-      <fieldset className="field">
-        <legend>써보고 사면 체험비는?</legend>
-        <div className="segmented">
-          {CREDIT_OPTIONS.map((c) => (
-            <button key={c.pct} type="button" aria-pressed={value.purchaseCreditPct === c.pct} onClick={() => set({ purchaseCreditPct: c.pct })}>{c.label}</button>
-          ))}
-        </div>
-      </fieldset>
       <label className="field">
         <span>편도 배송비 <small>(모르면 비워 두세요)</small></span>
         <div className="price-input">
@@ -80,7 +71,7 @@ export function TrialTermsFields({ value, onChange, price }: { value: TermsDraft
       </label>
       {preview && (
         <p className="trial-terms__preview">
-          {preview.hours}시간 써보면 체험비 <b>{formatWon(preview.optionFee)}</b> · 사면 <b>{formatWon(preview.purchaseTotal ?? preview.purchaseWithoutShipping)}</b>{preview.purchaseTotal === null ? "(배송비 별도)" : ""} · 돌려보내면 <b>{formatWon(preview.returnTotal ?? preview.returnWithoutShipping)}</b>{preview.returnTotal === null ? "(왕복 배송비 별도)" : ""}
+          {preview.hours}시간 써보고 돌려보내면 <b>{formatWon(preview.returnTotal ?? preview.returnWithoutShipping)}</b>{preview.returnTotal === null ? "(왕복 배송비 별도)" : ""}을 받아요 · 써보고 사면 체험비 0원, 상품 가격 <b>{formatWon(preview.purchaseTotal ?? preview.purchaseWithoutShipping)}</b>{preview.purchaseTotal === null ? "(배송비 별도)" : ""}
         </p>
       )}
     </div>

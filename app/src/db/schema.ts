@@ -100,7 +100,7 @@ export const listingTrialTerms = sqliteTable("listing_trial_terms", {
   listingId: text("listing_id").primaryKey().references(() => listings.id),
   hours: text("hours").notNull(), // 고를 수 있는 기간(시간) JSON 배열, 예: [24,48]
   dailyFee: integer("daily_fee").notNull(), // 하루 체험비(원)
-  purchaseCreditPct: integer("purchase_credit_pct").notNull().default(0), // 사면 체험비 중 돌려주는 비율(%)
+  purchaseCreditPct: integer("purchase_credit_pct").notNull().default(0), // 과거 호환용. 정책(2026-10-08): 사면 체험비 0원 → 항상 100 저장
   shippingOneWay: integer("shipping_one_way"), // 편도 배송비 예상(원), 모르면 null
   conditionNote: text("condition_note"), // 조건 메모(조건부 허용일 때)
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),

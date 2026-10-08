@@ -12,7 +12,7 @@ export const PROPOSAL_TTL_DAYS = 7;
 function toTerms(row: typeof listingTrialTerms.$inferSelect): TrialTerms {
   let hours: number[] = [];
   try { hours = JSON.parse(row.hours); } catch { hours = []; }
-  return { hours, dailyFee: row.dailyFee, purchaseCreditPct: row.purchaseCreditPct, shippingOneWay: row.shippingOneWay, conditionNote: row.conditionNote };
+  return { hours, dailyFee: row.dailyFee, shippingOneWay: row.shippingOneWay, conditionNote: row.conditionNote };
 }
 
 // param: listingId 상품 id. return: 판매자 조건, 없으면 null
@@ -23,7 +23,8 @@ export async function getTrialTerms(listingId: string): Promise<TrialTerms | nul
 
 // param: tx 트랜잭션, listingId 상품, t 검증된 조건. 있으면 고치고 없으면 만든다.
 export function saveTrialTermsTx(tx: Tx, listingId: string, t: TrialTerms): void {
-  const values = { hours: JSON.stringify(t.hours), dailyFee: t.dailyFee, purchaseCreditPct: t.purchaseCreditPct, shippingOneWay: t.shippingOneWay, conditionNote: t.conditionNote };
+  // 사면 체험비 0원 정책: 돌려주는 비율은 항상 100%로 저장(열은 과거 호환용)
+  const values = { hours: JSON.stringify(t.hours), dailyFee: t.dailyFee, purchaseCreditPct: 100, shippingOneWay: t.shippingOneWay, conditionNote: t.conditionNote };
   const exists = tx.select({ id: listingTrialTerms.listingId }).from(listingTrialTerms).where(eq(listingTrialTerms.listingId, listingId)).get();
   if (exists) tx.update(listingTrialTerms).set({ ...values, updatedAt: sql`(current_timestamp)` }).where(eq(listingTrialTerms.listingId, listingId)).run();
   else tx.insert(listingTrialTerms).values({ listingId, ...values }).run();

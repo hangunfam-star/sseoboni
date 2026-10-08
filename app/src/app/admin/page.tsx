@@ -67,7 +67,7 @@ export default async function AdminPage() {
 
       <section aria-labelledby="price-title">
         <h2 className="section-title" id="price-title">써보기 조건 · 제안</h2>
-        <p className="field-hint">체험비는 판매자가 등록할 때 정하고, 구매자는 직접 제안할 수 있어요. 결제·배송은 아직 없어요(통장 방식은 추후 결정).</p>
+        <p className="field-hint">체험비는 판매자가 등록할 때 정하고, 구매자는 직접 제안할 수 있어요. 써보고 사면 체험비 0원, 돌려보내면 체험비를 받아요. 결제·배송은 아직 없어요(통장 방식은 추후 결정).</p>
         <div className="admin-stats">
           <div><small>받은 제안</small><strong>{pt.total}</strong></div>
           <div><small>승인</small><strong>{pt.accepted}</strong><small>승인율 {pct(pt.accepted, pt.accepted + pt.declined)}</small></div>
@@ -76,9 +76,9 @@ export default async function AdminPage() {
         </div>
         <div className="admin-table-wrap">
           <table className="admin-table">
-            <thead><tr><th>상품</th><th>가격</th><th>판매자 하루 체험비</th><th>가격 대비</th><th>기간</th><th>사면 돌려줌</th><th>편도 배송</th><th>비용 본 사람</th><th>이 조건으로 써볼래요</th><th>부담돼요</th><th>제안(승인)</th><th>평균 제안(가격 대비)</th></tr></thead>
+            <thead><tr><th>상품</th><th>가격</th><th>판매자 하루 체험비</th><th>가격 대비</th><th>기간</th><th>편도 배송</th><th>비용 본 사람</th><th>이 조건으로 써볼래요</th><th>부담돼요</th><th>제안(승인)</th><th>평균 제안(가격 대비)</th></tr></thead>
             <tbody>
-              {terms.length === 0 && <tr><td colSpan={12}>데이터 없음</td></tr>}
+              {terms.length === 0 && <tr><td colSpan={11}>데이터 없음</td></tr>}
               {terms.map((r) => (
                 <tr key={r.id}>
                   <th scope="row"><Link href={`/listings/${r.id}`}>{r.title}</Link></th>
@@ -86,7 +86,6 @@ export default async function AdminPage() {
                   <td>{r.dailyFee === null ? "조건 없음" : formatWon(r.dailyFee)}</td>
                   <td>{r.dailyFee === null ? "-" : `${((r.dailyFee / r.price) * 100).toFixed(2)}%`}</td>
                   <td>{r.hours ? `${(JSON.parse(r.hours) as number[]).join("·")}h` : "-"}</td>
-                  <td>{r.creditPct === null ? "-" : `${r.creditPct}%`}</td>
                   <td>{r.shipping === null ? (r.dailyFee === null ? "-" : "모름") : formatWon(r.shipping)}</td>
                   <td>{r.costViewers}</td><td>{r.stillTry}</td><td>{r.decline}</td>
                   <td>{r.proposals}({r.accepted})</td>

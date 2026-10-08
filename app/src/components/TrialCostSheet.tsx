@@ -59,14 +59,14 @@ export function TrialCostSheet({ listingId, price, terms }: { listingId: string;
           </fieldset>
           <dl className="trial-cost__table">
             <div><dt>상품 가격</dt><dd>{formatWon(price)}</dd></div>
-            <div><dt>체험비 <small>하루 {formatWon(c.dailyFee)} × {c.days}일</small></dt><dd>{formatWon(c.optionFee)}</dd></div>
+            <div><dt>체험비 <small>하루 {formatWon(c.dailyFee)} × {c.days}일 · 돌려보낼 때만</small></dt><dd>{formatWon(c.optionFee)}</dd></div>
             <div><dt>배송비 <small>편도</small></dt><dd>{shipKnown ? formatWon(c.shippingOneWay!) : "확정 전"}</dd></div>
           </dl>
           <div className="trial-cost__result">
             <div>
               <small>써보고 사면</small>
               <strong>{formatWon(shipKnown ? c.purchaseTotal! : c.purchaseWithoutShipping)}</strong>
-              <small>상품 가격 + 체험비{c.purchaseCredit > 0 ? ` − 돌려받는 체험비 ${formatWon(c.purchaseCredit)}` : ""}{shipKnown ? " + 편도 배송비" : " (배송비 별도)"}</small>
+              <small>체험비 0원 · 상품 가격{shipKnown ? " + 편도 배송비" : " (배송비 별도)"}</small>
             </div>
             <div>
               <small>써보고 돌려보내면</small>
