@@ -3,6 +3,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ComponentPicker } from "@/components/ComponentPicker";
+import { EMPTY_TERMS, TrialTermsFields, termsPayload, type TermsDraft } from "@/components/TrialTermsFields";
 import { photoUrl } from "@/lib/photo-url";
 import { CONDITION_GRADES, conditionLabel } from "@/ui/presentation";
 
@@ -33,6 +34,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [components, setComponents] = useState<string[]>([]);
   const [tryWillingness, setTryWillingness] = useState("");
   const [savedTry, setSavedTry] = useState("");
+  const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
   const [photos, setPhotos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,6 +53,12 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
       setPhotos(d.photos.map((p: { fileName: string }) => p.fileName));
       setTryWillingness(d.tryWillingness ?? "");
       setSavedTry(d.tryWillingness ?? "");
+      if (d.trialTerms) {
+        setTerms({
+          hours: d.trialTerms.hours, dailyFee: String(d.trialTerms.dailyFee), purchaseCreditPct: d.trialTerms.purchaseCreditPct,
+          shippingOneWay: d.trialTerms.shippingOneWay === null ? "" : String(d.trialTerms.shippingOneWay), conditionNote: d.trialTerms.conditionNote ?? "",
+        });
+      }
     });
   }, [id]);
 
@@ -89,7 +97,11 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     const res = await fetch(`/api/listings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, price, conditionGrade, description, components, ...(tryWillingness && tryWillingness !== savedTry ? { tryWillingness } : {}) }),
+      body: JSON.stringify({
+        title, price, conditionGrade, description, components,
+        ...(tryWillingness && tryWillingness !== savedTry ? { tryWillingness } : {}),
+        ...(tryWillingness === "YES" ? { trialTerms: termsPayload(terms) } : {}),
+      }),
     });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
@@ -161,12 +173,13 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         </label>
         <fieldset className="try-question">
           <legend>구매자가 사기 전에 써보게 할까요?</legend>
-          <small>지금 저장된 답이 선택돼 있어요. 답만 기록해요.</small>
+          <small>지금 저장된 답이 선택돼 있어요. &apos;바로 판매만&apos;이어도 구매자 제안은 받아요.</small>
           <div className="try-question__options">
             {TRY_OPTIONS.map((o) => (
               <button key={o.value} type="button" aria-pressed={tryWillingness === o.value} onClick={() => setTryWillingness(o.value)}>{o.label}</button>
             ))}
           </div>
+          {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} />}
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="dark-button" type="submit" disabled={busy}>{busy ? "저장 중…" : "저장하기"}</button>

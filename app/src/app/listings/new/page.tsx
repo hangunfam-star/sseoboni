@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CONDITION_GRADES, conditionLabel, demandLabel } from "@/ui/presentation";
 import { SELL_CATEGORIES } from "@/ui/categories";
 import { ComponentPicker } from "@/components/ComponentPicker";
+import { EMPTY_TERMS, TrialTermsFields, termsPayload, type TermsDraft } from "@/components/TrialTermsFields";
 
 type ProductModel = { id: string; brand: string; modelName: string; seekers: number };
 
@@ -28,6 +29,7 @@ export default function NewListingPage() {
   const [conditionGrade, setConditionGrade] = useState("A");
   const [description, setDescription] = useState("");
   const [tryWillingness, setTryWillingness] = useState("");
+  const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
   const [components, setComponents] = useState<string[]>(["본체"]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -73,6 +75,7 @@ export default function NewListingPage() {
         modelId: isCustom ? "" : modelId,
         customModel: isCustom ? { brand: customBrand, modelName: customModelName, category: customCategory } : undefined,
         title, price: price.replace(/,/g, ""), conditionGrade, description, tryWillingness, components,
+        trialTerms: tryWillingness === "YES" ? termsPayload(terms) : undefined,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -183,12 +186,13 @@ export default function NewListingPage() {
 
         <fieldset className="try-question">
           <legend>구매자가 사기 전에 써보게 할까요?</legend>
-          <small>답만 기록해요. 써보기는 아직 열리지 않았어요.</small>
+          <small>써보기 결제·배송은 아직 열리지 않았어요. &apos;바로 판매만&apos;이어도 구매자가 써보기 조건을 제안할 수 있어요.</small>
           <div className="try-question__options">
             {TRY_OPTIONS.map((o) => (
               <button key={o.value} type="button" aria-pressed={tryWillingness === o.value} onClick={() => setTryWillingness(o.value)}>{o.label}</button>
             ))}
           </div>
+          {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} />}
         </fieldset>
 
         {error && <p className="form-error" role="alert">{error}</p>}

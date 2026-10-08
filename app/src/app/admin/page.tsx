@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { adminConfigured, isAdmin } from "@/lib/admin";
-import { categoryStats, costReactions, feedbackReasons, listingStats, recentFeedback, totals } from "@/lib/admin-metrics";
-import { loadTrialPricing } from "@/lib/trial-pricing-store";
-import { computeTrialCost } from "@/ui/trial-pricing";
-import { PricingForm } from "./PricingForm";
+import { categoryStats, feedbackReasons, listingStats, proposalTotals, recentFeedback, recentProposals, termsStats, totals } from "@/lib/admin-metrics";
+import { expireOldProposals } from "@/lib/trial-terms";
 import { formatWon, relativeTime } from "@/ui/presentation";
 import { AdminLogin, AdminLogout } from "./AdminControls";
 
@@ -37,9 +35,11 @@ export default async function AdminPage() {
   const reasons = feedbackReasons();
   const feedback = recentFeedback(30);
   const intents = t.tryWant + t.buyWant;
-  const pricing = await loadTrialPricing();
-  const reactions = costReactions();
-  const SAMPLE_PRICES = [150000, 500000, 1000000];
+  expireOldProposals();
+  const terms = termsStats();
+  const pt = proposalTotals();
+  const proposals = recentProposals();
+  const PROPOSAL_LABEL: Record<string, string> = { PENDING: "대기", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소", EXPIRED: "만료" };
 
   return (
     <div className="page admin-page">
@@ -66,44 +66,51 @@ export default async function AdminPage() {
       </section>
 
       <section aria-labelledby="price-title">
-        <h2 className="section-title" id="price-title">써보기 가격 가설 · 비용 반응</h2>
-        <p className="field-hint">마스터 기획 §8 써보기 비용은 아직 가설(HYPOTHESIS·VALIDATE_FIRST)이에요. 구매자 화면에는 &quot;검증용 예상 금액 · 확정 전 · 결제 없음&quot;으로 보여요. 지금 가격안: <b>{pricing.version}</b></p>
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead><tr><th>상품 가격</th>{pricing.hours.map((h) => <th key={h}>{h}시간 체험비</th>)}<th>{pricing.hours.at(-1)}시간 사면</th><th>{pricing.hours.at(-1)}시간 돌려보내면</th></tr></thead>
-            <tbody>
-              {SAMPLE_PRICES.map((p) => {
-                const last = computeTrialCost(p, pricing.hours.at(-1)!, pricing);
-                return (
-                  <tr key={p}>
-                    <th scope="row">{formatWon(p)}</th>
-                    {pricing.hours.map((h) => <td key={h}>{formatWon(computeTrialCost(p, h, pricing).optionFee)}</td>)}
-                    <td>{formatWon(last.purchaseTotal ?? last.purchaseWithoutShipping)}{last.purchaseTotal === null ? " + 배송" : ""}</td>
-                    <td>{formatWon(last.returnTotal ?? last.returnWithoutShipping)}{last.returnTotal === null ? " + 왕복 배송" : ""}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <h2 className="section-title" id="price-title">써보기 조건 · 제안</h2>
+        <p className="field-hint">체험비는 판매자가 등록할 때 정하고, 구매자는 직접 제안할 수 있어요. 결제·배송은 아직 없어요(통장 방식은 추후 결정).</p>
+        <div className="admin-stats">
+          <div><small>받은 제안</small><strong>{pt.total}</strong></div>
+          <div><small>승인</small><strong>{pt.accepted}</strong><small>승인율 {pct(pt.accepted, pt.accepted + pt.declined)}</small></div>
+          <div><small>대기</small><strong>{pt.pending}</strong><small>거절 {pt.declined} · 만료 {pt.expired} · 취소 {pt.cancelled}</small></div>
+          <div><small>바로 판매만이던 상품에 온 제안</small><strong>{pt.onNoListings}</strong><small>그중 승인 {pt.acceptedOnNo}</small></div>
         </div>
         <div className="admin-table-wrap">
           <table className="admin-table">
-            <thead><tr><th>가격안</th><th>비용 본 사람</th><th>비로그인 조회</th><th>그래도 써볼래요</th><th>부담돼요</th><th>써볼래요 비율</th></tr></thead>
+            <thead><tr><th>상품</th><th>가격</th><th>판매자 하루 체험비</th><th>가격 대비</th><th>기간</th><th>사면 돌려줌</th><th>편도 배송</th><th>비용 본 사람</th><th>이 조건으로 써볼래요</th><th>부담돼요</th><th>제안(승인)</th><th>평균 제안(가격 대비)</th></tr></thead>
             <tbody>
-              {reactions.length === 0 && <tr><td colSpan={6}>데이터 없음</td></tr>}
-              {reactions.map((r) => (
-                <tr key={r.version}>
-                  <th scope="row">{r.version}</th><td>{r.viewers}</td><td>{r.anonViews}</td><td>{r.stillTry}</td><td>{r.decline}</td>
-                  <td>{pct(r.stillTry, r.stillTry + r.decline)}{r.stillTry + r.decline < SMALL_SAMPLE ? " · 표본 적음" : ""}</td>
+              {terms.length === 0 && <tr><td colSpan={12}>데이터 없음</td></tr>}
+              {terms.map((r) => (
+                <tr key={r.id}>
+                  <th scope="row"><Link href={`/listings/${r.id}`}>{r.title}</Link></th>
+                  <td>{formatWon(r.price)}</td>
+                  <td>{r.dailyFee === null ? "조건 없음" : formatWon(r.dailyFee)}</td>
+                  <td>{r.dailyFee === null ? "-" : `${((r.dailyFee / r.price) * 100).toFixed(2)}%`}</td>
+                  <td>{r.hours ? `${(JSON.parse(r.hours) as number[]).join("·")}h` : "-"}</td>
+                  <td>{r.creditPct === null ? "-" : `${r.creditPct}%`}</td>
+                  <td>{r.shipping === null ? (r.dailyFee === null ? "-" : "모름") : formatWon(r.shipping)}</td>
+                  <td>{r.costViewers}</td><td>{r.stillTry}</td><td>{r.decline}</td>
+                  <td>{r.proposals}({r.accepted})</td>
+                  <td>{r.avgOfferPct === null ? "-" : `${r.avgOfferPct}%`}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <details className="pricing-details">
-          <summary>가격안 바꾸기</summary>
-          <PricingForm current={pricing} />
-        </details>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead><tr><th>최근 제안 상품</th><th>구매자</th><th>기간</th><th>제안 체험비</th><th>가격 대비</th><th>상태</th></tr></thead>
+            <tbody>
+              {proposals.length === 0 && <tr><td colSpan={6}>데이터 없음</td></tr>}
+              {proposals.map((r, k) => (
+                <tr key={k}>
+                  <th scope="row">{r.title}<small>{relativeTime(r.createdAt)}</small></th>
+                  <td>{r.buyer ?? "구매자"}</td><td>{r.hours}h</td><td>{formatWon(r.offerFee)}</td>
+                  <td>{((r.offerFee / r.price) * 100).toFixed(2)}%</td><td>{PROPOSAL_LABEL[r.status] ?? r.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section aria-labelledby="cat-title">

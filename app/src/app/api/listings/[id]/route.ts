@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { listings, productModels, listingComponents, marketValidationEvents } from "@/db/schema";
 import { parseComponents } from "@/lib/models";
+import { deleteTrialTermsTx, getTrialTerms, saveTrialTermsTx } from "@/lib/trial-terms";
+import { parseTrialTerms } from "@/ui/trial-pricing";
 import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { getCurrentUserId } from "@/lib/session";
@@ -25,7 +27,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const latestTry = isOwner
     ? db.get<{ t: string }>(sql`select event_type as t from market_validation_events where listing_id = ${id} and event_type like 'SELLER_TRY_%' order by created_at desc, rowid desc limit 1`)?.t ?? null
     : null;
-  return NextResponse.json({ listing, model, components, photos, isOwner, tryWillingness: latestTry ? latestTry.replace("SELLER_TRY_", "") : null });
+  const trialTerms = await getTrialTerms(id);
+  return NextResponse.json({ listing, model, components, photos, isOwner, tryWillingness: latestTry ? latestTry.replace("SELLER_TRY_", "") : null, trialTerms });
 }
 
 // PATCH /api/listings/[id] — 판매자 본인만. 보낸 항목만 고친다.
@@ -77,6 +80,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (typeof components === "string") return NextResponse.json({ error: components }, { status: 400 });
   const tryWillingness = "tryWillingness" in body ? str(body.tryWillingness) : "";
   if (tryWillingness && !TRY_EVENT[tryWillingness]) return NextResponse.json({ error: "써보기 의향 값이 올바르지 않습니다." }, { status: 400 });
+  // 판매자 써보기 조건: 보낸 경우 바뀐 가격 기준으로 검증. "바로 판매만"으로 바꾸면 조건을 지운다.
+  const terms = "trialTerms" in body && tryWillingness !== "NO" ? parseTrialTerms(body.trialTerms, set.price ?? listing.price) : null;
+  if (typeof terms === "string") return NextResponse.json({ error: terms }, { status: 400 });
+  if (tryWillingness === "YES" && !terms && !(await getTrialTerms(id))) {
+    return NextResponse.json({ error: "써보기 조건을 입력해 주세요." }, { status: 400 });
+  }
 
   const updated = db.transaction((tx) => {
     const row = Object.keys(set).length > 0
@@ -86,9 +95,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       tx.delete(listingComponents).where(eq(listingComponents.listingId, id)).run();
       for (const name of components) tx.insert(listingComponents).values({ listingId: id, name }).run();
     }
+    if (tryWillingness === "NO") deleteTrialTermsTx(tx, id);
+    else if (terms) saveTrialTermsTx(tx, id, terms);
     // 판매자 써보기 의향은 덮어쓰지 않고 새 이벤트로 남긴다(상세는 가장 최근 답을 보여 준다).
     if (tryWillingness) tx.insert(marketValidationEvents).values({ eventType: TRY_EVENT[tryWillingness], listingId: id, modelId: listing.modelId, userId }).run();
-    const edited = Object.keys(set).some((k) => k !== "status") || components !== null;
+    const edited = Object.keys(set).some((k) => k !== "status") || components !== null || terms !== null;
     if (edited) tx.insert(marketValidationEvents).values({ eventType: "SELLER_LISTING_EDITED", listingId: id, modelId: listing.modelId, userId }).run();
     return row;
   });

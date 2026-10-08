@@ -933,3 +933,44 @@ input, textarea { caret-color: var(--w-ink); }
 
 /* 써보기 답 두 개(써보기 허용 / 바로 판매만) */
 .try-question__options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* ── 2026-10-08 판매자 써보기 조건·구매자 제안 ── */
+.trial-terms { display: grid; gap: 12px; margin-top: 14px; padding: 16px; border-radius: 18px; background: var(--w-bg); border: 1px solid var(--w-chip-line); }
+.trial-terms__title { font-weight: 700; display: grid; gap: 2px; }
+.trial-terms__title small { font-weight: 400; color: var(--w-sub); font-size: 12px; }
+.trial-terms__preview { padding: 10px 12px; border-radius: 12px; background: var(--w-surface); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+.link-button { border: 0; background: none; padding: 0; color: var(--w-ink); font-weight: 700; text-decoration: underline; font-size: inherit; min-height: 24px; }
+.trial-cost__body .trial-cost__cond { font-size: 13px; color: var(--w-ink); padding: 10px 12px; border-radius: 12px; background: var(--w-surface); }
+.owner-proposals { display: grid; place-items: center; text-decoration: none; }
+
+.sheet { position: fixed; inset: 0; z-index: 70; display: flex; align-items: flex-end; justify-content: center; background: rgba(0, 0, 0, 0.45); }
+.sheet__panel { width: min(100%, 480px); max-height: 88vh; overflow-y: auto; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); display: grid; gap: 14px; border-radius: 24px 24px 0 0; background: var(--w-bg); }
+.sheet__head { display: flex; align-items: center; justify-content: space-between; }
+.sheet__head h2 { font-size: 20px; font-weight: 800; }
+.sheet__lead { font-size: 13px; color: var(--w-sub); line-height: 1.5; word-break: keep-all; }
+.proposal-form { display: grid; gap: 12px; }
+.proposal-status { display: grid; gap: 4px; padding: 14px; border-radius: 16px; background: var(--w-surface); }
+.proposal-status small { color: var(--w-sub); font-size: 12px; }
+.proposal-status strong { font-size: 15px; word-break: keep-all; }
+.proposal-status--accepted { background: #fdecea; }
+.proposal-status .text-button { justify-self: start; min-height: 40px; }
+
+.proposals { display: grid; gap: 12px; }
+.proposal-list { list-style: none; display: grid; gap: 10px; }
+.proposal-card { display: grid; gap: 4px; padding: 14px 16px; border-radius: 20px; background: var(--w-surface); }
+.proposal-card small { color: var(--w-sub); font-size: 12px; }
+.proposal-card small a { text-decoration: underline; color: var(--w-ink); }
+.proposal-card strong { font-size: 16px; font-weight: 700; }
+.proposal-card__msg { font-size: 14px; word-break: break-word; }
+.proposal-card__status { justify-self: start; padding: 3px 10px; border-radius: 999px; background: var(--w-bg); font-size: 12px; }
+.proposal-card__status[data-status="PENDING"] { background: var(--w-ink); color: #fff; }
+.proposal-card__status[data-status="ACCEPTED"] { background: #c94a36; color: #fff; }
+.proposal-actions { display: grid; gap: 8px; margin-top: 6px; }
+.proposal-actions input { min-height: 44px; padding: 0 12px; border: 1px solid var(--w-chip-line); border-radius: 12px; background: var(--w-bg); font-size: 14px; }
+.proposal-actions div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.proposal-actions button { min-height: 44px; border: 0; border-radius: 999px; background: var(--w-bg); font-weight: 700; }
+.proposal-actions .proposal-actions__yes { background: var(--w-ink); color: #fff; }
+
+/* 조건·제안의 기간/돌려주기 선택은 한 줄에 나란히 */
+.trial-terms .segmented, .proposal-form .segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.trial-terms .segmented button, .proposal-form .segmented button { min-height: 44px; padding: 0 4px; font-size: 14px; word-break: keep-all; }

@@ -29,6 +29,13 @@
       "when": 1791437678691,
       "tag": "0003_listing_trial_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791443942005,
+      "tag": "0004_trial_proposals",
+      "breakpoints": true
     }
   ]
 }

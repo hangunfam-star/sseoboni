@@ -1,13 +1,19 @@
 import Link from "next/link";
+import { alias } from "drizzle-orm/sqlite-core";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categories, demandIntents, listings, productModels, users, wishlists } from "@/db/schema";
+import { categories, demandIntents, listings, productModels, trialProposals, users, wishlists } from "@/db/schema";
+import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
+import { computeTrialCost } from "@/ui/trial-pricing";
+import { ProposalActions } from "./ProposalActions";
 import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
-import { conditionLabel, formatWon, illustrationKind } from "@/ui/presentation";
+import { conditionLabel, formatWon, illustrationKind, relativeTime } from "@/ui/presentation";
 import { ListingStatusActions, LogoutButton } from "./MyActions";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", HIDDEN: "숨김", SOLD: "판매완료" };
+const PROPOSAL_LABEL: Record<string, string> = { PENDING: "답 기다리는 중", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소됨", EXPIRED: "만료" };
+const buyers = alias(users, "buyers");
 
 export default async function MyPage() {
   const userId = await getCurrentUserId();
@@ -24,6 +30,19 @@ export default async function MyPage() {
   }
 
   const me = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  expireOldProposals();
+  // 받은 제안: 내 상품에 온 제안(답 기다리는 것 먼저), 보낸 제안: 내가 보낸 것
+  const pendingFirst = sql`case when ${trialProposals.status} = 'PENDING' then 0 else 1 end`;
+  const received = await db
+    .select({ id: trialProposals.id, listingId: listings.id, title: listings.title, price: listings.price, hours: trialProposals.hours, offerFee: trialProposals.offerFee, message: trialProposals.message, status: trialProposals.status, sellerReply: trialProposals.sellerReply, buyer: buyers.nickname, createdAt: trialProposals.createdAt })
+    .from(trialProposals).innerJoin(listings, eq(trialProposals.listingId, listings.id)).leftJoin(buyers, eq(trialProposals.buyerId, buyers.id))
+    .where(eq(listings.sellerId, userId)).orderBy(pendingFirst, desc(trialProposals.createdAt)).limit(30);
+  const sellerTerms = new Map(await Promise.all([...new Set(received.map((r) => r.listingId))].map(async (lid) => [lid, await getTrialTerms(lid)] as const)));
+  const sent = await db
+    .select({ id: trialProposals.id, listingId: listings.id, title: listings.title, hours: trialProposals.hours, offerFee: trialProposals.offerFee, status: trialProposals.status, sellerReply: trialProposals.sellerReply, createdAt: trialProposals.createdAt })
+    .from(trialProposals).innerJoin(listings, eq(trialProposals.listingId, listings.id))
+    .where(eq(trialProposals.buyerId, userId)).orderBy(pendingFirst, desc(trialProposals.createdAt)).limit(30);
+  const pendingReceived = received.filter((r) => r.status === "PENDING").length;
   const nickname = me?.nickname ?? "테스터";
   const mine = await db
     .select({
@@ -53,6 +72,44 @@ export default async function MyPage() {
         <Link className="my-stat my-stat--coral" href="/wishlist"><small>찜</small><strong>{wishCount}</strong></Link>
         <Link className="my-stat my-stat--yellow" href="/demand"><small>찾는 상품</small><strong>{demandCount}</strong></Link>
       </div>
+      <section className="proposals" id="proposals" aria-labelledby="received-title">
+        <h2 className="section-title" id="received-title">받은 써보기 제안{pendingReceived > 0 ? ` · 새 제안 ${pendingReceived}` : ""}</h2>
+        {received.length === 0 ? <p className="field-hint">아직 받은 제안이 없어요.</p> : (
+          <ul className="proposal-list">
+            {received.map((r) => {
+              const t = sellerTerms.get(r.listingId);
+              const mineFee = t && t.hours.includes(r.hours) ? computeTrialCost(r.price, r.hours, t).optionFee : null;
+              return (
+                <li key={r.id} className="proposal-card">
+                  <small><Link href={`/listings/${r.listingId}`}>{r.title}</Link> · {r.buyer ?? "구매자"} · {relativeTime(r.createdAt)}</small>
+                  <strong>{r.hours}시간 · 체험비 {formatWon(r.offerFee)} 제안</strong>
+                  <small>{mineFee !== null ? `내 조건 ${formatWon(mineFee)} 대비 ${r.offerFee >= mineFee ? "같거나 많아요" : `${formatWon(mineFee - r.offerFee)} 적어요`}` : `상품 가격의 ${((r.offerFee / r.price) * 100).toFixed(1)}%`}</small>
+                  {r.message && <p className="proposal-card__msg">“{r.message}”</p>}
+                  <b className="proposal-card__status" data-status={r.status}>{PROPOSAL_LABEL[r.status] ?? r.status}</b>
+                  {r.sellerReply && <small>내 답: {r.sellerReply}</small>}
+                  {r.status === "PENDING" && <ProposalActions id={r.id} role="seller" />}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <h2 className="section-title">보낸 써보기 제안</h2>
+        {sent.length === 0 ? <p className="field-hint">상품 상세의 &apos;써보고 싶어요&apos;에서 판매자에게 제안할 수 있어요.</p> : (
+          <ul className="proposal-list">
+            {sent.map((r) => (
+              <li key={r.id} className="proposal-card">
+                <small><Link href={`/listings/${r.listingId}`}>{r.title}</Link> · {relativeTime(r.createdAt)}</small>
+                <strong>{r.hours}시간 · 체험비 {formatWon(r.offerFee)}</strong>
+                <b className="proposal-card__status" data-status={r.status}>{PROPOSAL_LABEL[r.status] ?? r.status}</b>
+                {r.status === "ACCEPTED" && <small>판매자가 승인했어요. 써보기 결제·배송이 열리면 이 조건으로 진행돼요.</small>}
+                {r.sellerReply && <small>판매자: {r.sellerReply}</small>}
+                {r.status === "PENDING" && <ProposalActions id={r.id} role="buyer" />}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <h2 className="section-title" id="my-listings">내 판매 상품</h2>
       {mine.length === 0 ? (
         <div className="empty-card">

@@ -106,6 +106,21 @@ export const listingTrialTerms = sqliteTable("listing_trial_terms", {
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
 });
 
+// 구매자가 보내는 써보기 제안(기간·체험비). 판매자가 승인·거절한다. 판매자 조건과 따로 작동한다.
+// 결제·배송은 아직 없다(사용자 결정 2026-10-08: PG 불가, 통장 방식은 추후). 승인은 "합의 성사" 기록이다.
+export const trialProposals = sqliteTable("trial_proposals", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  listingId: text("listing_id").notNull().references(() => listings.id),
+  buyerId: text("buyer_id").notNull().references(() => users.id),
+  hours: integer("hours").notNull(),
+  offerFee: integer("offer_fee").notNull(), // 기간 전체 체험비 제안(원)
+  message: text("message"), // 구매자 한마디
+  status: text("status").notNull().default("PENDING"), // PENDING | ACCEPTED | DECLINED | CANCELLED | EXPIRED
+  sellerReply: text("seller_reply"),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  decidedAt: text("decided_at"),
+});
+
 // 마스터기획 §60에는 없지만 P0 요구사항("리스트·검색·상세·찜")을 위해 추가한 최소 모델
 export const wishlists = sqliteTable("wishlists", {
   id: text("id").primaryKey().$defaultFn(cuid),

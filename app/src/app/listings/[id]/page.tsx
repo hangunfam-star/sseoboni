@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { recordListingView } from "@/lib/events";
 import { db } from "@/db/client";
-import { categories, listingComponents, listings, marketValidationEvents, productModels, users, wishlists } from "@/db/schema";
+import { categories, listingComponents, listings, marketValidationEvents, productModels, trialProposals, users, wishlists } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { modelDemand } from "@/lib/queries";
 import { IntentActionBar } from "@/components/IntentActionBar";
@@ -11,9 +11,10 @@ import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { TryFlow } from "@/components/TryFlow";
 import { TrialCostSheet } from "@/components/TrialCostSheet";
-import { loadTrialPricing } from "@/lib/trial-pricing-store";
+import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { photosFor } from "@/lib/photos";
 import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel } from "@/ui/presentation";
+import { computeTrialCost } from "@/ui/trial-pricing";
 
 function BackButton() {
   return (
@@ -67,12 +68,24 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     .select({ tryWanters: sql<number>`count(distinct ${marketValidationEvents.userId})` })
     .from(marketValidationEvents)
     .where(and(eq(marketValidationEvents.listingId, id), eq(marketValidationEvents.eventType, "CLICK_TRY_WANT")));
-  const pricing = await loadTrialPricing();
-  const sellerTryText = {
-    SELLER_TRY_YES: "판매자가 써보기를 허용했어요",
-    SELLER_TRY_CONDITIONAL: "판매자가 조건부로 써보기를 허용했어요",
-    SELLER_TRY_NO: "판매자가 바로 판매만 원해요",
-  }[sellerTry[0]?.eventType ?? ""] ?? "판매자 써보기 의향 확인 전이에요";
+  const terms = await getTrialTerms(id);
+  const sellerNo = sellerTry[0]?.eventType === "SELLER_TRY_NO";
+  const termsSummary = terms
+    ? `${terms.hours.join("·")}시간 · 하루 ${formatWon(terms.dailyFee)}${terms.hours.includes(48) ? ` (48시간 ${formatWon(computeTrialCost(listing.price, 48, terms).optionFee)})` : ""}`
+    : null;
+  const sellerTryText = sellerNo
+    ? "판매자는 바로 판매를 원해요 · 써보기 제안은 받아요"
+    : terms ? `판매자가 써보기를 허용했어요 · ${termsSummary}`
+    : sellerTry[0] ? "판매자가 써보기를 허용했어요 · 조건은 제안으로 정해요" : "판매자 써보기 의향 확인 전이에요 · 제안은 받아요";
+  expireOldProposals([id]);
+  const mine = userId && !isOwner
+    ? (await db.select({ id: trialProposals.id, hours: trialProposals.hours, offerFee: trialProposals.offerFee, status: trialProposals.status, sellerReply: trialProposals.sellerReply })
+        .from(trialProposals).where(and(eq(trialProposals.listingId, id), eq(trialProposals.buyerId, userId)))
+        .orderBy(desc(trialProposals.createdAt), sql`rowid desc`).limit(1))[0] ?? null
+    : null;
+  const [{ pendingCount }] = isOwner
+    ? await db.select({ pendingCount: sql<number>`count(*)` }).from(trialProposals).where(and(eq(trialProposals.listingId, id), eq(trialProposals.status, "PENDING")))
+    : [{ pendingCount: 0 }];
   const seller = await db.query.users.findFirst({ where: eq(users.id, listing.sellerId) });
   const sellerName = seller?.nickname ?? "판매자";
 
@@ -123,10 +136,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <li>{sellerTryText}</li>
             <li>{tryWantLabel(tryWanters) ?? "아직 써보고 싶다는 사람이 없어요. 첫 의견을 남겨 주세요"}</li>
           </ul>
-          <p>아래 ‘써보고 싶어요’를 누르면 의견만 기록돼요. 결제와 배송은 일어나지 않아요.</p>
-          {!isOwner && listing.status === "ACTIVE" && sellerTry[0]?.eventType !== "SELLER_TRY_NO" && (
-            <TrialCostSheet listingId={id} price={listing.price} pricing={pricing} conditional={sellerTry[0]?.eventType === "SELLER_TRY_CONDITIONAL"} />
+          <p>아래 ‘써보고 싶어요’를 누르면 원하는 기간과 체험비를 판매자에게 제안할 수 있어요. 결제와 배송은 아직 일어나지 않아요.</p>
+          {!isOwner && listing.status === "ACTIVE" && !sellerNo && terms && (
+            <TrialCostSheet listingId={id} price={listing.price} terms={terms} />
           )}
+          {isOwner && pendingCount > 0 && <Link className="trial-cost__toggle owner-proposals" href="/me#proposals">받은 써보기 제안 {pendingCount}개 보기</Link>}
         </section>
         {components.length > 0 && (
           <section className="listing-section">
@@ -145,7 +159,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         {seekers && <p className="listing-stats">{seekers}</p>}
       </div>
       {!isOwner && listing.status === "ACTIVE" && (
-        <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} />
+        <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} />
       )}
       {isOwner && (
         <div className="owner-bar"><strong>{formatWon(listing.price)}</strong><Link className="secondary-button" href={`/listings/${id}/edit`}>수정</Link><Link className="secondary-button" href="/me">내 상품 관리</Link></div>

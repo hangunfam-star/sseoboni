@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { loadTrialPricing } from "@/lib/trial-pricing-store";
+import { getTrialTerms } from "@/lib/trial-terms";
 import { computeTrialCost } from "@/ui/trial-pricing";
 
 // POST /api/trial-cost { listingId, action: VIEW | STILL_TRY | DECLINE, hours }
-// 써보기 예상 비용을 본 것·"그래도 써볼래요"·"안 할래요"를 기록한다(§59 trial_cost_view, still_try_click). 결제·신청은 없다.
-// 금액은 화면 값을 믿지 않고 서버가 DB 가격과 지금 가격안으로 다시 계산해 함께 남긴다.
+// 판매자 조건으로 계산한 예상 비용을 본 것·"이 조건으로 써볼래요"·"부담돼요"를 기록한다(§59). 결제·신청은 없다.
+// 금액은 화면 값을 믿지 않고 서버가 DB 가격과 판매자 조건으로 다시 계산해 함께 남긴다.
 const EVENT = { VIEW: "TRIAL_COST_VIEW", STILL_TRY: "STILL_TRY_CLICK", DECLINE: "TRIAL_COST_DECLINE" } as const;
 
 export async function POST(req: NextRequest) {
@@ -25,14 +25,11 @@ export async function POST(req: NextRequest) {
   if (!listing || listing.status !== "ACTIVE") return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });
   if (listing.sellerId === userId) return NextResponse.json({ ok: true, skipped: "owner" });
 
-  const pricing = await loadTrialPricing();
-  if (!pricing.hours.includes(hours)) return NextResponse.json({ error: "써보기 기간이 올바르지 않습니다." }, { status: 400 });
-  const latest = await db.select({ t: marketValidationEvents.eventType }).from(marketValidationEvents)
-    .where(and(eq(marketValidationEvents.listingId, listingId), sql`${marketValidationEvents.eventType} like 'SELLER_TRY_%'`))
-    .orderBy(desc(marketValidationEvents.createdAt), sql`rowid desc`).limit(1);
-  if (latest[0]?.t === "SELLER_TRY_NO") return NextResponse.json({ error: "이 판매자는 바로 판매만 원해요." }, { status: 409 });
+  const terms = await getTrialTerms(listingId);
+  if (!terms) return NextResponse.json({ error: "판매자가 써보기 조건을 정하지 않았어요." }, { status: 409 });
+  if (!terms.hours.includes(hours)) return NextResponse.json({ error: "써보기 기간이 올바르지 않습니다." }, { status: 400 });
 
-  const cost = computeTrialCost(listing.price, hours, pricing);
+  const cost = computeTrialCost(listing.price, hours, terms);
   const eventType = EVENT[action as keyof typeof EVENT];
   // 같은 사람이 같은 상품의 비용을 30분 안에 다시 보면 한 번으로 센다.
   if (action === "VIEW" && userId) {
@@ -44,8 +41,8 @@ export async function POST(req: NextRequest) {
   await db.insert(marketValidationEvents).values({
     eventType, listingId, modelId: listing.modelId, userId,
     metadata: JSON.stringify({
-      hours, price: listing.price, optionFee: cost.optionFee, purchaseCredit: cost.purchaseCredit,
-      shippingOneWay: cost.shippingOneWay, purchaseTotal: cost.purchaseTotal, returnTotal: cost.returnTotal, pricingVersion: pricing.version,
+      hours, price: listing.price, dailyFee: terms.dailyFee, optionFee: cost.optionFee, purchaseCreditPct: terms.purchaseCreditPct,
+      shippingOneWay: cost.shippingOneWay, purchaseTotal: cost.purchaseTotal, returnTotal: cost.returnTotal, source: "SELLER_TERMS",
     }),
   });
   return NextResponse.json({ ok: true }, { status: 201 });

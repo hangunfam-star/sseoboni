@@ -5,6 +5,8 @@ import { getCurrentUserId } from "@/lib/session";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { MODEL_CREATE_DAILY_MAX, modelsCreatedToday, parseComponents, parseCustomModel, resolveCustomModel, validateCustomModel } from "@/lib/models";
 import { eq, like, and, desc } from "drizzle-orm";
+import { saveTrialTermsTx } from "@/lib/trial-terms";
+import { parseTrialTerms } from "@/ui/trial-pricing";
 
 const PRICE_MIN = 1000;
 const PRICE_MAX = 100_000_000;
@@ -79,6 +81,9 @@ export async function POST(req: NextRequest) {
   if (tryWillingness && !(tryWillingness in TRY_EVENT)) {
     return NextResponse.json({ error: "써보기 의향 값이 올바르지 않습니다." }, { status: 400 });
   }
+  // 써보기 허용이면 판매자가 조건(기간·하루 체험비·사면 돌려줄 비율·배송비)을 꼭 정한다.
+  const terms = tryWillingness === "YES" ? parseTrialTerms(body?.trialTerms, price) : null;
+  if (typeof terms === "string") return NextResponse.json({ error: terms }, { status: 400 });
 
   if (modelId) {
     const model = await db.query.productModels.findFirst({ where: and(eq(productModels.id, modelId), eq(productModels.active, true)) });
@@ -102,6 +107,7 @@ export async function POST(req: NextRequest) {
       .returning()
       .get();
     for (const name of components) tx.insert(listingComponents).values({ listingId: row.id, name }).run();
+    if (terms) saveTrialTermsTx(tx, row.id, terms);
     tx.insert(marketValidationEvents).values({ eventType: "SELLER_LISTING_COMPLETE", listingId: row.id, modelId, userId }).run();
     if (createdModel) {
       tx.insert(marketValidationEvents).values({ eventType: "SELLER_MODEL_CREATED", listingId: row.id, modelId, userId }).run();

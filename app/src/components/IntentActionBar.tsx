@@ -2,17 +2,24 @@
 
 import { useState } from "react";
 import WishlistButton from "@/app/listings/[id]/WishlistButton";
+import { ProposalSheet, type MyProposal } from "@/components/ProposalSheet";
+import type { TrialTerms } from "@/ui/trial-pricing";
 
 type Kind = "TRY" | "BUY";
 
-// 상세 하단 가격 바. 두 버튼은 의향만 기록하며 거래·신청을 시작하지 않는다.
-export function IntentActionBar({ listingId, wished, priceLabel, initial }: {
+// 상세 하단 가격 바. '써보고 싶어요'는 의향을 기록하고 써보기 제안 시트를 연다. '사고 싶어요'는 의향만 기록한다. 결제는 없다.
+export function IntentActionBar({ listingId, wished, priceLabel, initial, price, terms, sellerNo, mine }: {
   listingId: string;
   wished: boolean;
   priceLabel: string;
   initial: { TRY: boolean; BUY: boolean };
+  price: number;
+  terms: TrialTerms | null;
+  sellerNo: boolean;
+  mine: MyProposal;
 }) {
   const [done, setDone] = useState(initial);
+  const [sheet, setSheet] = useState(false);
   const [pending, setPending] = useState<Kind | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -35,10 +42,13 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial }: {
       return;
     }
     setDone((d) => ({ ...d, [kind]: true }));
-    setNotice(kind === "TRY" ? "써보고 싶다는 의견을 남겼어요. 이 의견으로 써보기를 열 상품을 정해요." : "사고 싶다는 의견을 남겼어요. 테스트 기간이라 거래는 아직 열리지 않아요.");
+    if (kind === "TRY") setSheet(true);
+    else setNotice("사고 싶다는 의견을 남겼어요. 테스트 기간이라 거래는 아직 열리지 않아요.");
   }
 
   return (
+    <>
+    {sheet && <ProposalSheet listingId={listingId} price={price} terms={terms} sellerNo={sellerNo} mine={mine} onClose={() => setSheet(false)} />}
     <div className="intent-action-bar" aria-label="상품 행동">
       {notice && <p className="intent-notice" role="status">{notice}</p>}
       <div className="intent-action-bar__row">
@@ -54,5 +64,6 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial }: {
         </button>
       </div>
     </div>
+    </>
   );
 }

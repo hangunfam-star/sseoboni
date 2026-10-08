@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
@@ -118,14 +118,21 @@ test("운영자 결과·CSV는 운영자 쿠키가 있어야 보이고, CSV는 �
   assert.match(admin, /httpOnly: true/);
 });
 
-test("써보기 예상 비용은 결제·신청 없이 반응만 기록하고, 가격안 변경은 운영자만 한다", () => {
+test("써보기 비용은 판매자 조건으로만 계산하고, 제안·승인은 결제 없이 기록만 한다", () => {
   const api = read("src/app/api/trial-cost/route.ts");
-  assert.match(api, /TRIAL_COST_VIEW/);
-  assert.match(api, /STILL_TRY_CLICK/);
+  assert.match(api, /getTrialTerms/);
   assert.match(api, /computeTrialCost\(listing\.price/);
-  assert.doesNotMatch(api, /trialEnabled|insert\(listings\)|payment/i);
-  const sheet = read("src/components/TrialCostSheet.tsx");
-  assert.match(sheet, /검증용 예상 금액 · 확정 전 · 결제 없음/);
-  assert.doesNotMatch(sheet, /결제하기|신청하기/);
-  assert.match(read("src/app/api/admin/pricing/route.ts"), /await isAdmin\(\)/);
+  assert.doesNotMatch(api, /trialEnabled|payment/i);
+  const proposals = read("src/app/api/proposals/route.ts");
+  assert.match(proposals, /listing\.sellerId === userId/);
+  assert.match(proposals, /PENDING_EXISTS/);
+  assert.doesNotMatch(proposals, /trialEnabled|payment/i);
+  const decide = read("src/app/api/proposals/[id]/route.ts");
+  assert.match(decide, /action === "CANCEL" && !isBuyer/);
+  assert.match(decide, /status\} = 'PENDING'/);
+  const sheet = read("src/components/ProposalSheet.tsx");
+  assert.match(sheet, /결제·배송은 아직 일어나지 않아요/);
+  assert.match(sheet, /연락처는 적지 마세요/);
+  assert.doesNotMatch(read("src/app/api/listings/route.ts"), /trialEnabled: true/);
+  assert.equal(existsSync(resolve(process.cwd(), "src/app/api/admin/pricing/route.ts")), false);
 });

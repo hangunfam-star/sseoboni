@@ -116,15 +116,45 @@ export function eventRows(): Record<string, string | number | null>[] {
     order by e.created_at`);
 }
 
-export type CostReaction = { version: string; viewers: number; anonViews: number; stillTry: number; decline: number };
+export type TermsStat = {
+  id: string; title: string; price: number; dailyFee: number | null; hours: string | null; creditPct: number | null; shipping: number | null;
+  costViewers: number; stillTry: number; decline: number; proposals: number; accepted: number; avgOfferPct: number | null;
+};
 
-// return: 가격안(version)별 써보기 비용 반응. 사람 수는 중복 제거, 비로그인 조회는 건수로 따로 센다.
-export function costReactions(): CostReaction[] {
-  return db.all<CostReaction>(sql`select coalesce(json_extract(metadata, '$.pricingVersion'), '미확인') as version,
-    count(distinct case when event_type = 'TRIAL_COST_VIEW' then user_id end) as viewers,
-    sum(case when event_type = 'TRIAL_COST_VIEW' and user_id is null then 1 else 0 end) as anonViews,
-    count(distinct case when event_type = 'STILL_TRY_CLICK' then user_id end) as stillTry,
-    count(distinct case when event_type = 'TRIAL_COST_DECLINE' then user_id end) as decline
-    from market_validation_events where event_type in ('TRIAL_COST_VIEW','STILL_TRY_CLICK','TRIAL_COST_DECLINE')
-    group by version order by min(created_at) desc`);
+// return: 상품별 판매자 써보기 조건과 반응(비용 본 사람·이 조건으로 써볼래요·부담돼요·제안). 사람 수는 중복 제거.
+export function termsStats(): TermsStat[] {
+  return db.all<TermsStat>(sql`select l.id, l.title, l.price, t.daily_fee as dailyFee, t.hours, t.purchase_credit_pct as creditPct, t.shipping_one_way as shipping,
+    (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'TRIAL_COST_VIEW') as costViewers,
+    (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'STILL_TRY_CLICK') as stillTry,
+    (select count(distinct e.user_id) from market_validation_events e where e.listing_id = l.id and e.event_type = 'TRIAL_COST_DECLINE') as decline,
+    (select count(*) from trial_proposals p where p.listing_id = l.id) as proposals,
+    (select count(*) from trial_proposals p where p.listing_id = l.id and p.status = 'ACCEPTED') as accepted,
+    (select round(avg(p.offer_fee * 100.0 / l.price), 2) from trial_proposals p where p.listing_id = l.id) as avgOfferPct
+    from listings l left join listing_trial_terms t on t.listing_id = l.id
+    where l.status != 'REMOVED' order by l.created_at desc`);
+}
+
+export type ProposalTotals = { total: number; pending: number; accepted: number; declined: number; cancelled: number; expired: number; onNoListings: number; acceptedOnNo: number };
+
+// return: 제안 합계. onNoListings는 제안을 보낸 시점에 판매자 답이 '바로 판매만'(NO)이던 상품에 온 제안
+export function proposalTotals(): ProposalTotals {
+  return db.get<ProposalTotals>(sql`with answered as (
+      select p.status,
+        (select e.event_type from market_validation_events e where e.listing_id = p.listing_id and e.event_type like 'SELLER_TRY_%' and e.created_at <= p.created_at
+          order by e.created_at desc, e.rowid desc limit 1) as answer
+      from trial_proposals p)
+    select count(*) as total,
+      coalesce(sum(status = 'PENDING'), 0) as pending, coalesce(sum(status = 'ACCEPTED'), 0) as accepted, coalesce(sum(status = 'DECLINED'), 0) as declined,
+      coalesce(sum(status = 'CANCELLED'), 0) as cancelled, coalesce(sum(status = 'EXPIRED'), 0) as expired,
+      coalesce(sum(answer = 'SELLER_TRY_NO'), 0) as onNoListings,
+      coalesce(sum(answer = 'SELLER_TRY_NO' and status = 'ACCEPTED'), 0) as acceptedOnNo
+    from answered`)!;
+}
+
+export type ProposalRow = { title: string; price: number; hours: number; offerFee: number; status: string; buyer: string | null; createdAt: string };
+
+// return: 최근 제안 30개
+export function recentProposals(): ProposalRow[] {
+  return db.all<ProposalRow>(sql`select l.title, l.price, p.hours, p.offer_fee as offerFee, p.status, u.nickname as buyer, p.created_at as createdAt
+    from trial_proposals p join listings l on l.id = p.listing_id left join users u on u.id = p.buyer_id order by p.created_at desc limit 30`);
 }
