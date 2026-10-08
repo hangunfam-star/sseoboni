@@ -4,6 +4,8 @@ import { db } from "@/db/client";
 import { categories, listings, productModels } from "@/db/schema";
 
 const WISH_COUNT = sql<number>`(select count(distinct w.user_id) from wishlists w where w.listing_id = "listings"."id")`;
+// 판매자의 가장 최근 써보기 답: 2 = 허용(YES), 1 = 조건부(CONDITIONAL), 0 = 거절·미답
+const TRY_OK = sql<number>`coalesce((select case e.event_type when 'SELLER_TRY_YES' then 2 when 'SELLER_TRY_CONDITIONAL' then 1 else 0 end from market_validation_events e where e.listing_id = "listings"."id" and e.event_type like 'SELLER_TRY_%' order by e.created_at desc, e.rowid desc limit 1), 0)`;
 
 export const PAGE_SIZE = 20;
 
@@ -22,9 +24,10 @@ export type CardRow = {
   tryWanters: number; // '써보고 싶어요'를 누른 사람 수(중복 제거)
 };
 
-// param: opts.q 제목·모델 검색어, opts.categoryId 카테고리, opts.brand 브랜드, opts.ids 특정 상품만, opts.sort 최신(new)·찜 많은 순(popular), opts.limit 최대 개수
+// param: opts.q 제목·모델 검색어, opts.categoryId 카테고리, opts.brand 브랜드, opts.ids 특정 상품만, opts.sort 최신(new)·찜 많은 순(popular), opts.limit 최대 개수,
+//        opts.trial true = 써보기 허용 상품만, false = 일반 중고(써보기 허용이 아닌 상품)만, 없으면 전체
 // return: ACTIVE 상품 카드 목록
-export async function listCards(opts: { q?: string; categoryId?: string; brand?: string; ids?: string[]; sort?: "new" | "popular"; limit?: number } = {}): Promise<CardRow[]> {
+export async function listCards(opts: { q?: string; categoryId?: string; brand?: string; ids?: string[]; sort?: "new" | "popular"; limit?: number; trial?: boolean } = {}): Promise<CardRow[]> {
   const where: SQL[] = [eq(listings.status, "ACTIVE")];
   if (opts.q) {
     const k = `%${opts.q}%`;
@@ -32,6 +35,7 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
   }
   if (opts.categoryId) where.push(eq(productModels.categoryId, opts.categoryId));
   if (opts.brand) where.push(eq(productModels.brand, opts.brand));
+  if (opts.trial !== undefined) where.push(opts.trial ? sql`${TRY_OK} = 2` : sql`${TRY_OK} <> 2`);
   if (opts.ids) {
     if (opts.ids.length === 0) return [];
     where.push(inArray(listings.id, opts.ids));
@@ -48,7 +52,7 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
       categoryName: categories.name,
       wishCount: WISH_COUNT,
       photo: sql<string | null>`(select p.file_name from listing_photos p where p.listing_id = "listings"."id" order by p.sort_order, p.created_at limit 1)`,
-      tryOk: sql<number>`coalesce((select case e.event_type when 'SELLER_TRY_YES' then 2 when 'SELLER_TRY_CONDITIONAL' then 1 else 0 end from market_validation_events e where e.listing_id = "listings"."id" and e.event_type like 'SELLER_TRY_%' order by e.created_at desc, e.rowid desc limit 1), 0)`,
+      tryOk: TRY_OK,
       tryWanters: sql<number>`(select count(distinct e.user_id) from market_validation_events e where e.listing_id = "listings"."id" and e.event_type = 'CLICK_TRY_WANT')`,
     })
     .from(listings)

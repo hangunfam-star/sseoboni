@@ -1057,3 +1057,11 @@ input, textarea { caret-color: var(--w-ink); }
 
 /* 이모지: 기기 이모지 우선, 없는 글자는 Noto Color Emoji(웹 글꼴)로 */
 body, input, textarea, button { font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"; }
+
+/* 홈: 써보니 상품(위) / 일반 중고(아래) 구분 — 2026-10-09 */
+.section-head { display: grid; gap: 4px; margin-bottom: 12px; }
+.section-head .section-title { display: flex; align-items: center; gap: 8px; margin-top: 0; }
+.section-head small { color: var(--w-sub); font-size: 13px; }
+.product-section--try { padding: 16px; border-radius: 20px; background: var(--w-surface); }
+#used-items { margin-top: 8px; }
+.section-head .try-badge--inline { margin: 0; }
