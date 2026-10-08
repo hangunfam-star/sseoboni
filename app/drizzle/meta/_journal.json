@@ -43,6 +43,13 @@
       "when": 1791448377909,
       "tag": "0005_trial_tier_fees",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791449917489,
+      "tag": "0006_chat",
+      "breakpoints": true
     }
   ]
 }

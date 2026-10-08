@@ -136,3 +136,17 @@ test("써보기 비용은 판매자 조건으로만 계산하고, 제안·승인
   assert.doesNotMatch(read("src/app/api/listings/route.ts"), /trialEnabled: true/);
   assert.equal(existsSync(resolve(process.cwd(), "src/app/api/admin/pricing/route.ts")), false);
 });
+
+test("채팅은 참여자만 읽고 쓰며, 연락처를 막고, 시장검증 기록에 본문을 남기지 않는다", () => {
+  const lib = read("src/lib/chat.ts");
+  assert.match(lib, /thread\.buyerId === userId/);
+  assert.match(lib, /thread\.sellerId === userId/);
+  const api = read("src/app/api/chats/[id]/route.ts");
+  assert.match(api, /await threadFor\(id, userId\)/);
+  assert.match(api, /findContactInfo\(text\)/);
+  assert.match(api, /CHAT_RATE/);
+  assert.doesNotMatch(api, /metadata: JSON\.stringify\(\{[^}]*body/);
+  const start = read("src/app/api/chats/route.ts");
+  assert.match(start, /listing\.sellerId === userId/);
+  assert.match(read("src/app/admin/page.tsx"), /채팅 내용은 운영자 화면에 보이지 않아요/);
+});

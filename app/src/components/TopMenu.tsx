@@ -11,6 +11,7 @@ const ICON = {
   heart: <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 000-7.8z" />,
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0116 0" /></>,
   chat: <path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z" />,
+  talk: <><path d="M4 5h16v11H8l-4 4z" /><path d="M8 9h8M8 12h5" /></>,
   chart: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
 };
 
@@ -20,6 +21,7 @@ const ITEMS: { href: string; label: string; icon: keyof typeof ICON }[] = [
   { href: "/listings/new", label: "내 물건 팔기", icon: "sell" },
   { href: "/wishlist", label: "찜", icon: "heart" },
   { href: "/me", label: "MY", icon: "user" },
+  { href: "/chats", label: "채팅", icon: "talk" },
   { href: "/feedback", label: "의견 보내기", icon: "chat" },
 ];
 
@@ -27,6 +29,7 @@ const ITEMS: { href: string; label: string; icon: keyof typeof ICON }[] = [
 // return: 오른쪽 위 햄버거 버튼과 오른쪽에서 열리는 메뉴
 export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
   const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const pathname = usePathname();
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -35,6 +38,12 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
     setOpen(false);
     requestAnimationFrame(() => button.current?.focus());
   }
+
+  // 안 읽은 채팅 수: 메뉴를 열 때 확인
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/chats").then((r) => r.json()).then((d) => setUnread(d.unread ?? 0)).catch(() => undefined);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,6 +94,7 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
                     <Link href={it.href} aria-current={pathname === it.href ? "page" : undefined} onClick={() => setOpen(false)} className={it.href === "/admin" ? "top-menu__admin" : undefined}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICON[it.icon]}</svg>
                       {it.label}
+                      {it.href === "/chats" && unread > 0 && <b className="top-menu__badge" aria-label={`안 읽은 채팅 ${unread}개`}>{unread}</b>}
                     </Link>
                   </li>
                 ))}

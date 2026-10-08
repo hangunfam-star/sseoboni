@@ -5,6 +5,9 @@ import { db } from "@/db/client";
 import { categories, demandIntents, listings, productModels, trialProposals, users, wishlists } from "@/db/schema";
 import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { ProposalActions } from "./ProposalActions";
+import { ChatStartButton } from "@/components/ChatStartButton";
+import { unreadThreads } from "@/lib/chat";
+import { chatThreads } from "@/db/schema";
 import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
 import { conditionLabel, formatWon, illustrationKind, relativeTime } from "@/ui/presentation";
@@ -33,7 +36,7 @@ export default async function MyPage() {
   // 받은 제안: 내 상품에 온 제안(답 기다리는 것 먼저), 보낸 제안: 내가 보낸 것
   const pendingFirst = sql`case when ${trialProposals.status} = 'PENDING' then 0 else 1 end`;
   const received = await db
-    .select({ id: trialProposals.id, listingId: listings.id, title: listings.title, price: listings.price, hours: trialProposals.hours, offerFee: trialProposals.offerFee, message: trialProposals.message, status: trialProposals.status, sellerReply: trialProposals.sellerReply, buyer: buyers.nickname, createdAt: trialProposals.createdAt })
+    .select({ id: trialProposals.id, listingId: listings.id, buyerId: trialProposals.buyerId, title: listings.title, price: listings.price, hours: trialProposals.hours, offerFee: trialProposals.offerFee, message: trialProposals.message, status: trialProposals.status, sellerReply: trialProposals.sellerReply, buyer: buyers.nickname, createdAt: trialProposals.createdAt })
     .from(trialProposals).innerJoin(listings, eq(trialProposals.listingId, listings.id)).leftJoin(buyers, eq(trialProposals.buyerId, buyers.id))
     .where(eq(listings.sellerId, userId)).orderBy(pendingFirst, desc(trialProposals.createdAt)).limit(30);
   const sellerTerms = new Map(await Promise.all([...new Set(received.map((r) => r.listingId))].map(async (lid) => [lid, await getTrialTerms(lid)] as const)));
@@ -42,6 +45,10 @@ export default async function MyPage() {
     .from(trialProposals).innerJoin(listings, eq(trialProposals.listingId, listings.id))
     .where(eq(trialProposals.buyerId, userId)).orderBy(pendingFirst, desc(trialProposals.createdAt)).limit(30);
   const pendingReceived = received.filter((r) => r.status === "PENDING").length;
+  // 받은 제안의 구매자가 이미 말을 건 채팅방(판매자는 먼저 채팅을 열 수 없다)
+  const myThreads = await db.select({ id: chatThreads.id, listingId: chatThreads.listingId, buyerId: chatThreads.buyerId }).from(chatThreads).where(eq(chatThreads.sellerId, userId));
+  const threadOf = new Map(myThreads.map((t) => [`${t.listingId}|${t.buyerId}`, t.id]));
+  const unreadChats = unreadThreads(userId);
   const nickname = me?.nickname ?? "테스터";
   const mine = await db
     .select({
@@ -71,6 +78,7 @@ export default async function MyPage() {
         <Link className="my-stat my-stat--coral" href="/wishlist"><small>찜</small><strong>{wishCount}</strong></Link>
         <Link className="my-stat my-stat--yellow" href="/demand"><small>찾는 상품</small><strong>{demandCount}</strong></Link>
       </div>
+      <Link className="chat-banner" href="/chats"><strong>채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>
       <section className="proposals" id="proposals" aria-labelledby="received-title">
         <h2 className="section-title" id="received-title">받은 써보기 제안{pendingReceived > 0 ? ` · 새 제안 ${pendingReceived}` : ""}</h2>
         {received.length === 0 ? <p className="field-hint">아직 받은 제안이 없어요.</p> : (
@@ -87,6 +95,7 @@ export default async function MyPage() {
                   <b className="proposal-card__status" data-status={r.status}>{PROPOSAL_LABEL[r.status] ?? r.status}</b>
                   {r.sellerReply && <small>내 답: {r.sellerReply}</small>}
                   {r.status === "PENDING" && <ProposalActions id={r.id} role="seller" />}
+                  {threadOf.get(`${r.listingId}|${r.buyerId}`) && <Link className="proposal-card__chat" href={`/chats/${threadOf.get(`${r.listingId}|${r.buyerId}`)}`}>구매자와 채팅</Link>}
                 </li>
               );
             })}
@@ -103,6 +112,7 @@ export default async function MyPage() {
                 {r.status === "ACCEPTED" && <small>판매자가 승인했어요. 써보기 결제·배송이 열리면 이 조건으로 진행돼요.</small>}
                 {r.sellerReply && <small>판매자: {r.sellerReply}</small>}
                 {r.status === "PENDING" && <ProposalActions id={r.id} role="buyer" />}
+                <ChatStartButton listingId={r.listingId} label="판매자와 채팅" className="proposal-card__chat" />
               </li>
             ))}
           </ul>

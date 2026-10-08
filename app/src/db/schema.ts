@@ -122,6 +122,27 @@ export const trialProposals = sqliteTable("trial_proposals", {
   decidedAt: text("decided_at"),
 });
 
+// 상품별 구매자-판매자 1:1 채팅방. 구매자가 처음 말을 걸 때 만든다(상품·구매자당 1개).
+export const chatThreads = sqliteTable("chat_threads", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  listingId: text("listing_id").notNull().references(() => listings.id),
+  buyerId: text("buyer_id").notNull().references(() => users.id),
+  sellerId: text("seller_id").notNull().references(() => users.id),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  lastMessageAt: text("last_message_at"),
+  buyerReadAt: text("buyer_read_at"),
+  sellerReadAt: text("seller_read_at"),
+}, (t) => [uniqueIndex("chat_threads_listing_buyer").on(t.listingId, t.buyerId)]);
+
+// 채팅 메시지. 연락처·계좌는 서버에서 막는다. 시장검증 이벤트에는 본문을 남기지 않는다.
+export const chatMessages = sqliteTable("chat_messages", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  threadId: text("thread_id").notNull().references(() => chatThreads.id),
+  senderId: text("sender_id").notNull().references(() => users.id),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+});
+
 // 마스터기획 §60에는 없지만 P0 요구사항("리스트·검색·상세·찜")을 위해 추가한 최소 모델
 export const wishlists = sqliteTable("wishlists", {
   id: text("id").primaryKey().$defaultFn(cuid),

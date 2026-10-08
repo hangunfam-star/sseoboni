@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { adminConfigured, isAdmin } from "@/lib/admin";
-import { categoryStats, feedbackReasons, listingStats, proposalTotals, recentFeedback, recentProposals, termsStats, totals } from "@/lib/admin-metrics";
+import { categoryStats, chatStats, feedbackReasons, listingStats, proposalTotals, recentFeedback, recentProposals, termsStats, totals } from "@/lib/admin-metrics";
 import { expireOldProposals, tiersOf } from "@/lib/trial-terms";
 import { loadPlatformFee } from "@/lib/platform-fee-store";
 import { currentFeePct } from "@/ui/platform-fee";
@@ -43,6 +43,7 @@ export default async function AdminPage() {
   const pt = proposalTotals();
   const proposals = recentProposals();
   const feeConfig = await loadPlatformFee();
+  const chats = chatStats();
   const feeNow = currentFeePct(feeConfig);
   const PROPOSAL_LABEL: Record<string, string> = { PENDING: "대기", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소", EXPIRED: "만료" };
 
@@ -162,6 +163,27 @@ export default async function AdminPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section aria-labelledby="chat-title">
+        <h2 className="section-title" id="chat-title">채팅 · 신고</h2>
+        <div className="admin-stats">
+          <div><small>채팅방</small><strong>{chats.threads}</strong></div>
+          <div><small>메시지</small><strong>{chats.messages}</strong></div>
+          <div><small>신고</small><strong>{chats.reports.length}</strong></div>
+        </div>
+        <p className="field-hint">채팅 내용은 운영자 화면에 보이지 않아요. 신고된 메시지만 보여요.</p>
+        {chats.reports.length > 0 && (
+          <ul className="admin-feedback">
+            {chats.reports.map((r, i) => (
+              <li key={i}>
+                <small>{r.reporter ?? "사용자"} · {relativeTime(r.createdAt)} · {r.title ?? "상품"}</small>
+                <strong>{r.reason}</strong>
+                {r.body && <p>“{r.body}”</p>}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section aria-labelledby="fb-title">

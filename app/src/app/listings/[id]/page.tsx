@@ -10,6 +10,7 @@ import { IntentActionBar } from "@/components/IntentActionBar";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { TryFlow } from "@/components/TryFlow";
+import { ChatStartButton } from "@/components/ChatStartButton";
 import { TrialCostSheet } from "@/components/TrialCostSheet";
 import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { photosFor } from "@/lib/photos";
@@ -156,6 +157,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         <div className="seller-row">
           <span className="seller-avatar" aria-hidden="true">{Array.from(sellerName)[0]}</span>
           <div><strong>{sellerName}</strong><small>판매 중인 상품 {sellerCount}개</small></div>
+          {!isOwner && listing.status === "ACTIVE" && <ChatStartButton listingId={id} label="채팅" className="seller-row__chat" />}
         </div>
         {seekers && <p className="listing-stats">{seekers}</p>}
       </div>
