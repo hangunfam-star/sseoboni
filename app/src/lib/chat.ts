@@ -2,7 +2,7 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { db } from "@/db/client";
-import { chatMessages, chatThreads, listings, users } from "@/db/schema";
+import { categories, chatMessages, chatThreads, listings, productModels, users } from "@/db/schema";
 
 export const CHAT_BODY_MAX = 500;
 export const CHAT_RATE = { count: 30, minutes: 5 }; // 한 사람이 5분에 보낼 수 있는 메시지 수
@@ -40,9 +40,13 @@ export async function listThreads(userId: string) {
       buyerReadAt: chatThreads.buyerReadAt, sellerReadAt: chatThreads.sellerReadAt,
       last: sql<string | null>`(select m.body from chat_messages m where m.thread_id = ${chatThreads.id} order by m.created_at desc, m.rowid desc limit 1)`,
       lastSender: sql<string | null>`(select m.sender_id from chat_messages m where m.thread_id = ${chatThreads.id} order by m.created_at desc, m.rowid desc limit 1)`,
+      price: listings.price, listingStatus: listings.status, modelName: productModels.modelName, categoryName: categories.name,
+      photo: sql<string | null>`(select p.file_name from listing_photos p where p.listing_id = ${listings.id} order by p.sort_order, p.created_at limit 1)`,
     })
     .from(chatThreads)
     .innerJoin(listings, eq(chatThreads.listingId, listings.id))
+    .leftJoin(productModels, eq(listings.modelId, productModels.id))
+    .leftJoin(categories, eq(productModels.categoryId, categories.id))
     .leftJoin(other, sql`${other.id} = case when ${chatThreads.buyerId} = ${userId} then ${chatThreads.sellerId} else ${chatThreads.buyerId} end`)
     .where(or(eq(chatThreads.buyerId, userId), eq(chatThreads.sellerId, userId)))
     .orderBy(desc(sql`coalesce(${chatThreads.lastMessageAt}, ${chatThreads.createdAt})`))
@@ -50,7 +54,7 @@ export async function listThreads(userId: string) {
   return rows.map((r) => {
     const readAt = r.buyerId === userId ? r.buyerReadAt : r.sellerReadAt;
     const unread = Boolean(r.lastMessageAt && r.lastSender && r.lastSender !== userId && (!readAt || readAt < r.lastMessageAt));
-    return { ...r, role: (r.buyerId === userId ? "buyer" : "seller") as ChatRole, unread };
+    return { ...r, role: (r.buyerId === userId ? "buyer" : "seller") as ChatRole, unread, lastMine: r.lastSender === userId };
   });
 }
 

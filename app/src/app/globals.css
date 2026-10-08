@@ -1025,3 +1025,35 @@ input, textarea { caret-color: var(--w-ink); }
 .chat-report { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(calc(100% - 24px), 456px); display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: var(--w-bg); box-shadow: var(--shadow-float); z-index: 20; }
 .chat-report div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .chat-report div button { min-height: 44px; border: 1px solid var(--w-chip-line); border-radius: 12px; background: var(--w-bg); font-weight: 600; }
+
+/* 채팅방 상단 상품 썸네일 */
+.chat-head__thumb { flex-shrink: 0; }
+.chat-head__thumb .list-thumb { width: 48px; height: 48px; border-radius: 12px; }
+.chat-head .chat-head__price { color: var(--w-ink); font-weight: 700; }
+.list-thumb--img, .chat-head__thumb { display: block; }
+
+/* 상단 채팅 아이콘(메뉴 버튼 왼쪽) — 첫 줄 오른쪽 여백을 두 버튼 폭만큼 */
+.top-chat__button { position: fixed; top: max(12px, env(safe-area-inset-top)); right: calc(max(12px, calc(50% - 240px + 12px)) + 52px); z-index: 40; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; background: var(--w-bg); color: var(--w-ink); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); }
+.top-chat__button[aria-current="page"] { color: var(--color-coral); }
+.top-chat__badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; background: #c94a36; color: #fff; font-size: 11px; font-weight: 700; }
+.search-bar--active { padding-right: 104px; }
+.my-head, .admin-head, .demand-page > .page-title, .wishlist-page > .page-title { margin-right: 104px; }
+.chats-page > .page-title { margin-right: 104px; }
+.chat-head { padding-right: 116px; }
+
+/* 채팅 목록: 썸네일·상품명·보낸/받은 구분 */
+.chat-list__item { grid-template-columns: 64px minmax(0, 1fr) auto; align-items: start; }
+.chat-list__top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chat-kind { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 700; }
+.chat-kind--sent { background: var(--w-ink); color: #fff; }
+.chat-kind--received { background: #c94a36; color: #fff; }
+.chat-list .chat-list__title { font-size: 15px; font-weight: 700; }
+.chat-list .chat-list__last { color: var(--w-ink); font-size: 13px; }
+.chat-list .chat-list__price { color: var(--w-sub); }
+.chat-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.chat-tabs a { flex-shrink: 0; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 999px; background: var(--w-surface); font-size: 14px; font-weight: 600; }
+.chat-tabs a[aria-current="page"] { background: var(--w-ink); color: #fff; }
+.chat-tabs b { min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; background: #c94a36; color: #fff; font-size: 11px; }
+
+/* 이모지: 기기 이모지 우선, 없는 글자는 Noto Color Emoji(웹 글꼴)로 */
+body, input, textarea, button { font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"; }

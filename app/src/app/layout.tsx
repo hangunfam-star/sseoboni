@@ -27,6 +27,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         {/* Pretendard(OFL) — 한글 본문·제목 공통 글꼴, 사용하는 글자만 나눠 받는 dynamic subset */}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+        {/* 이모지: PC(특히 Windows 10)에 없는 최신 이모지만 Noto Color Emoji로 채운다(쓰인 글자 범위만 받아 옴) */}
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* 앱 라우터 최상위 layout이라 모든 화면에 적용된다(pages 라우터용 경고 제외) */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" />
       </head>
       <body><AppShell isLocal={isLocal}>{children}</AppShell></body>
     </html>
