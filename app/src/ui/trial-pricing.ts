@@ -37,9 +37,11 @@ export function tierForHours(actualHours: number, tiers: TrialTier[]): TrialTier
   return [...tiers].sort((a, b) => a.hours - b.hours).find((t) => actualHours <= t.hours) ?? null;
 }
 
-// param: prepaid 미리 결제한 금액(원), feePct 수수료율(%). return: 수수료(원, 반올림)
+// param: prepaid 미리 결제한 금액(원), feePct 수수료율(%, 0.1% 단위). return: 수수료(원)
+// 0.1% 단위 정수로 바꿔 계산해 소수 오차를 없애고, 1원 미만은 반올림한다(원 단위 처리 방식은 정산 정책 확정 전 임시).
 export function platformFee(prepaid: number, feePct: number): number {
-  return Math.round((prepaid * feePct) / 100);
+  const permille = Math.round(feePct * 10);
+  return Math.floor((prepaid * permille + 500) / 1000);
 }
 
 export type TrialCost = {
@@ -54,26 +56,31 @@ export type TrialCost = {
   returnCharge: number;          // 돌려보내면 구매자가 내는 금액 = 체험비 + 수수료(왕복 배송은 별도 표시)
   refund: number;                // 돌려보내면 구매자 환불 = 미리 결제 − 체험비 − 수수료
   sellerPayoutOnReturn: number;  // 돌려보내면 판매자 입금 = 체험비
+  valid: boolean;                // 체험비 + 수수료 ≤ 미리 결제 (아니면 금액을 보여 주지 않는다)
 };
 
-// param: price 상품가(원), hours 고른 구간(시간), t 판매자 조건, feePct 지금 수수료율(%)
-// return: 구간별 예상 금액. 배송비는 따로 표시한다.
+// param: price 상품가(원), hours 판매자가 정한 구간 중 하나(시간), t 판매자 조건, feePct 지금 수수료율(%)
+// return: 그 구간을 골랐을 때의 예상 금액. 배송비는 따로 표시한다. 정한 구간이 아니면 예외.
+// 실제 사용 시간에 따른 정산(초과 시 다음 구간, 최장 초과 시 구매)은 tierForHours로 하며, 써보기 거래가 열릴 때 서버 시각 기준으로 붙인다.
 export function computeTrialCost(price: number, hours: number, t: TrialTerms, feePct: number): TrialCost {
-  const tier = t.tiers.find((x) => x.hours === hours) ?? tierForHours(hours, t.tiers) ?? t.tiers[t.tiers.length - 1];
+  const tier = t.tiers.find((x) => x.hours === hours);
+  if (!tier) throw new Error(`판매자가 정하지 않은 써보기 기간: ${hours}`);
   const fee = platformFee(price, feePct);
   return {
     hours: tier.hours, tierFee: tier.fee, feePct, fee, shippingOneWay: t.shippingOneWay, prepaid: price,
     purchaseTotal: price,
     sellerPayoutOnPurchase: Math.max(0, price - fee),
     returnCharge: tier.fee + fee,
-    refund: Math.max(0, price - tier.fee - fee),
+    refund: price - tier.fee - fee,
     sellerPayoutOnReturn: tier.fee,
+    valid: tier.fee + fee <= price,
   };
 }
 
-// param: v 요청 본문의 trialTerms(unknown), price 상품가(원)
-// return: 검증된 조건, 틀린 값이 있으면 오류 문구. 구간은 24/48/72 중, 긴 구간 체험비가 짧은 구간보다 적을 수 없다.
-export function parseTrialTerms(v: unknown, price: number): TrialTerms | string {
+// param: v 요청 본문의 trialTerms(unknown), price 상품가(원), feePct 지금 수수료율(%)
+// return: 검증된 조건, 틀린 값이 있으면 오류 문구. 구간은 24/48/72 중, 긴 구간 체험비가 짧은 구간보다 적을 수 없고,
+//         가장 비싼 체험비 + 수수료가 상품 가격을 넘을 수 없다(돌려보낼 때 환불금이 음수가 되지 않게).
+export function parseTrialTerms(v: unknown, price: number, feePct = 3): TrialTerms | string {
   if (!v || typeof v !== "object") return "써보기 조건을 입력해 주세요.";
   const o = v as Record<string, unknown>;
   const isInt = (x: unknown): x is number => typeof x === "number" && Number.isInteger(x);
@@ -90,6 +97,8 @@ export function parseTrialTerms(v: unknown, price: number): TrialTerms | string 
   for (let i = 1; i < tiers.length; i++) {
     if (tiers[i].fee < tiers[i - 1].fee) return `${tiers[i].hours}시간 체험비는 ${tiers[i - 1].hours}시간 체험비보다 적을 수 없어요.`;
   }
+  const maxFee = Math.max(...tiers.map((t) => t.fee));
+  if (maxFee + platformFee(price, feePct) > price) return `체험비와 수수료(${feePct}%)를 합한 금액이 상품 가격을 넘을 수 없어요. 체험비를 ${Math.max(0, price - platformFee(price, feePct)).toLocaleString("ko-KR")}원 이하로 정해 주세요.`;
   const ship = o.shippingOneWay === null || o.shippingOneWay === undefined || o.shippingOneWay === "" ? null : o.shippingOneWay;
   if (ship !== null && (!isInt(ship) || ship < 0 || ship > 200_000)) return "편도 배송비는 0~200,000원으로 입력하거나 비워 두세요.";
   const note = typeof o.conditionNote === "string" ? o.conditionNote.trim() : "";
@@ -117,10 +126,10 @@ export function parseProposal(v: unknown, price: number): { hours: number; offer
 // param: text 검사할 글. return: 발견한 종류 이름(전화번호·이메일·메신저 아이디·계좌번호), 없으면 null
 export function findContactInfo(text: string): string | null {
   // 전각·호환 문자 통일, 보이지 않는 문자 제거
-  const t = text.normalize("NFKC").replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "");
+  const t = text.normalize("NFKC").replace(/[\u200B-\u200F\u2060-\u2064\uFEFF\u00AD\u034F\u180E\u115F\u1160\u3164\uFFA0]/g, "");
   // 숫자 사이 공백·점·하이픈·괄호 등 구분자를 지운 문자열(01 0-12 34. 5678 같은 우회 대응)
   const digitsJoined = t.replace(/(?<=\d)[\s.\-·_/()]+(?=\d)/g, "");
-  if (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.test(t) || /[\w.+-]+\s*(골뱅이|\(at\)|\[at\])\s*[\w-]+/i.test(t) || /(지메일|gmail|네이버\s*메일|naver\.com|daum\.net|hanmail)/i.test(t)) return "이메일";
+  if (/[\w.+-]+@[\w-]+\.[a-z]{2,}/i.test(t) || /[\w.+-]+\s*(골뱅이|\(at\)|\[at\])\s*[\w-]+/i.test(t) || /(지메일|gmail|네이버\s*메일|naver\.com|daum\.net|hanmail|닷\s*컴|점\s*컴|dot\s*com)/i.test(t)) return "이메일";
   if (/(카톡|카카오톡|kakao|오픈\s*채팅|open\.kakao|텔레그램|telegram|t\.me\/|라인\s*아이디|line\s*id|인스타|instagram)/i.test(t)) return "메신저 아이디";
   if (/(01[016789]|0\d{1,2})\d{3,4}\d{4}/.test(digitsJoined) || /(공일공|영일영)/.test(t)) return "전화번호";
   if (/(계좌|입금|송금)/.test(t) || /\d{10,}/.test(digitsJoined)) return "계좌번호";

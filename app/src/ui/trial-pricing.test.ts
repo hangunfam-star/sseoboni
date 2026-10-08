@@ -81,3 +81,22 @@ test("연락처 필터: 구분자·보이지 않는 문자·우회 표기도 막
   assert.equal(findContactInfo("1,050,000원에 48시간 써볼게요"), null);
   assert.equal(findContactInfo("2026-10-08 토요일 가능해요"), null);
 });
+
+test("검수 반영: 정한 구간만 계산, 체험비+수수료 ≤ 가격, 수수료 정수 계산, 실제 날짜만", () => {
+  assert.throws(() => computeTrialCost(100_000, 73, terms, 3));
+  assert.equal(platformFee(50, 3), 2);
+  assert.equal(platformFee(100_000, 2.5), 2500);
+  assert.equal(platformFee(1_000, 0.1), 1);
+  const tight = computeTrialCost(1_000, 24, { ...terms, tiers: [{ hours: 24, fee: 1_000 }] }, 3);
+  assert.equal(tight.valid, false);
+  assert.equal(typeof parseTrialTerms({ tiers: [{ hours: 24, fee: 1_000 }] }, 1_000, 3), "string");
+  assert.equal(typeof parseTrialTerms({ tiers: [{ hours: 24, fee: 970 }] }, 1_000, 3), "object");
+  assert.equal(typeof parsePlatformFee({ defaultPct: 3, promos: [{ start: "2026-02-28", end: "2026-02-31", pct: 0 }] }), "string");
+  assert.equal(typeof parsePlatformFee({ defaultPct: 3, promos: [{ start: "2028-02-28", end: "2028-02-29", pct: 0 }] }), "object");
+});
+
+test("재검수 반영: 없는 달 날짜 예외 없이 거부, 한글 채움 문자·닷컴 우회 차단", () => {
+  assert.equal(typeof parsePlatformFee({ defaultPct: 3, promos: [{ start: "2026-13-01", end: "2026-13-02", pct: 0 }] }), "string");
+  assert.equal(findContactInfo("010\u3164-1234-5678"), "전화번호");
+  assert.equal(findContactInfo("abc 닷컴으로"), "이메일");
+});

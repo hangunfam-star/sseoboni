@@ -3,7 +3,8 @@ import { db } from "@/db/client";
 import { listings, productModels, listingComponents, marketValidationEvents } from "@/db/schema";
 import { parseComponents } from "@/lib/models";
 import { deleteTrialTermsTx, getTrialTerms, maxTierFeeTx, saveTrialTermsTx } from "@/lib/trial-terms";
-import { parseTrialTerms, type TrialTerms } from "@/ui/trial-pricing";
+import { parseTrialTerms, platformFee, type TrialTerms } from "@/ui/trial-pricing";
+import { feePctNow } from "@/lib/platform-fee-store";
 import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { getCurrentUserId } from "@/lib/session";
@@ -81,6 +82,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const tryWillingness = "tryWillingness" in body ? str(body.tryWillingness) : "";
   if (tryWillingness && !TRY_EVENT[tryWillingness]) return NextResponse.json({ error: "써보기 의향 값이 올바르지 않습니다." }, { status: 400 });
   const termsInput = "trialTerms" in body ? body.trialTerms : undefined;
+  const feePct = await feePctNow();
 
   // 확인부터 저장까지 한 동기 트랜잭션에서 처리한다(중간에 다른 요청이 끼지 않음).
   const updated = db.transaction((tx) => {
@@ -93,11 +95,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const newPrice = set.price ?? listing.price;
     let terms: TrialTerms | null = null;
     if (effective !== "NO" && termsInput !== undefined) {
-      const t = parseTrialTerms(termsInput, newPrice);
+      const t = parseTrialTerms(termsInput, newPrice, feePct);
       if (typeof t === "string") return { error: t };
       terms = t;
-    } else if (effective !== "NO" && existingMax !== null && set.price !== undefined && existingMax > Math.min(newPrice, 1_000_000)) {
-      return { error: "가격을 낮추면 하루 체험비도 새 가격 이하로 고쳐 주세요." };
+    } else if (effective !== "NO" && existingMax !== null && set.price !== undefined && existingMax + platformFee(newPrice, feePct) > Math.min(newPrice, 1_000_000)) {
+      return { error: "가격을 낮추면 체험비 + 수수료가 새 가격을 넘지 않게 체험비도 고쳐 주세요." };
     }
     if (effective === "YES" && !terms && existingMax === null) return { error: "써보기 조건을 입력해 주세요." };
 

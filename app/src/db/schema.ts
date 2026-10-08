@@ -152,6 +152,7 @@ export const chatMessages = sqliteTable("chat_messages", {
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 }, (t) => [
   index("chat_messages_thread_seq").on(t.threadId, t.seq),
+  uniqueIndex("chat_messages_seq_unique").on(t.seq),
   index("chat_messages_sender_created").on(t.senderId, t.createdAt),
 ]);
 

@@ -7,6 +7,7 @@ import { MODEL_CREATE_DAILY_MAX, modelsCreatedToday, parseComponents, parseCusto
 import { eq, like, and, desc } from "drizzle-orm";
 import { saveTrialTermsTx } from "@/lib/trial-terms";
 import { parseTrialTerms } from "@/ui/trial-pricing";
+import { feePctNow } from "@/lib/platform-fee-store";
 
 const PRICE_MIN = 1000;
 const PRICE_MAX = 100_000_000;
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "써보기 의향 값이 올바르지 않습니다." }, { status: 400 });
   }
   // 써보기 허용이면 판매자가 조건(기간·하루 체험비·사면 돌려줄 비율·배송비)을 꼭 정한다.
-  const terms = tryWillingness === "YES" ? parseTrialTerms(body?.trialTerms, price) : null;
+  const terms = tryWillingness === "YES" ? parseTrialTerms(body?.trialTerms, price, await feePctNow()) : null;
   if (typeof terms === "string") return NextResponse.json({ error: terms }, { status: 400 });
 
   if (modelId) {

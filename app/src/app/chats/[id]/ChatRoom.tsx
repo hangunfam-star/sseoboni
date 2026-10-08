@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type Msg = { id: string; seq: number; senderId: string; body: string; createdAt: string };
-const POLL_STEPS = [4000, 4000, 4000, 8000, 8000, 15000]; // 새 메시지가 없을수록 천천히 확인
+const POLL_STEPS = [4000, 4000, 4000, 8000]; // 새 메시지가 없으면 최대 8초 간격으로 확인
 const REASONS = ["욕설·비방", "직거래·외부 연락 유도", "사기 의심", "기타"];
 
 // param: threadId 채팅방, me 내 사용자 id, initial 처음 메시지, otherName 상대 닉네임

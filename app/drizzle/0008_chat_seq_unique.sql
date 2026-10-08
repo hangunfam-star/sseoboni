@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `chat_messages_seq_unique` ON `chat_messages` (`seq`);

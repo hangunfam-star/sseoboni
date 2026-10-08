@@ -68,7 +68,8 @@ export function TrialCostSheet({ listingId, price, terms, feePct }: { listingId:
             <div><dt>수수료 <small>미리 결제의 {feePct}% · 돌려보낼 때만 구매자 부담</small></dt><dd>{formatWon(c.fee)}</dd></div>
             <div><dt>배송비 <small>편도</small></dt><dd>{ship === null ? "확정 전" : formatWon(ship)}</dd></div>
           </dl>
-          <div className="trial-cost__result">
+          {!c.valid && <p className="trial-cost__cond">이 기간은 체험비와 수수료가 상품 가격보다 커서 금액을 계산할 수 없어요. 판매자에게 제안해 보세요.</p>}
+          {c.valid && <div className="trial-cost__result">
             <div>
               <small>써보고 사면</small>
               <strong>{formatWon(c.purchaseTotal)}</strong>
@@ -79,7 +80,7 @@ export function TrialCostSheet({ listingId, price, terms, feePct }: { listingId:
               <strong>{formatWon(c.refund)} 환불</strong>
               <small>체험비 {formatWon(c.tierFee)} + 수수료 {formatWon(c.fee)}를 빼요{ship === null ? " · 왕복 배송비 별도" : ` · 왕복 배송 ${formatWon(ship * 2)} 별도`}</small>
             </div>
-          </div>
+          </div>}
           <p className="trial-cost__note">
             {next ? `${hours}시간을 넘기면 ${next.hours}시간 요금(${formatWon(next.fee)})이에요. ` : ""}
             가장 긴 {hoursList[hoursList.length - 1]}시간을 넘기면 산 것으로 처리돼요.

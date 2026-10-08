@@ -26,13 +26,19 @@ export function parsePlatformFee(v: unknown): PlatformFeeConfig | string {
   const raw = Array.isArray(o.promos) ? o.promos : [];
   if (raw.length > 20) return "특정 기간은 20개까지 둘 수 있어요.";
   const date = /^\d{4}-\d{2}-\d{2}$/;
+  // 달력에 있는 날짜인지(2026-02-31 같은 값 거부)
+  const realDate = (d: string) => {
+    if (!date.test(d)) return false;
+    const t = new Date(`${d}T00:00:00Z`);
+    return Number.isFinite(t.getTime()) && t.toISOString().slice(0, 10) === d;
+  };
   const promos: FeePromo[] = [];
   for (const r of raw) {
     const x = (r ?? {}) as Record<string, unknown>;
     const start = typeof x.start === "string" ? x.start : "";
     const end = typeof x.end === "string" ? x.end : "";
     const label = typeof x.label === "string" ? x.label.trim().slice(0, 30) : "";
-    if (!date.test(start) || !date.test(end) || start > end) return "기간은 시작일 ≤ 끝날짜(YYYY-MM-DD)로 입력하세요.";
+    if (!realDate(start) || !realDate(end) || start > end) return "기간은 달력에 있는 날짜로, 시작일 ≤ 끝날짜(YYYY-MM-DD)로 입력하세요.";
     if (!pctOk(x.pct)) return "기간 수수료는 0~30%로 입력하세요.";
     if (promos.some((p) => !(end < p.start || start > p.end))) return "겹치는 기간이 있어요.";
     promos.push({ start, end, pct: x.pct, label: label || "특정 기간" });
