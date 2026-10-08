@@ -32,7 +32,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     p.set("n", String(pages + 1));
     return `/?${p.toString()}`;
   })();
-  const more = hasMore && <Link className="more-link" href={moreHref} scroll={false}>더 보기</Link>;
+  // 50쪽(1,000개)이 한도. 넘으면 링크 대신 검색어로 좁혀 달라고 안내한다.
+  const more = hasMore && (pages < 50
+    ? <Link className="more-link" href={moreHref} scroll={false}>더 보기</Link>
+    : <p className="field-hint">상품이 많아요. 검색어나 브랜드로 좁혀 보세요.</p>);
   const href = (next: { b?: string; s?: string }) => {
     const p = new URLSearchParams();
     if (next.b) p.set("b", next.b);

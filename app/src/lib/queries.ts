@@ -18,7 +18,7 @@ export type CardRow = {
   categoryName: string | null;
   wishCount: number;
   photo: string | null; // 첫 번째 사진 파일 이름(없으면 null)
-  tryOk: number; // 판매자의 가장 최근 써보기 답이 허용(YES·CONDITIONAL)이면 1, 아니면 0
+  tryOk: number; // 판매자의 가장 최근 써보기 답: 2 = 허용(YES), 1 = 조건부(CONDITIONAL), 0 = 거절·미답
   tryWanters: number; // '써보고 싶어요'를 누른 사람 수(중복 제거)
 };
 
@@ -48,7 +48,7 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
       categoryName: categories.name,
       wishCount: WISH_COUNT,
       photo: sql<string | null>`(select p.file_name from listing_photos p where p.listing_id = "listings"."id" order by p.sort_order, p.created_at limit 1)`,
-      tryOk: sql<number>`coalesce((select e.event_type in ('SELLER_TRY_YES','SELLER_TRY_CONDITIONAL') from market_validation_events e where e.listing_id = "listings"."id" and e.event_type like 'SELLER_TRY_%' order by e.created_at desc, e.rowid desc limit 1), 0)`,
+      tryOk: sql<number>`coalesce((select case e.event_type when 'SELLER_TRY_YES' then 2 when 'SELLER_TRY_CONDITIONAL' then 1 else 0 end from market_validation_events e where e.listing_id = "listings"."id" and e.event_type like 'SELLER_TRY_%' order by e.created_at desc, e.rowid desc limit 1), 0)`,
       tryWanters: sql<number>`(select count(distinct e.user_id) from market_validation_events e where e.listing_id = "listings"."id" and e.event_type = 'CLICK_TRY_WANT')`,
     })
     .from(listings)

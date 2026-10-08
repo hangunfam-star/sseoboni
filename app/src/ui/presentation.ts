@@ -48,6 +48,14 @@ export function tryWantLabel(count: number): string | null {
   return count >= DEMAND_PUBLIC_MIN ? `써보고 싶은 사람 ${count}명` : "써보고 싶은 사람이 있어요";
 }
 
+// param: tryOk 판매자 최신 써보기 답(2 허용, 1 조건부, 0 거절·미답)
+// return: 카드 표시 문구. 써보기는 아직 열리지 않았으므로 "준비 중"을 함께 밝힌다. 표시할 게 없으면 null
+export function tryBadgeLabel(tryOk: number): string | null {
+  if (tryOk >= 2) return "써보기 허용 · 준비 중";
+  if (tryOk === 1) return "조건부 써보기 · 준비 중";
+  return null;
+}
+
 export type IllustrationKind = "laptop" | "tablet" | "audio" | "camera" | "generic";
 
 // param: 카테고리·모델 이름. return: 사진이 없을 때 쓰는 모델 일러스트 종류

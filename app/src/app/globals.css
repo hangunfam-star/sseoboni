@@ -896,3 +896,5 @@ input, textarea { caret-color: var(--w-ink); }
 .search-bar--active { margin-right: 0; padding-right: 52px; }
 /* 페이지 한 칸이 긴 내용 때문에 화면보다 넓어지지 않게 고정(검색 화면 375px에서 402px로 늘어나던 문제) */
 .page { grid-template-columns: minmax(0, 1fr); }
+/* 카드 써보기 표시는 사진 왼쪽 아래(등급 표시와 겹치지 않게, 긴 문구도 들어가게) */
+.product-card .try-badge { right: auto; top: auto; left: 8px; bottom: 8px; max-width: calc(100% - 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

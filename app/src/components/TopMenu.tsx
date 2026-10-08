@@ -31,13 +31,34 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
+  function close() {
+    setOpen(false);
+    requestAnimationFrame(() => button.current?.focus());
+  }
+
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>("a")?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); button.current?.focus(); } };
+    // 배경(본문·하단 탭·메뉴 버튼)은 조작·포커스 불가
+    const background = [document.querySelector(".app-main"), document.querySelector(".bottom-nav"), button.current].filter((el): el is HTMLElement => el instanceof HTMLElement);
+    background.forEach((el) => el.setAttribute("inert", ""));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { close(); return; }
+      if (e.key !== "Tab" || !panel.current) return;
+      const items = Array.from(panel.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled])"));
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+      background.forEach((el) => el.removeAttribute("inert"));
+    };
   }, [open]);
 
   if (pathname === "/login") return null;
@@ -49,11 +70,11 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>
       {open && (
-        <div className="top-menu" role="presentation" onClick={() => setOpen(false)}>
+        <div className="top-menu" role="presentation" onClick={close}>
           <div ref={panel} id="top-menu" className="top-menu__panel" role="dialog" aria-modal="true" aria-label="메뉴" onClick={(e) => e.stopPropagation()}>
             <div className="top-menu__head">
               <span className="wordmark">써보니<span>.</span></span>
-              <button type="button" className="icon-button" aria-label="메뉴 닫기" onClick={() => { setOpen(false); button.current?.focus(); }}>
+              <button type="button" className="icon-button" aria-label="메뉴 닫기" onClick={close}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </div>

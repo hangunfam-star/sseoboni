@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel, visualInitial } from "./presentation";
+import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryBadgeLabel, tryWantLabel, visualInitial } from "./presentation";
 
 test("가격과 상태를 사용자 문구로 변환한다", () => {
   assert.equal(formatWon(1290000), "1,290,000원");
@@ -45,4 +45,10 @@ test("써보고 싶은 사람 수도 3명 이상일 때만 숫자로 보여 준�
   assert.equal(tryWantLabel(0), null);
   assert.equal(tryWantLabel(2), "써보고 싶은 사람이 있어요");
   assert.equal(tryWantLabel(3), "써보고 싶은 사람 3명");
+});
+
+test("카드 써보기 표시는 허용·조건부를 구분하고 준비 중임을 밝힌다", () => {
+  assert.equal(tryBadgeLabel(0), null);
+  assert.equal(tryBadgeLabel(1), "조건부 써보기 · 준비 중");
+  assert.equal(tryBadgeLabel(2), "써보기 허용 · 준비 중");
 });
