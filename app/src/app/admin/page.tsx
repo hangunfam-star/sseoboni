@@ -74,7 +74,7 @@ export default async function AdminPage() {
         <h2 className="section-title" id="price-title">써보기 조건 · 제안</h2>
         <p className="field-hint">체험비는 판매자가 등록할 때 정하고, 구매자는 직접 제안할 수 있어요. 써보고 사면 체험비 0원, 돌려보내면 체험비를 받아요. 결제·배송은 아직 없어요(통장 방식은 추후 결정).</p>
         <div className="fee-now">
-          <p>오늘 수수료 <b>{feeNow.pct}%</b>{feeNow.promo ? ` · ${feeNow.promo.label}(${feeNow.promo.start}~${feeNow.promo.end})` : " · 기본"} — 미리 결제한 금액에 붙고, 사도·돌려보내도 받아요.</p>
+          <p>오늘 수수료 <b>{feeNow.pct}%</b>{feeNow.promo ? ` · ${feeNow.promo.label}(${feeNow.promo.start}~${feeNow.promo.end})` : " · 기본"} — 미리 결제 금액 기준. 사면 판매자 입금액에서, 돌려보내면 구매자 환불금에서 빼요.</p>
           <details className="pricing-details">
             <summary>수수료·특정 기간 설정</summary>
             <PlatformFeeForm current={feeConfig} />

@@ -65,14 +65,14 @@ export function TrialCostSheet({ listingId, price, terms, feePct }: { listingId:
           <dl className="trial-cost__table">
             <div><dt>미리 결제 <small>상품 가격</small></dt><dd>{formatWon(c.prepaid)}</dd></div>
             <div><dt>체험비 <small>{hours}시간 · 돌려보낼 때만</small></dt><dd>{formatWon(c.tierFee)}</dd></div>
-            <div><dt>수수료 <small>미리 결제의 {feePct}%</small></dt><dd>{formatWon(c.fee)}</dd></div>
+            <div><dt>수수료 <small>미리 결제의 {feePct}% · 돌려보낼 때만 구매자 부담</small></dt><dd>{formatWon(c.fee)}</dd></div>
             <div><dt>배송비 <small>편도</small></dt><dd>{ship === null ? "확정 전" : formatWon(ship)}</dd></div>
           </dl>
           <div className="trial-cost__result">
             <div>
               <small>써보고 사면</small>
               <strong>{formatWon(c.purchaseTotal)}</strong>
-              <small>체험비 0원 · 상품 가격 + 수수료{ship === null ? " (배송비 별도)" : ` + 편도 배송 ${formatWon(ship)} 별도`}</small>
+              <small>체험비 0원 · 추가 금액 없이 상품 가격만{ship === null ? " (배송비 별도)" : ` · 편도 배송 ${formatWon(ship)} 별도`}</small>
             </div>
             <div>
               <small>써보고 돌려보내면</small>

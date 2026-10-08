@@ -1,8 +1,8 @@
 // 써보기 비용 계산. 구간별 체험비는 판매자가 상품 등록·수정 때 정한다(listing_trial_terms).
 // 정책(사용자 결정 2026-10-08)
 // - 구매자는 상품 가격을 미리 결제한다.
-// - 써보고 사면 체험비 0원. 수수료(미리 결제한 금액의 %)는 낸다.
-// - 돌려보내면 체험비 + 수수료를 빼고 환불한다.
+// - 써보고 사면 체험비 0원, 구매자는 상품 가격만 낸다. 수수료(미리 결제 금액의 %)는 판매자 입금액에서 뺀다(10만원 → 판매자 97,000원).
+// - 돌려보내면 구매자 환불금에서 체험비 + 수수료를 뺀다. 판매자는 체험비를 받는다.
 // - 정한 구간을 넘기면 다음 구간 요금(예: 24시간 구간에서 25시간째 → 48시간 요금). 가장 긴 구간을 넘기면 구매로 처리.
 // - 수수료는 기본 3%, 운영자가 정한 기간에는 0% 등으로 바꿀 수 있다(platform-fee).
 // 결제·정산은 아직 없다(PG 불가 → 통장 방식 추후). 화면에는 "예상 금액"으로만 보여 준다.
@@ -46,12 +46,14 @@ export type TrialCost = {
   hours: number;
   tierFee: number;               // 이 구간 체험비 — 돌려보낼 때만
   feePct: number;
-  fee: number;                   // 수수료(사도·돌려보내도)
+  fee: number;                   // 수수료(사면 판매자 부담, 돌려보내면 구매자 부담)
   shippingOneWay: number | null;
   prepaid: number;               // 미리 결제(상품 가격)
-  purchaseTotal: number;         // 사면 낼 금액 = 상품 가격 + 수수료(+편도 배송은 별도 표시)
-  returnCharge: number;          // 돌려보내면 내는 금액 = 체험비 + 수수료(+왕복 배송은 별도 표시)
-  refund: number;                // 돌려보내면 돌려받는 금액 = 미리 결제 − 체험비 − 수수료
+  purchaseTotal: number;         // 사면 구매자가 내는 금액 = 상품 가격(체험비 0원, 배송은 별도 표시)
+  sellerPayoutOnPurchase: number; // 사면 판매자 입금 = 상품 가격 − 수수료
+  returnCharge: number;          // 돌려보내면 구매자가 내는 금액 = 체험비 + 수수료(왕복 배송은 별도 표시)
+  refund: number;                // 돌려보내면 구매자 환불 = 미리 결제 − 체험비 − 수수료
+  sellerPayoutOnReturn: number;  // 돌려보내면 판매자 입금 = 체험비
 };
 
 // param: price 상품가(원), hours 고른 구간(시간), t 판매자 조건, feePct 지금 수수료율(%)
@@ -61,9 +63,11 @@ export function computeTrialCost(price: number, hours: number, t: TrialTerms, fe
   const fee = platformFee(price, feePct);
   return {
     hours: tier.hours, tierFee: tier.fee, feePct, fee, shippingOneWay: t.shippingOneWay, prepaid: price,
-    purchaseTotal: price + fee,
+    purchaseTotal: price,
+    sellerPayoutOnPurchase: Math.max(0, price - fee),
     returnCharge: tier.fee + fee,
     refund: Math.max(0, price - tier.fee - fee),
+    sellerPayoutOnReturn: tier.fee,
   };
 }
 

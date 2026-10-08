@@ -37,7 +37,7 @@ export function PlatformFeeForm({ current }: { current: PlatformFeeConfig }) {
       <label className="field">
         <span>기본 수수료(%)</span>
         <input value={defaultPct} onChange={(e) => setDefaultPct(e.target.value)} inputMode="decimal" />
-        <small className="field-hint">미리 결제한 금액(상품 가격)에 붙어요. 사도·돌려보내도 받아요.</small>
+        <small className="field-hint">미리 결제 금액(상품 가격) 기준. 사면 판매자 입금액에서, 돌려보내면 구매자 환불금에서 빼요.</small>
       </label>
       <p className="field-hint">특정 기간(한국 날짜, 시작·끝 포함)에는 다른 수수료를 적용해요. 예: 오픈 기념 0%</p>
       {rows.map((r, i) => (

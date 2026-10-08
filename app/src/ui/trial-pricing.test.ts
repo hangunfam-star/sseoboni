@@ -21,17 +21,20 @@ test("정한 구간을 넘기면 다음 구간 요금, 가장 긴 구간을 넘�
   assert.equal(tierForHours(30, [{ hours: 24, fee: 1000 }, { hours: 72, fee: 3000 }])?.hours, 72);
 });
 
-test("미리 결제 10만원: 돌려보내면 체험비 + 수수료 3%를 빼고 환불, 사면 체험비 0원 + 수수료", () => {
+test("미리 결제 10만원: 돌려보내면 체험비 + 수수료 3%를 빼고 환불, 사면 구매자 10만원·판매자 97,000원 입금", () => {
   assert.equal(platformFee(100_000, 3), 3000);
   const c = computeTrialCost(100_000, 24, terms, 3);
   assert.equal(c.tierFee, 1000);
   assert.equal(c.fee, 3000);
   assert.equal(c.returnCharge, 4000);
   assert.equal(c.refund, 96_000);
-  assert.equal(c.purchaseTotal, 103_000);
+  assert.equal(c.purchaseTotal, 100_000);
+  assert.equal(c.sellerPayoutOnPurchase, 97_000);
+  assert.equal(c.sellerPayoutOnReturn, 1000);
   const promo = computeTrialCost(100_000, 72, terms, 0);
   assert.equal(promo.refund, 97_000);
   assert.equal(promo.purchaseTotal, 100_000);
+  assert.equal(promo.sellerPayoutOnPurchase, 100_000);
 });
 
 test("판매자 조건 검증: 긴 구간이 더 싸면 거부", () => {

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   await db.insert(marketValidationEvents).values({
     eventType, listingId, modelId: listing.modelId, userId,
     metadata: JSON.stringify({
-      hours, price: listing.price, tierFee: cost.tierFee, feePct, fee: cost.fee, purchaseTotal: cost.purchaseTotal, refund: cost.refund,
+      hours, price: listing.price, tierFee: cost.tierFee, feePct, fee: cost.fee, purchaseTotal: cost.purchaseTotal, sellerPayoutOnPurchase: cost.sellerPayoutOnPurchase, refund: cost.refund,
       shippingOneWay: cost.shippingOneWay, tiers: terms.tiers, source: "SELLER_TERMS",
     }),
   });

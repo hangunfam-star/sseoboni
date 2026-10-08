@@ -80,7 +80,7 @@ export function TrialTermsFields({ value, onChange, price, feePct }: { value: Te
       </label>
       {fee !== null && (
         <p className="trial-terms__preview">
-          구매자는 상품 가격을 미리 결제해요. 써보고 사면 체험비 0원(수수료 {feePct}% {formatWon(fee)}는 구매자 부담), 돌려보내면 체험비 + 수수료를 빼고 환불돼요.
+          구매자는 상품 가격을 미리 결제해요. 써보고 사면 체험비 0원, 판매자님께 {formatWon(price - fee)} 입금(수수료 {feePct}% {formatWon(fee)} 제외). 돌려보내면 판매자님께 체험비가 입금되고, 구매자는 체험비 + 수수료를 뺀 금액을 환불받아요.
           {value.hours.some((h) => value.fees[h]) && <> 예: {[...value.hours].sort((a, b) => a - b).filter((h) => value.fees[h]).map((h) => `${h}시간 ${formatWon(Number(value.fees[h]))}`).join(" · ")}</>}
         </p>
       )}

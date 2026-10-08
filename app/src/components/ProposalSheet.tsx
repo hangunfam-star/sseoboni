@@ -114,7 +114,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, feePct,
                 <b>원</b>
               </div>
               <small className="field-hint">
-                {sellerFee !== null ? `판매자 조건 ${formatWon(sellerFee)} · ` : ""}참고 금액 {formatWon(recommended)} · 수수료 {feePct}%({formatWon(platformCharge)})는 따로 붙어요
+                {sellerFee !== null ? `판매자 조건 ${formatWon(sellerFee)} · ` : ""}참고 금액 {formatWon(recommended)} · 돌려보내면 수수료 {feePct}%({formatWon(platformCharge)})도 환불금에서 빠져요
               </small>
             </label>
             <label className="field">
