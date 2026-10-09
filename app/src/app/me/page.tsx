@@ -16,8 +16,18 @@ import { ListingStatusActions, LogoutButton } from "./MyActions";
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", HIDDEN: "숨김", SOLD: "판매완료" };
 const PROPOSAL_LABEL: Record<string, string> = { PENDING: "답 기다리는 중", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소됨", EXPIRED: "만료" };
 const buyers = alias(users, "buyers");
+// 내 판매 상품 탭: 판매 중 / 숨김 / 판매완료. 한 번에 30개씩, 더 보기로 늘린다.
+const LISTING_TABS = [
+  { key: "active", status: "ACTIVE", label: "판매 중", empty: "판매 중인 상품이 없어요." },
+  { key: "hidden", status: "HIDDEN", label: "숨김", empty: "숨긴 상품이 없어요." },
+  { key: "sold", status: "SOLD", label: "판매완료", empty: "판매완료한 상품이 없어요." },
+] as const;
+const MY_PAGE_SIZE = 30;
 
-export default async function MyPage() {
+export default async function MyPage({ searchParams }: { searchParams: Promise<{ tab?: string; n?: string }> }) {
+  const { tab: rawTab, n } = await searchParams;
+  const tab = LISTING_TABS.find((t) => t.key === rawTab) ?? LISTING_TABS[0];
+  const shown = Math.min(Math.max(Number.parseInt(n ?? "1", 10) || 1, 1), 50) * MY_PAGE_SIZE;
   const userId = await getCurrentUserId();
   if (!userId) {
     return (
@@ -61,6 +71,7 @@ export default async function MyPage() {
     .leftJoin(categories, eq(productModels.categoryId, categories.id))
     .where(and(eq(listings.sellerId, userId), ne(listings.status, "REMOVED")))
     .orderBy(desc(listings.createdAt));
+  const tabRows = mine.filter((m) => m.status === tab.status);
   const [{ wishCount }] = await db.select({ wishCount: sql<number>`count(*)` }).from(wishlists).where(eq(wishlists.userId, userId));
   const [{ demandCount }] = await db
     .select({ demandCount: sql<number>`count(*)` })
@@ -120,14 +131,21 @@ export default async function MyPage() {
       </section>
 
       <h2 className="section-title" id="my-listings">내 판매 상품</h2>
-      {mine.length === 0 ? (
+      <nav className="chat-tabs" aria-label="내 판매 상품 구분">
+        {LISTING_TABS.map((t) => (
+          <Link key={t.key} href={t.key === "active" ? "/me#my-listings" : `/me?tab=${t.key}#my-listings`} scroll={false} aria-current={tab.key === t.key ? "page" : undefined}>
+            {t.label} {mine.filter((m) => m.status === t.status).length}
+          </Link>
+        ))}
+      </nav>
+      {tabRows.length === 0 ? (
         <div className="empty-card">
-          <strong>아직 올린 상품이 없어요.</strong>
+          <strong>{mine.length === 0 ? "아직 올린 상품이 없어요." : tab.empty}</strong>
           <Link href="/listings/new">내 물건 팔기</Link>
         </div>
       ) : (
         <div className="my-listings">
-          {mine.map((m) => (
+          {tabRows.slice(0, shown).map((m) => (
             <div key={m.id} className="my-listing">
               <Link href={`/listings/${m.id}`} className="my-listing__link">
                 <ListThumb photo={m.photo} seed={m.id} kind={illustrationKind(m.categoryName, m.modelName)} alt={m.title} />
@@ -141,6 +159,9 @@ export default async function MyPage() {
             </div>
           ))}
         </div>
+      )}
+      {tabRows.length > shown && (
+        <Link className="more-link" href={`/me?${tab.key === "active" ? "" : `tab=${tab.key}&`}n=${shown / MY_PAGE_SIZE + 1}#my-listings`} scroll={false}>더 보기 ({tabRows.length - shown}개 더)</Link>
       )}
       <Link className="feedback-banner" href="/feedback"><strong>써보니에 의견 보내기</strong><small>망설인 이유, 바라는 점을 알려 주세요</small></Link>
       <p className="page-lead">로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 새로 시작하면 새 계정이 만들어져요.</p>

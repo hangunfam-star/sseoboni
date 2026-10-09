@@ -20,6 +20,8 @@ async function isLocalRequest(): Promise<boolean> {
   return ["localhost", "127.0.0.1", "[::1]"].includes(host) && forwarded.every((ip) => LOOPBACK.includes(ip));
 }
 
+const SPLASH_ONCE = "try{if(sessionStorage.getItem('sb_splash')){document.documentElement.classList.add('no-splash')}else{sessionStorage.setItem('sb_splash','1')}}catch(e){}";
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const isLocal = await isLocalRequest();
   return (
@@ -32,8 +34,25 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* 앱 라우터 최상위 layout이라 모든 화면에 적용된다(pages 라우터용 경고 제외) */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" />
+        {/* 로딩 화면은 탭마다 처음 한 번만 보여 준다(그 뒤 이동·새로고침에서는 바로 숨김). 저장소를 못 쓰면 매번 보이지만 1.9초 뒤 스스로 사라진다. */}
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_ONCE }} />
       </head>
-      <body><AppShell isLocal={isLocal}>{children}</AppShell></body>
+      <body>
+        <div className="splash" aria-hidden="true">
+          <div className="splash__top">
+            <strong className="splash__logo">써보니<span>.</span></strong>
+            <i className="splash__rule" />
+            <p className="splash__title">사기 전에,<br />써보고 사세요</p>
+          </div>
+          <div className="splash__bottom">
+            <p className="splash__copy"><em>사진만 보고 산 중고, 후회했나요?</em><br />이제 집에서 먼저 써보고 결정해요</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="splash__photo" src="/hero/splash.webp" alt="" width={720} height={894} fetchPriority="high" />
+            <small className="splash__note">AI로 만든 연출 이미지</small>
+          </div>
+        </div>
+        <AppShell isLocal={isLocal}>{children}</AppShell>
+      </body>
     </html>
   );
 }

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SafePhoto } from "@/components/SafePhoto";
 import Link from "next/link";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { photoUrl } from "@/lib/photo-url";
@@ -12,7 +12,7 @@ export function ProductCard(props: CardRow) {
     <Link className="product-card" href={`/listings/${props.id}`}>
       <div className="product-card__photo">
         {props.photo
-          ? <Image className="product-photo" src={photoUrl(props.photo)} alt={props.title} fill sizes="(max-width: 480px) 45vw, 220px" />
+          ? <SafePhoto className="product-photo" src={photoUrl(props.photo)} alt={props.title} sizes="(max-width: 480px) 45vw, 220px" fallback={<ProductIllustration seed={props.id} kind={illustrationKind(props.categoryName, props.modelName)} size={110} />} />
           : <ProductIllustration seed={props.id} kind={illustrationKind(props.categoryName, props.modelName)} size={110} />}
         {tryBadgeLabel(props.tryOk) && <span className="try-badge">{tryBadgeLabel(props.tryOk)}</span>}
       </div>
@@ -32,7 +32,7 @@ export function ProductRow(props: CardRow) {
   return (
     <Link className="product-row" href={`/listings/${props.id}`}>
       {props.photo
-        ? <span className="product-row__photo product-row__photo--img"><Image className="product-photo" src={photoUrl(props.photo)} alt={props.title} fill sizes="112px" /></span>
+        ? <span className="product-row__photo product-row__photo--img"><SafePhoto className="product-photo" src={photoUrl(props.photo)} alt={props.title} sizes="112px" fallback={<ProductIllustration seed={props.id} kind={illustrationKind(props.categoryName, props.modelName)} size={70} />} /></span>
         : <ProductIllustration className="product-row__photo" seed={props.id} kind={illustrationKind(props.categoryName, props.modelName)} size={70} />}
       <div className="product-row__body">
         {tryBadgeLabel(props.tryOk) && <span className="try-badge try-badge--inline">{tryBadgeLabel(props.tryOk)}</span>}
