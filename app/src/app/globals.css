@@ -1205,3 +1205,9 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .my-listing__delete { color: #b2402f !important; }
 .listing-delete, .account-delete { color: #b2402f; }
 .order-box h2 small, .section-title small { margin-left: 6px; }
+
+/* 상세 찜 칸: 구매자는 눌러서 찜(2026-10-09) */
+.attr-strip__wish { display: grid; justify-items: center; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.attr-strip__wish[aria-pressed="true"] .attr-strip__icon { color: var(--color-coral); }
+.attr-strip__wish small { color: var(--w-sub); }
+.attr-strip__wish { min-width: 0; gap: 4px; padding: 0 4px; text-align: center; border-left: 1px solid var(--w-divider); min-height: 44px; }

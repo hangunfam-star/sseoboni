@@ -77,7 +77,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial, price,
     <div className="intent-action-bar" aria-label="상품 행동">
       {notice && <p className="intent-notice" role="status">{notice}</p>}
       <div className="intent-action-bar__row">
-        <WishlistButton listingId={listingId} initialWished={wished} />
+        <WishlistButton key={`bar-${wished}`} listingId={listingId} initialWished={wished} />
         <div className="intent-price"><strong>{priceLabel}</strong><small>{canTrade ? "판매자에게 직접 입금 · 써보고 사면 체험료 0원" : "사기 전에 써보기 · 준비 중"}</small></div>
       </div>
       <div className="intent-action-bar__buttons">

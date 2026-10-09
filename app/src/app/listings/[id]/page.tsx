@@ -11,6 +11,7 @@ import { IntentActionBar } from "@/components/IntentActionBar";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { ShareButton } from "@/components/ShareButton";
+import WishlistButton from "./WishlistButton";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { activeOrderOf } from "@/lib/orders";
 import { gradesOf, modelPrice, trialFeeRatio } from "@/lib/trade-stats";
@@ -161,7 +162,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           ? <PhotoGallery photos={photos} title={listing.title} />
           : <ProductIllustration seed={id} kind={illustrationKind(category?.name ?? null, model?.modelName ?? null)} size={200} className="listing-hero__art" />}
         <BackButton />
-        {listing.status === "ACTIVE" && <ShareButton listingId={id} title={listing.title} text={`${listing.title} ${formatWon(listing.price)} — 써보니에서 보기`} />}
+        {listing.status === "ACTIVE" && <ShareButton listingId={id} title={listing.title} text={`${listing.title} · ${formatWon(listing.price)}`} />}
         {listing.status !== "ACTIVE" && <span className="status-flag">{isOwner ? "내 상품 · " : ""}{listing.status === "SOLD" ? "판매완료" : listing.status === "RESERVED" ? "거래 중" : "숨김"}</span>}
       </div>
       <div className="listing-sheet">
@@ -172,7 +173,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3L12 16.6 6.5 19.5l1-6.3L3 8.9 9 8z" /></svg></span><strong>{conditionLabel(listing.conditionGrade)}</strong><small>상태</small></div>
           <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /></svg></span><strong>{components.length > 0 ? `${components.length}개` : "미입력"}</strong><small>구성품</small></div>
           <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="6" width="12" height="12" rx="2" /><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" /></svg></span><strong>{spec ?? "확인 필요"}</strong><small>칩셋</small></div>
-          <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 000-7.8z" /></svg></span><strong>{wishCount}</strong><small>찜</small></div>
+          {!isOwner && listing.status === "ACTIVE"
+            ? <WishlistButton key={`tile-${wished}`} variant="tile" listingId={id} initialWished={wished} count={wishCount} />
+            : <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 000-7.8z" /></svg></span><strong>{wishCount}</strong><small>{isOwner ? "찜 · 내 상품" : "찜"}</small></div>}
         </div>
         <section className="try-panel" aria-labelledby="try-panel-title">
           <span className="try-hero__tag">{trade.tradeOpen ? "사기 전에 써보기" : "사기 전에 써보기 · 준비 중"}</span>

@@ -3,7 +3,7 @@ import { useState } from "react";
 
 // param: listingId 상품 id, title 상품 제목, text 공유 문구
 // return: 공유 버튼. 휴대폰은 기본 공유창(카카오톡 포함), 그 밖은 링크 복사
-export function ShareButton({ listingId, title, text }: { listingId: string; title: string; text: string }) {
+export function ShareButton({ listingId, text }: { listingId: string; title?: string; text: string }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   function record(method: "SHARE_SHEET" | "COPY_LINK") {
@@ -19,7 +19,8 @@ export function ShareButton({ listingId, title, text }: { listingId: string; tit
     const url = `${location.origin}/listings/${listingId}`;
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title, text, url });
+        // 제목을 따로 넘기면 안드로이드가 "제목 - 문구"로 붙여 상품명이 두 번 나온다 → 문구·주소만 넘긴다
+        await navigator.share({ text, url });
         record("SHARE_SHEET");
         return;
       } catch (e) {
