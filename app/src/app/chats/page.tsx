@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { ListThumb } from "@/components/ListThumb";
 import { listThreads } from "@/lib/chat";
 import { getCurrentUserId } from "@/lib/session";
@@ -18,7 +19,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   if (!userId) {
     return (
       <div className="page chats-page">
-        <h1 className="page-title">채팅</h1>
+        <h1 className="page-title"><Icon name="chat" />채팅</h1>
         <div className="empty-card"><strong>닉네임만 정하면 판매자와 채팅할 수 있어요.</strong><Link href="/login">닉네임 정하고 시작하기</Link></div>
       </div>
     );
@@ -30,7 +31,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="page chats-page">
-      <h1 className="page-title">채팅</h1>
+      <h1 className="page-title"><Icon name="chat" />채팅</h1>
       <nav className="chat-tabs" aria-label="채팅 구분">
         {TABS.map((t) => (
           <Link key={t.key} href={t.key === "all" ? "/chats" : `/chats?tab=${t.key}`} aria-current={tab === t.key ? "page" : undefined}>

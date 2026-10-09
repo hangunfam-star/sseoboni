@@ -11,6 +11,7 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
   async function change(next: string) {
     if (pending) return;
     if (next === "SOLD" && !confirm("판매완료로 바꾸면 목록에서 내려가요. 계속할까요?")) return;
+    if (next === "REMOVED" && !confirm("이 상품을 삭제할까요? 목록·검색·내 상품에서 사라지고 되돌릴 수 없어요.")) return;
     setPending(true);
     const res = await fetch(`/api/listings/${id}`, {
       method: "PATCH",
@@ -32,6 +33,7 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
       {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("HIDDEN")}>숨기기</button>}
       {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("SOLD")}>판매완료</button>}
       {(status === "HIDDEN" || status === "SOLD") && <button type="button" disabled={pending} onClick={() => change("ACTIVE")}>다시 올리기</button>}
+      {status !== "RESERVED" && <button type="button" className="my-listing__delete" disabled={pending} onClick={() => change("REMOVED")} aria-label="상품 삭제">삭제</button>}
     </div>
   );
 }

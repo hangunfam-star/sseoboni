@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { alias } from "drizzle-orm/sqlite-core";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -93,8 +94,8 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
       <div className="my-head">
         <span className="seller-avatar" aria-hidden="true">{Array.from(nickname)[0]}</span>
         <div>
-          <h1 className="page-title">{nickname}님의 써보니</h1>
-          <p className="grade-line"><span className="grade-badge-inline">판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft">구매 {grades.buyer.name}</span>{grades.buyer.toNext !== null && <small>다음 구매 등급까지 거래 {grades.buyer.toNext}번</small>}</p>
+          <h1 className="page-title my-title"><strong>{nickname}</strong><span>님의 써보니</span></h1>
+          <p className="grade-line"><span className="grade-badge-inline"><Icon name="store" />판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft"><Icon name="bag" />구매 {grades.buyer.name}</span>{grades.buyer.toNext !== null && <small>다음 구매 등급까지 거래 {grades.buyer.toNext}번</small>}</p>
         </div>
       </div>
       <div className="my-stats">
@@ -103,16 +104,16 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <Link className="my-stat my-stat--yellow" href="/demand"><small>찾는 상품</small><strong>{demandCount}</strong></Link>
       </div>
       <nav className="my-menu" aria-label="거래 메뉴">
-        <Link href="/orders"><strong>내 거래</strong><small>{ordersLive.length > 0 ? `진행 중 ${ordersLive.length}${myTurn > 0 ? ` · 내 차례 ${myTurn}` : ""}` : "구매·써보기·판매 거래"}</small></Link>
-        <Link href="/me/settlement"><strong>판매 정산 내역</strong><small>받은 금액·수수료 기록</small></Link>
-        <Link href="/me/reviews"><strong>내 후기</strong><small>받은·보낸·써보니 후기</small></Link>
-        <Link href="/me/account"><strong>정산 계좌</strong><small>{hasAccount ? "등록됨" : "미등록 · 등록해야 신청을 받아요"}</small></Link>
-        <Link href={`/sellers/${userId}`}><strong>내 판매자 채널</strong><small>구매자에게 보이는 화면</small></Link>
+        <Link href="/orders"><strong><Icon name="receipt" />내 거래</strong><small>{ordersLive.length > 0 ? `진행 중 ${ordersLive.length}${myTurn > 0 ? ` · 내 차례 ${myTurn}` : ""}` : "구매·써보기·판매 거래"}</small></Link>
+        <Link href="/me/settlement"><strong><Icon name="wallet" />판매 정산 내역</strong><small>받은 금액·수수료 기록</small></Link>
+        <Link href="/me/reviews"><strong><Icon name="star" />내 후기</strong><small>받은·보낸·써보니 후기</small></Link>
+        <Link href="/me/account"><strong><Icon name="bank" />정산 계좌</strong><small>{hasAccount ? "등록됨" : "미등록 · 등록해야 신청을 받아요"}</small></Link>
+        <Link href={`/sellers/${userId}`}><strong><Icon name="store" />내 판매자 채널</strong><small>구매자에게 보이는 화면</small></Link>
       </nav>
       {!hasAccount && mine.some((m) => m.status === "ACTIVE") && <p className="form-error">정산 계좌를 등록해야 구매자가 내 상품을 구매·써보기 신청할 수 있어요. <Link href="/me/account">등록하기</Link></p>}
-      <Link className="chat-banner" href="/chats"><strong>채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>
+      <Link className="chat-banner" href="/chats"><strong><Icon name="chat" />채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>
       <section className="proposals" id="proposals" aria-labelledby="received-title">
-        <h2 className="section-title" id="received-title">받은 써보기 제안{pendingReceived > 0 ? ` · 새 제안 ${pendingReceived}` : ""}</h2>
+        <h2 className="section-title" id="received-title"><Icon name="inbox" />받은 써보기 제안{pendingReceived > 0 ? ` · 새 제안 ${pendingReceived}` : ""}</h2>
         {received.length === 0 ? <p className="field-hint">아직 받은 제안이 없어요.</p> : (
           <ul className="proposal-list">
             {received.map((r) => {
@@ -133,7 +134,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
             })}
           </ul>
         )}
-        <h2 className="section-title">보낸 써보기 제안</h2>
+        <h2 className="section-title"><Icon name="send" />보낸 써보기 제안</h2>
         {sent.length === 0 ? <p className="field-hint">상품 상세의 &apos;써보고 싶어요&apos;에서 판매자에게 제안할 수 있어요.</p> : (
           <ul className="proposal-list">
             {sent.map((r) => (
@@ -151,7 +152,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         )}
       </section>
 
-      <h2 className="section-title" id="my-listings">내 판매 상품</h2>
+      <h2 className="section-title" id="my-listings"><Icon name="tag" />내 판매 상품</h2>
       <nav className="chat-tabs" aria-label="내 판매 상품 구분">
         {LISTING_TABS.map((t) => (
           <Link key={t.key} href={t.key === "active" ? "/me#my-listings" : `/me?tab=${t.key}#my-listings`} scroll={false} aria-current={tab.key === t.key ? "page" : undefined}>

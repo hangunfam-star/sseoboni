@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, productModels } from "@/db/schema";
@@ -111,7 +112,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <input id="home-search" name="q" placeholder="모델명으로 찾아보세요 (예: 맥북 에어)" />
       </form>
       <section className="brand-section" aria-labelledby="brand-title">
-        <h2 className="section-title" id="brand-title">브랜드로 찾기</h2>
+        <h2 className="section-title" id="brand-title"><Icon name="tag" />브랜드로 찾기</h2>
         <nav className="brand-row" aria-label="브랜드">
           {brands.map((name) => (
             <Link key={name} className="brand-tile" href={href({ b: brand === name ? undefined : name, s: sort })} aria-current={brand === name ? "true" : undefined}>
@@ -142,7 +143,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </section>
       <section className="product-section" id="used-items" aria-labelledby="used-items-title">
         <div className="section-head">
-          <h2 className="section-title" id="used-items-title">일반 중고</h2>
+          <h2 className="section-title" id="used-items-title"><Icon name="box" />일반 중고</h2>
           <small>바로 사는 상품이에요. 써보고 싶으면 판매자에게 제안할 수 있어요.</small>
         </div>
         {used.rows.length === 0 ? (

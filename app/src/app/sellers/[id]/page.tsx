@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -42,11 +43,11 @@ export default async function SellerChannelPage({ params, searchParams }: { para
         <span className="seller-avatar seller-avatar--lg" aria-hidden="true">{Array.from(name)[0]}</span>
         <div>
           <h1 className="page-title">{name}</h1>
-          <p className="grade-line"><span className="grade-badge-inline">판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft">구매 {grades.buyer.name}</span>{stars.asSeller && <span>★{stars.asSeller.avg} ({stars.asSeller.count})</span>}</p>
+          <p className="grade-line"><span className="grade-badge-inline"><Icon name="store" />판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft"><Icon name="bag" />구매 {grades.buyer.name}</span>{stars.asSeller && <span>★{stars.asSeller.avg} ({stars.asSeller.count})</span>}</p>
         </div>
       </header>
       <section className="order-box" aria-labelledby="trust-title">
-        <h2 id="trust-title">거래 기록 <small>(최근 {trust.days}일)</small></h2>
+        <h2 id="trust-title"><Icon name="shield" />거래 기록 <small>(최근 {trust.days}일)</small></h2>
         <dl className="order-dl">
           <div><dt>발송 약속 준수</dt><dd>{ratioText(trust.shipPromise.done, trust.shipPromise.total)} <small>확인된 기록</small></dd></div>
           <div><dt>설명과 실제 일치</dt><dd>{ratioText(trust.descMatch.done, trust.descMatch.total)} <small>구매자 평가</small></dd></div>

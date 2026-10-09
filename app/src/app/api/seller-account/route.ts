@@ -15,6 +15,15 @@ export async function GET() {
   return NextResponse.json({ account: { bank: row.bank, holder: row.holder, masked: maskAccount(open<string>(row.accountEnc) ?? ""), defaultShipping: row.defaultShipping } });
 }
 
+// DELETE /api/seller-account — 내 정산 계좌 삭제. 진행 중 거래는 신청 때 저장한 계좌로 계속 안내되고, 새 신청은 다시 등록할 때까지 받지 않는다.
+export async function DELETE() {
+  const userId = await getCurrentUserId();
+  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+  const r = db.delete(sellerAccounts).where(eq(sellerAccounts.userId, userId)).run();
+  if (r.changes === 0) return NextResponse.json({ error: "등록된 계좌가 없어요." }, { status: 404 });
+  return NextResponse.json({ ok: true });
+}
+
 // PUT /api/seller-account { bank, account, holder, defaultShipping } — 등록·수정(계좌번호는 암호화 저장)
 export async function PUT(req: NextRequest) {
   const userId = await getCurrentUserId();

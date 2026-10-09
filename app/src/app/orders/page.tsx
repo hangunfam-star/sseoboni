@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
@@ -18,7 +19,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const { tab: raw } = await searchParams;
   const tab = TABS.find((t) => t.key === raw)?.key ?? "all";
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><h1 className="page-title">내 거래</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="receipt" />내 거래</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
   const all = await listOrders(userId);
   const rows = all.filter((o) => tab === "all" || o.role === tab).sort((a, b) => Number(b.needsMe) - Number(a.needsMe));
   const live = rows.filter((o) => !["PURCHASED", "RETURNED", "CANCELLED"].includes(o.status));
@@ -38,7 +39,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   );
   return (
     <div className="page chats-page">
-      <h1 className="page-title">내 거래</h1>
+      <h1 className="page-title"><Icon name="receipt" />내 거래</h1>
       <nav className="chat-tabs" aria-label="거래 구분">
         {TABS.map((t) => <Link key={t.key} href={t.key === "all" ? "/orders" : `/orders?tab=${t.key}`} aria-current={tab === t.key ? "page" : undefined}>{t.label} {all.filter((o) => t.key === "all" || o.role === t.key).length}</Link>)}
       </nav>
@@ -46,8 +47,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
         <div className="empty-card"><strong>아직 거래가 없어요.</strong><Link href="/">상품 둘러보기</Link></div>
       ) : (
         <>
-          {live.length > 0 && <><h2 className="section-title">진행 중 {live.length}</h2><ul className="chat-list">{live.map((o) => <Item key={o.id} o={o} />)}</ul></>}
-          {done.length > 0 && <><h2 className="section-title">끝난 거래 {done.length}</h2><ul className="chat-list">{done.map((o) => <Item key={o.id} o={o} />)}</ul></>}
+          {live.length > 0 && <><h2 className="section-title"><Icon name="clock" />진행 중 {live.length}</h2><ul className="chat-list">{live.map((o) => <Item key={o.id} o={o} />)}</ul></>}
+          {done.length > 0 && <><h2 className="section-title"><Icon name="check" />끝난 거래 {done.length}</h2><ul className="chat-list">{done.map((o) => <Item key={o.id} o={o} />)}</ul></>}
         </>
       )}
     </div>

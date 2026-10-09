@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { notFound } from "next/navigation";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { recordListingView } from "@/lib/events";
@@ -59,7 +60,7 @@ function BackButton() {
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, id) });
-  if (!listing) notFound();
+  if (!listing || listing.status === "REMOVED") notFound();
 
   const userId = await getCurrentUserId();
   const isOwner = userId === listing.sellerId;
@@ -191,16 +192,16 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         </section>
         {components.length > 0 && (
           <section className="listing-section">
-            <h2>구성품</h2>
+            <h2><Icon name="box" />구성품</h2>
             <ul className="component-list">{components.map((c) => <li key={c.id}>{c.name}</li>)}</ul>
           </section>
         )}
         <section className="listing-section">
-          <h2>상품 설명</h2>
+          <h2><Icon name="doc" />상품 설명</h2>
           <p className="listing-description">{listing.description}</p>
         </section>
         <section className="listing-section price-stats" aria-labelledby="price-stats-title">
-          <h2 id="price-stats-title">써보니 실거래 시세</h2>
+          <h2 id="price-stats-title"><Icon name="chart" />써보니 실거래 시세</h2>
           {price.insufficient
             ? <p className="field-hint">비교 거래 부족 · 같은 모델의 최근 {price.days}일 구매 완료 {price.count}건(최소 {price.minCount}건부터 보여 드려요)</p>
             : <p><strong>중앙값 {formatWon(price.median!)}</strong> <small>범위 {formatWon(price.min!)}~{formatWon(price.max!)} · {price.count}건 · 최근 {price.days}일 · {price.asOf} 기준</small></p>}
@@ -208,7 +209,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         </section>
         {modelReviews.length > 0 && (
           <section className="listing-section model-reviews" aria-labelledby="model-reviews-title">
-            <h2 id="model-reviews-title">이 모델 써본 사람들의 한마디</h2>
+            <h2 id="model-reviews-title"><Icon name="quote" />이 모델 써본 사람들의 한마디</h2>
             <ul>
               {modelReviews.map((r) => (
                 <li key={r.id}>

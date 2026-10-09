@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { desc, eq } from "drizzle-orm";
 import { ProductCard } from "@/components/ProductCard";
 import { db } from "@/db/client";
@@ -12,7 +13,7 @@ export default async function WishlistPage() {
   if (!userId) {
     return (
       <div className="page wishlist-page">
-        <h1 className="page-title">찜</h1>
+        <h1 className="page-title"><Icon name="heart" />찜</h1>
         <div className="empty-card">
           <strong>닉네임만 정하면 찜한 상품을 모아볼 수 있어요.</strong>
           <Link href="/login">닉네임 정하고 시작하기</Link>
@@ -29,7 +30,7 @@ export default async function WishlistPage() {
 
   return (
     <div className="page wishlist-page">
-      <h1 className="page-title">찜</h1>
+      <h1 className="page-title"><Icon name="heart" />찜</h1>
       {rows.length === 0 ? (
         <div className="empty-card">
           <strong>아직 찜한 상품이 없어요.</strong>

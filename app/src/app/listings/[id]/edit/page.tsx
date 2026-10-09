@@ -115,6 +115,19 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     router.refresh();
   }
 
+  // 상품 삭제: 목록·검색·내 상품에서 사라지고 되돌릴 수 없다(거래 중이면 서버가 막는다)
+  async function removeListing() {
+    if (busy || !confirm("이 상품을 삭제할까요? 목록·검색·내 상품에서 사라지고 되돌릴 수 없어요.")) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/listings/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "REMOVED" }) });
+    const d = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(d.error ?? "삭제하지 못했어요."); return; }
+    router.push("/me");
+    router.refresh();
+  }
+
   if (loadError) {
     return (
       <div className="page sell-page">
@@ -189,6 +202,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         </fieldset>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="dark-button" type="submit" disabled={busy || priceProblem(price) !== null}>{busy ? "저장 중…" : "저장하기"}</button>
+        <button className="text-button listing-delete" type="button" onClick={() => void removeListing()} disabled={busy}>상품 삭제</button>
       </form>
     </div>
   );

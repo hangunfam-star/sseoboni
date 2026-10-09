@@ -1189,3 +1189,19 @@ body, input, textarea, button { font-family: "Pretendard Variable", Pretendard, 
 .trade-settings__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .trade-open { padding: 12px; border-radius: 14px; background: var(--color-coral-soft); }
 @media (max-width: 360px) { .order-dl > div { grid-template-columns: 1fr; } .review-stars div { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+/* 제목 앞 아이콘·MY 제목·상품 삭제(2026-10-09) */
+.ti { width: 1em; height: 1em; flex-shrink: 0; margin-right: .35em; vertical-align: -0.14em; color: var(--color-coral); }
+h1 .ti, .page-title .ti { width: .9em; height: .9em; }
+.section-title:has(.ti), .order-box h2:has(.ti), .listing-section h2:has(.ti) { display: flex; align-items: center; }
+.my-title { font-weight: 400; }
+.my-title strong { font-weight: 800; }
+.my-title span { font-weight: 300; color: var(--w-sub); font-size: .82em; margin-left: .1em; }
+.grade-badge-inline { display: inline-flex; align-items: center; gap: 4px; }
+.grade-badge-inline .ti { margin-right: 0; width: 14px; height: 14px; color: currentColor; }
+.my-menu a strong { display: flex; align-items: center; }
+.my-menu a:first-child .ti, .chat-banner .ti { color: #fff; }
+.chat-banner strong { display: inline-flex; align-items: center; }
+.my-listing__delete { color: #b2402f !important; }
+.listing-delete, .account-delete { color: #b2402f; }
+.order-box h2 small, .section-title small { margin-left: 6px; }

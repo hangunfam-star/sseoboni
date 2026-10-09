@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // PATCH /api/listings/[id] — 판매자 본인만. 보낸 항목만 고친다.
 // { status?, title?, price?, conditionGrade?, description?, components?: string[], tryWillingness?: YES|CONDITIONAL|NO }
-const ALLOWED = ["ACTIVE", "HIDDEN", "SOLD"];
+const ALLOWED = ["ACTIVE", "HIDDEN", "SOLD", "REMOVED"]; // REMOVED = 삭제(목록·검색·상세에서 사라지고 되돌릴 수 없음)
 const TRY_EVENT: Record<string, string> = { YES: "SELLER_TRY_YES", CONDITIONAL: "SELLER_TRY_CONDITIONAL", NO: "SELLER_TRY_NO" };
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ListThumb } from "@/components/ListThumb";
@@ -113,7 +114,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       )}
 
       <section className="order-box" aria-labelledby="money-title">
-        <h2 id="money-title">금액</h2>
+        <h2 id="money-title"><Icon name="won" />금액</h2>
         <dl className="order-dl">
           <div><dt>판매자에게 보낼 금액</dt><dd>{formatWon(v.money.payTotal)} <small>상품 {formatWon(v.price)} + 발송비 {formatWon(v.shippingFee)}</small></dd></div>
           {v.kind === "TRIAL" && <div><dt>사면</dt><dd>추가 0원 <small>체험료 0원</small></dd></div>}
@@ -128,7 +129,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       </section>
 
       <section className="order-box" aria-labelledby="ship-title">
-        <h2 id="ship-title">배송</h2>
+        <h2 id="ship-title"><Icon name="truck" />배송</h2>
         <dl className="order-dl">
           {v.shipTo ? <div><dt>받는 곳</dt><dd>{v.shipTo.name} · {v.shipTo.phone}<br />{v.shipTo.address}{v.shipTo.memo ? <><br /><small>{v.shipTo.memo}</small></> : null}</dd></div>
             : v.role === "seller" && <div><dt>받는 곳</dt><dd><small>입금을 확인하면 보여요</small></dd></div>}
@@ -140,12 +141,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       </section>
 
       {v.kind === "TRIAL" && v.questions.length > 0 && (
-        <section className="order-box"><h2>써보며 확인할 점</h2><ul className="component-list">{v.questions.map((q) => <li key={q}>{q}</li>)}</ul></section>
+        <section className="order-box"><h2><Icon name="checklist" />써보며 확인할 점</h2><ul className="component-list">{v.questions.map((q) => <li key={q}>{q}</li>)}</ul></section>
       )}
 
       {rs && (rs.canReview || rs.mine || rs.theirs || rs.theirsWaiting || rs.canTrialReview || rs.trial) && (
         <section className="order-box" aria-labelledby="review-title">
-          <h2 id="review-title">후기</h2>
+          <h2 id="review-title"><Icon name="star" />후기</h2>
           {rs.canReview && <TradeReviewForm orderId={v.id} direction={rs.direction} targetName={other} />}
           {rs.mine && <p className="field-hint">내 평가: ★{rs.mine.stars} · {(JSON.parse(rs.mine.chips) as string[]).join(", ")}{rs.theirs ? "" : " (상대가 평가를 남기거나 7일이 지나면 함께 공개돼요)"}</p>}
           {rs.theirs && <p>받은 평가: ★{rs.theirs.stars} · {(JSON.parse(rs.theirs.chips) as string[]).join(", ")}{rs.theirs.sample ? ` · ${rs.theirs.sample}` : ""}{rs.theirs.body ? ` · ${rs.theirs.body}` : ""}</p>}
@@ -156,7 +157,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       )}
 
       <section className="order-box" aria-labelledby="log-title">
-        <h2 id="log-title">거래 기록</h2>
+        <h2 id="log-title"><Icon name="clock" />거래 기록</h2>
         <ol className="order-log">{v.events.map((e, i) => <li key={i}><time>{kst(e.at)}</time> {EVENT_TEXT[e.type] ?? e.type} <small>{WHO[e.by]}</small></li>)}</ol>
         {v.threadId && <Link className="secondary-button" href={`/chats/${v.threadId}`}>채팅으로 이야기하기</Link>}
       </section>

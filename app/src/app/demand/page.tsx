@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 import { modelDemand } from "@/lib/queries";
 import { demandLabel, illustrationKind } from "@/ui/presentation";
 import { ListThumb } from "@/components/ListThumb";
@@ -13,10 +14,10 @@ export default async function DemandPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="page demand-page">
-      <h1 className="page-title">찾는 상품</h1>
+      <h1 className="page-title"><Icon name="search" />찾는 상품</h1>
       <p className="page-lead">사고 싶거나 써보고 싶은 모델을 남겨 주세요. 판매자가 등록할 때 이 수요를 봐요.</p>
       <DemandForm models={demand.map((d) => ({ id: d.modelId, label: `${d.brand} ${d.modelName}` }))} initialModelId={model ?? ""} />
-      <h2 className="section-title">사람들이 찾고 있어요</h2>
+      <h2 className="section-title"><Icon name="user" />사람들이 찾고 있어요</h2>
       <div className="demand-list">
         {demand.map((d, i) => (
           <Link key={d.modelId} className={`demand-card ${CARD_TONES[i % CARD_TONES.length]}`} href={`/?q=${encodeURIComponent(d.modelName)}`}>
