@@ -236,6 +236,9 @@ export const orders = sqliteTable("orders", {
   virtualFee: integer("virtual_fee"), // 정식 수수료(3%)였다면 — 지불 의향 측정용 기록
   cancelReason: text("cancel_reason"),
   opsFlag: text("ops_flag"), // 운영 확인 필요 사유(기한 초과 등)
+  sellerAccountEnc: text("seller_account_enc"), // 신청 시점 판매자 계좌(암호화). 거래 중 계좌를 바꿔도 이 거래는 이 계좌로 안내한다
+  trialPausedMs: integer("trial_paused_ms").notNull().default(0), // 체험 중 분쟁으로 멈춘 시간(반납 체험료 계산에서 뺀다)
+  waitShiftMs: integer("wait_shift_ms").notNull().default(0),     // 분쟁으로 멈춘 시간만큼 자동 처리 기한(받음·구매 확정·운영 확인)을 늦춘다
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
   paidAt: text("paid_at"),
   shippedAt: text("shipped_at"),

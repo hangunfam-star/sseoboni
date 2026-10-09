@@ -8,7 +8,7 @@ import { parseTradeSettings } from "@/ui/trade-rules";
 
 // POST /api/admin/trade — 운영자만.
 //  { op: "SETTINGS", settings } 거래 설정 저장(거래 열기 포함, 바꾼 기록을 남긴다)
-//  { op: "RESOLVE", disputeId, resolution, buyerFault, refundAmount? } 분쟁 정리
+//  { op: "RESOLVE", disputeId, resolution, buyerFault, refundAmount?, outcome?: CONTINUE|REFUND|PURCHASE } 분쟁 정리
 export async function POST(req: NextRequest) {
   if (!(await isAdmin())) return NextResponse.json({ error: "운영자만 할 수 있어요." }, { status: 401 });
   const body = await req.json().catch(() => null);
@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
     if (body?.op === "RESOLVE") {
       if (typeof body.disputeId !== "string" || typeof body.resolution !== "string" || typeof body.buyerFault !== "boolean") return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
       const amount = body.refundAmount === undefined || body.refundAmount === null || body.refundAmount === "" ? undefined : Number(body.refundAmount);
-      await resolveDispute(body.disputeId, body.resolution, body.buyerFault, amount);
+      const outcome = body.outcome === "REFUND" || body.outcome === "PURCHASE" ? body.outcome : "CONTINUE";
+      await resolveDispute(body.disputeId, body.resolution, body.buyerFault, amount, outcome);
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });

@@ -15,7 +15,7 @@ import { getTrialTerms } from "@/lib/trial-terms";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { findContactInfo, type TrialTier } from "@/ui/trial-pricing";
 import {
-  FINAL_STATUSES, RETURN_REASONS, STATUS_LABEL, addHours, allowedActions, depositNameFor, hoursBetween, isFinal, moneyOf,
+  FINAL_STATUSES, RETURN_REASONS, kstDateOf, STATUS_LABEL, addHours, allowedActions, depositNameFor, hoursBetween, isFinal, moneyOf,
   parseBankAccount, parseQuestions, parseShipTo, purchaseFees, returnFeeFor, shipInputProblem, sqlToIso,
   type Action, type OrderKind, type OrderStatus, type Role, type TradeSettings,
 } from "@/ui/trade-rules";
@@ -53,10 +53,21 @@ function systemMessageTx(tx: Tx, o: Pick<OrderRow, "listingId" | "buyerId" | "se
   tx.update(chatThreads).set({ lastMessageAt: sql`(current_timestamp)` }).where(eq(chatThreads.id, thread.id)).run();
 }
 
-// param: tx, id, from 예상 상태(들), set 바꿀 값. return: 바뀐 행(다른 요청이 먼저 바꿨으면 null)
-function moveTx(tx: Tx, id: string, from: OrderStatus | OrderStatus[], set: Partial<OrderRow>): OrderRow | null {
+// param: tx, id, from 예상 상태(들), set 바꿀 값, opts.blockIfDispute 열린 분쟁이 있으면 바꾸지 않음(금액·결과 확정 행동)
+// return: 바뀐 행(다른 요청이 먼저 바꿨거나 분쟁이 열려 있으면 null)
+function moveTx(tx: Tx, id: string, from: OrderStatus | OrderStatus[], set: Partial<OrderRow>, opts: { blockIfDispute?: boolean } = {}): OrderRow | null {
   const list = Array.isArray(from) ? from : [from];
-  return tx.update(orders).set({ ...set, updatedAt: now() }).where(and(eq(orders.id, id), inArray(orders.status, list))).returning().get() ?? null;
+  const noDispute = opts.blockIfDispute ? sql`not exists (select 1 from disputes d where d.order_id = ${id} and d.status = 'OPEN')` : undefined;
+  // 단계가 바뀌면 분쟁으로 늦춘 기한(waitShiftMs)은 그 단계에만 적용했으므로 0으로 되돌린다
+  const reset = set.status && set.waitShiftMs === undefined ? { waitShiftMs: 0 } : {};
+  return tx.update(orders).set({ ...set, ...reset, updatedAt: now() }).where(and(eq(orders.id, id), inArray(orders.status, list), noDispute)).returning().get() ?? null;
+}
+const LOCK = { blockIfDispute: true } as const;
+
+// param: listingId. 이 상품의 끝나지 않은 거래를 먼저 정리한다(입금 기한이 지난 거래가 상품을 계속 막지 않게)
+async function advanceListing(listingId: string) {
+  const ids = (await db.select({ id: orders.id }).from(orders).where(and(eq(orders.listingId, listingId), notInArray(orders.status, FINAL_STATUSES)))).map((r) => r.id);
+  if (ids.length) await advanceOrders(ids);
 }
 
 // 구매 완료·정상 반납 완료 때 구매자·판매자에게 경험치 1점씩(거래·회원·종류당 한 번)
@@ -82,6 +93,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
   const settings = await loadTradeSettings();
   if (!settings.tradeOpen) throw new TradeError("거래는 아직 열리지 않았어요. 곧 열릴 예정이에요.", 403);
   if (input.kind !== "BUY" && input.kind !== "TRIAL") throw new TradeError("요청 형식이 올바르지 않습니다.");
+  await advanceListing(input.listingId);
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, input.listingId) });
   if (!listing || (listing.status !== "ACTIVE" && listing.status !== "RESERVED")) throw new TradeError("상품을 찾을 수 없습니다.", 404);
   if (listing.sellerId === buyerId) throw new TradeError("내 상품은 신청할 수 없어요.");
@@ -136,6 +148,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
       snapshot: JSON.stringify(snapshot), price: listing.price, shippingFee, tiers: tiers ? JSON.stringify(tiers) : null,
       trialHours: hours, trialFee, proposalId, questions: JSON.stringify(questions),
       depositName: depositNameFor(buyer?.nickname ?? null, randomInt(10000)), shipEnc: seal(ship),
+      sellerAccountEnc: seal({ bank: account.bank, account: open<string>(account.accountEnc) ?? "", holder: account.holder }),
     }).returning().get();
     eventTx(tx, row.id, buyerId, "CREATED", { kind: input.kind, hours, trialFee, price: listing.price, shippingFee });
     systemMessageTx(tx, row, input.kind === "TRIAL"
@@ -201,7 +214,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       const next = tiers.find((x) => x.hours === body.hours);
       if (!next || !o.trialHours || next.hours <= o.trialHours || !o.receivedAt) throw new TradeError("더 긴 기간 중에서 골라 주세요.");
       return db.transaction((tx) => {
-        const r = moveTx(tx, o.id, "TRIAL", { trialHours: next.hours, trialFee: next.fee, trialEndAt: addHours(sqlToIso(o.receivedAt!), next.hours) }) ?? fail();
+        const r = moveTx(tx, o.id, "TRIAL", { trialHours: next.hours, trialFee: next.fee, trialEndAt: addHours(sqlToIso(o.trialEndAt!), next.hours - o.trialHours!) }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "EXTENDED", { from: o.trialHours, to: next.hours, fee: next.fee });
         systemMessageTx(tx, r, `구매자가 써보기를 ${next.hours}시간으로 늘렸어요. 돌려보내면 체험료는 ${next.fee.toLocaleString("ko-KR")}원이에요(추가 입금 없음).`);
         return r;
@@ -220,14 +233,14 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       const acc = parseBankAccount(body.refundAccount);
       if (typeof acc === "string") throw new TradeError(`환불 받을 계좌: ${acc}`);
       const tiers: TrialTier[] = JSON.parse(o.tiers ?? "[]");
-      const used = hoursBetween(sqlToIso(o.receivedAt!), t);
+      const used = hoursBetween(sqlToIso(o.receivedAt!), t) - o.trialPausedMs / 3600_000; // 분쟁으로 멈춘 시간은 빼고 센다
       const fee = returnFeeFor(tiers, o.trialHours!, used);
       const refund = Math.max(0, o.price - fee);
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, ["TRIAL", "NEEDS_CHECK"], {
           status: "RETURN_REQUESTED", decidedAt: t, returnRequestedAt: t, returnReason: reason.key, returnNote: note || null,
           trialFee: fee, refundAmount: refund, refundKind: "RETURN", refundEnc: seal(acc),
-        }) ?? fail();
+        }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "RETURN_REQUESTED", { reason: reason.key, usedHours: Math.round(used), trialFee: fee, refund });
         systemMessageTx(tx, r, `구매자가 반납을 신청했어요(${reason.label}). ${settings.returnShipDays}일 안에 반송할 예정이에요. 환불 예정액은 ${refund.toLocaleString("ko-KR")}원(상품가 − 체험료 ${fee.toLocaleString("ko-KR")}원)이에요.`);
         return r;
@@ -237,8 +250,9 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       const bad = shipInputProblem(body.carrier, body.tracking);
       if (bad) throw new TradeError(bad);
       const day = typeof body.handoverDate === "string" ? body.handoverDate : "";
-      const today = t.slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today || day < (o.returnRequestedAt ?? t).slice(0, 10)) throw new TradeError("택배를 맡긴 날짜를 확인해 주세요(반납 신청일~오늘).");
+      // 날짜는 한국 날짜로 비교한다(화면 기본값도 한국 날짜)
+      const today = kstDateOf(t);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today || day < kstDateOf(o.returnRequestedAt ?? t)) throw new TradeError("택배를 맡긴 날짜를 확인해 주세요(반납 신청일~오늘).");
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "RETURN_REQUESTED", { status: "RETURN_SHIPPED", returnShippedAt: t, returnCarrier: body.carrier as string, returnTracking: (body.tracking as string).trim(), returnHandoverAt: day }) ?? fail();
         eventTx(tx, o.id, userId, "RETURN_SHIPPED", { carrier: body.carrier, handoverDate: day });
@@ -254,7 +268,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       if (findContactInfo(note)) throw new TradeError("메모에는 연락처·계좌를 적을 수 없어요.");
       const missing = items.filter((x) => !x.returned).map((x) => x.name);
       return db.transaction((tx) => {
-        const r = moveTx(tx, o.id, "RETURN_SHIPPED", { status: "REFUND_DUE", inspectedAt: t, inspection: JSON.stringify({ items, note }) }) ?? fail();
+        const r = moveTx(tx, o.id, "RETURN_SHIPPED", { status: "REFUND_DUE", inspectedAt: t, inspection: JSON.stringify({ items, note }) }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "INSPECTED", { missing });
         systemMessageTx(tx, r, missing.length
           ? `판매자가 검수를 마쳤어요. 빠진 구성품: ${missing.join(", ")}. 환불 예정액 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원은 그대로이고, 다툼이 있으면 분쟁을 신청할 수 있어요.`
@@ -265,7 +279,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
     case "REFUND_SENT":
       if (!o.refundEnc) throw new TradeError("구매자가 환불 계좌를 아직 입력하지 않았어요. 채팅으로 알려 주세요.", 409);
       return db.transaction((tx) => {
-        const r = moveTx(tx, o.id, "REFUND_DUE", { status: "REFUND_SENT", refundSentAt: t }) ?? fail();
+        const r = moveTx(tx, o.id, "REFUND_DUE", { status: "REFUND_SENT", refundSentAt: t }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "REFUND_SENT", { amount: o.refundAmount });
         systemMessageTx(tx, r, `판매자가 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불했다고 알렸어요. 통장에서 확인되면 '환불 받았어요'를 눌러 주세요.`);
         return r;
@@ -273,7 +287,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
     case "REFUND_RECEIVED":
       return db.transaction((tx) => {
         const done: OrderStatus = o.refundKind === "CANCEL" ? "CANCELLED" : "RETURNED";
-        const r = moveTx(tx, o.id, "REFUND_SENT", { status: done, completedAt: t }) ?? fail();
+        const r = moveTx(tx, o.id, "REFUND_SENT", { status: done, completedAt: t }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "REFUND_RECEIVED", { amount: o.refundAmount });
         if (done === "RETURNED") awardXpTx(tx, r);
         releaseListingTx(tx, o.listingId);
@@ -285,7 +299,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       if (findContactInfo(reason)) throw new TradeError("취소 이유에는 연락처·계좌를 적을 수 없어요.");
       if (status === "AWAIT_PAYMENT") {
         return db.transaction((tx) => {
-          const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "CANCELLED", cancelReason: reason || (role === "buyer" ? "구매자 취소" : "판매자 취소"), completedAt: t }) ?? fail();
+          const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "CANCELLED", cancelReason: reason || (role === "buyer" ? "구매자 취소" : "판매자 취소"), completedAt: t }, LOCK) ?? fail();
           eventTx(tx, o.id, userId, "CANCELLED", { by: role, reason });
           releaseListingTx(tx, o.listingId);
           systemMessageTx(tx, r, `${role === "buyer" ? "구매자" : "판매자"}가 입금 전에 거래를 취소했어요.`);
@@ -301,7 +315,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       }
       const amount = o.price + o.shippingFee;
       return db.transaction((tx) => {
-        const r = moveTx(tx, o.id, "PAID", { status: "REFUND_DUE", refundKind: "CANCEL", refundAmount: amount, refundEnc, cancelReason: reason || (role === "buyer" ? "구매자 취소" : "판매자 취소"), decidedAt: t }) ?? fail();
+        const r = moveTx(tx, o.id, "PAID", { status: "REFUND_DUE", refundKind: "CANCEL", refundAmount: amount, refundEnc, cancelReason: reason || (role === "buyer" ? "구매자 취소" : "판매자 취소"), decidedAt: t }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "CANCEL_AFTER_PAYMENT", { by: role, amount });
         systemMessageTx(tx, r, `${role === "buyer" ? "구매자" : "판매자"}가 발송 전에 거래를 취소했어요. 판매자가 ${amount.toLocaleString("ko-KR")}원 전액을 돌려줘야 해요.${refundEnc ? "" : " 구매자는 거래 화면에서 환불 받을 계좌를 입력해 주세요."}`);
         return r;
@@ -316,7 +330,7 @@ function receiveTx(tx: Tx, o: OrderRow, at: string, actorId: string | null, sett
   const set: Partial<OrderRow> = o.kind === "TRIAL"
     ? { status: "TRIAL", receivedAt: at, trialEndAt: addHours(at, o.trialHours!) }
     : { status: "RECEIVED", receivedAt: at };
-  const r = moveTx(tx, o.id, "SHIPPED", set);
+  const r = moveTx(tx, o.id, "SHIPPED", set, { blockIfDispute: !actorId });
   if (!r) return null;
   eventTx(tx, o.id, actorId, actorId ? "RECEIVED" : "AUTO_RECEIVED");
   systemMessageTx(tx, r, o.kind === "TRIAL"
@@ -329,7 +343,7 @@ function receiveTx(tx: Tx, o: OrderRow, at: string, actorId: string | null, sett
 function purchaseTx(tx: Tx, o: OrderRow, from: OrderStatus[], actorId: string | null, feePct: number, settings: TradeSettings, text: string): OrderRow | null {
   const fees = purchaseFees(o.price, feePct, settings.formalFeePct);
   const t = now();
-  const r = moveTx(tx, o.id, from, { status: "PURCHASED", decidedAt: o.decidedAt ?? t, completedAt: t, feePct, feeAmount: fees.feeAmount, virtualFee: fees.virtualFee, trialFee: o.kind === "TRIAL" ? 0 : o.trialFee });
+  const r = moveTx(tx, o.id, from, { status: "PURCHASED", decidedAt: o.decidedAt ?? t, completedAt: t, feePct, feeAmount: fees.feeAmount, virtualFee: fees.virtualFee, trialFee: o.kind === "TRIAL" ? 0 : o.trialFee, refundAmount: null, refundKind: null }, LOCK);
   if (!r) return null;
   eventTx(tx, o.id, actorId, actorId ? "PURCHASED" : "AUTO_PURCHASED", { feePct, ...fees });
   awardXpTx(tx, r);
@@ -346,7 +360,7 @@ export async function advanceOrders(ids?: string[]): Promise<void> {
   const pct = await feePctNow();
   const rows = await db.select().from(orders).where(and(notInArray(orders.status, FINAL_STATUSES), ids ? inArray(orders.id, ids) : undefined));
   const t = Date.now();
-  const past = (iso: string | null, hours: number) => Boolean(iso) && new Date(sqlToIso(iso!)).getTime() + hours * 3600_000 <= t;
+  const past = (iso: string | null, hours: number, shiftMs = 0) => Boolean(iso) && new Date(sqlToIso(iso!)).getTime() + hours * 3600_000 + shiftMs <= t;
   for (let o of rows) {
     if (disputeOpen(o.id)) continue; // 분쟁 중에는 자동 처리를 멈춘다
     for (let guard = 0; guard < 5; guard++) {
@@ -354,18 +368,18 @@ export async function advanceOrders(ids?: string[]): Promise<void> {
       let next: OrderRow | null = null;
       if (s === "AWAIT_PAYMENT" && past(o.createdAt, settings.paymentWaitHours)) {
         next = db.transaction((tx) => {
-          const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "CANCELLED", cancelReason: "입금 기한 지남", completedAt: now() });
+          const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "CANCELLED", cancelReason: "입금 기한 지남", completedAt: now() }, LOCK);
           if (r) { eventTx(tx, o.id, null, "AUTO_CANCELLED"); releaseListingTx(tx, o.listingId); systemMessageTx(tx, r, `${settings.paymentWaitHours}시간 안에 입금 확인이 되지 않아 거래가 자동 취소됐어요.`); }
           return r;
         });
-      } else if (s === "SHIPPED" && past(o.shippedAt, settings.autoReceiveDays * 24)) {
-        const at = addHours(sqlToIso(o.shippedAt!), settings.autoReceiveDays * 24);
+      } else if (s === "SHIPPED" && past(o.shippedAt, settings.autoReceiveDays * 24, o.waitShiftMs)) {
+        const at = addHours(sqlToIso(o.shippedAt!), settings.autoReceiveDays * 24 + o.waitShiftMs / 3600_000);
         next = db.transaction((tx) => receiveTx(tx, o, at, null, settings));
-      } else if (s === "RECEIVED" && past(o.receivedAt, settings.buyAutoConfirmDays * 24)) {
+      } else if (s === "RECEIVED" && past(o.receivedAt, settings.buyAutoConfirmDays * 24, o.waitShiftMs)) {
         next = db.transaction((tx) => purchaseTx(tx, o, ["RECEIVED"], null, pct, settings, `받은 뒤 ${settings.buyAutoConfirmDays}일이 지나 자동으로 구매 확정됐어요.`));
       } else if (s === "TRIAL" && past(o.trialEndAt, 0)) {
         next = db.transaction((tx) => {
-          const r = moveTx(tx, o.id, "TRIAL", { status: "NEEDS_CHECK", needsCheckAt: o.trialEndAt });
+          const r = moveTx(tx, o.id, "TRIAL", { status: "NEEDS_CHECK", needsCheckAt: o.trialEndAt }, LOCK);
           if (r) { eventTx(tx, o.id, null, "NEEDS_CHECK"); systemMessageTx(tx, r, `써보기 시간이 끝났어요. ${settings.decisionGraceHours}시간 안에 '살게요' 또는 '돌려보낼게요'를 골라 주세요. 그때까지 답이 없으면 신청할 때 안내한 대로 구매로 확정돼요.`); }
           return r;
         });
@@ -378,11 +392,11 @@ export async function advanceOrders(ids?: string[]): Promise<void> {
     // 늦어진 일: 상태는 그대로 두고 운영 확인으로 표시
     const s = o.status as OrderStatus;
     const flag =
-      s === "PAID" && past(o.paidAt, settings.shipPromiseDays * 24) ? "발송 약속 지남" :
-      s === "RETURN_REQUESTED" && past(o.returnRequestedAt, settings.returnShipDays * 24) ? "반송 약속 지남" :
-      s === "RETURN_SHIPPED" && past(o.returnHandoverAt ? `${o.returnHandoverAt}T00:00:00Z` : null, settings.inspectDays * 24) ? "검수 기한 지남" :
-      s === "REFUND_DUE" && past(o.inspectedAt ?? o.decidedAt, settings.refundDays * 24) ? "환불 기한 지남" :
-      s === "REFUND_SENT" && past(o.refundSentAt, 3 * 24) ? "환불 확인 대기" : null;
+      s === "PAID" && past(o.paidAt, settings.shipPromiseDays * 24, o.waitShiftMs) ? "발송 약속 지남" :
+      s === "RETURN_REQUESTED" && past(o.returnRequestedAt, settings.returnShipDays * 24, o.waitShiftMs) ? "반송 약속 지남" :
+      s === "RETURN_SHIPPED" && past(o.returnHandoverAt ? `${o.returnHandoverAt}T00:00:00+09:00` : null, settings.inspectDays * 24, o.waitShiftMs) ? "검수 기한 지남" :
+      s === "REFUND_DUE" && past(o.inspectedAt ?? o.decidedAt, settings.refundDays * 24, o.waitShiftMs) ? "환불 기한 지남" :
+      s === "REFUND_SENT" && past(o.refundSentAt, 3 * 24, o.waitShiftMs) ? "환불 확인 대기" : null;
     if (flag !== o.opsFlag) db.update(orders).set({ opsFlag: flag }).where(eq(orders.id, o.id)).run();
   }
 }
@@ -404,7 +418,8 @@ export async function orderView(orderId: string, userId: string, asAdmin = false
   const dispute = await db.query.disputes.findFirst({ where: eq(disputes.orderId, o.id), orderBy: desc(disputes.createdAt) });
   const open_ = dispute?.status === "OPEN";
   const account = await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, o.sellerId) });
-  const acc = account ? { bank: account.bank, holder: account.holder, account: open<string>(account.accountEnc) ?? "" } : null;
+  const snapAcc = open<BankTo>(o.sellerAccountEnc);
+  const acc = snapAcc ?? (account ? { bank: account.bank, holder: account.holder, account: open<string>(account.accountEnc) ?? "" } : null);
   const ship = open<ShipTo>(o.shipEnc);
   const refundTo = open<BankTo>(o.refundEnc);
   const buyer = await db.query.users.findFirst({ where: eq(users.id, o.buyerId) });
@@ -451,7 +466,7 @@ export async function listOrders(userId: string, side: "buyer" | "seller" | "all
   const mine = side === "buyer" ? eq(orders.buyerId, userId) : side === "seller" ? eq(orders.sellerId, userId) : or(eq(orders.buyerId, userId), eq(orders.sellerId, userId));
   const ids = (await db.select({ id: orders.id }).from(orders).where(and(mine, notInArray(orders.status, FINAL_STATUSES)))).map((r) => r.id);
   if (ids.length) await advanceOrders(ids);
-  const rows = await db.select().from(orders).where(mine).orderBy(desc(orders.updatedAt)).limit(100);
+  const rows = await db.select().from(orders).where(mine).orderBy(desc(sql`datetime(${orders.updatedAt})`)).limit(100);
   return rows.map((o) => {
     const snap: Snapshot = JSON.parse(o.snapshot);
     return {
@@ -464,6 +479,7 @@ export async function listOrders(userId: string, side: "buyer" | "seller" | "all
 
 // param: listingId. return: 이 상품의 진행 중 거래(없으면 null)
 export async function activeOrderOf(listingId: string) {
+  await advanceListing(listingId);
   return db.query.orders.findFirst({ where: and(eq(orders.listingId, listingId), notInArray(orders.status, FINAL_STATUSES)) }) ?? null;
 }
 
@@ -492,20 +508,54 @@ export async function openDispute(orderId: string, userId: string, reason: unkno
   });
 }
 
-// 운영자: 분쟁 종료. param: refundAmount 환불액 조정(환불 대기·반송 중일 때만), buyerFault 구매자 책임 확인 여부
-export async function resolveDispute(disputeId: string, resolution: string, buyerFault: boolean, refundAmount?: number) {
+// 운영자: 분쟁 종료.
+// param: outcome CONTINUE 그대로 진행 | REFUND 환불로 끝내기(취소, 금액 지정) | PURCHASE 구매로 확정
+//        refundAmount CONTINUE면 반납 환불액 조정(환불 전 단계), REFUND면 돌려줄 금액(필수), buyerFault 구매자 책임 확인 여부
+// 분쟁이 열려 있던 시간만큼 체험 끝·자동 처리 기한을 늦추고, 반납 체험료 계산에서도 뺀다.
+export type DisputeOutcome = "CONTINUE" | "REFUND" | "PURCHASE";
+export async function resolveDispute(disputeId: string, resolution: string, buyerFault: boolean, refundAmount?: number, outcome: DisputeOutcome = "CONTINUE") {
   const d = await db.query.disputes.findFirst({ where: eq(disputes.id, disputeId) });
   if (!d || d.status !== "OPEN") throw new TradeError("열린 분쟁을 찾을 수 없습니다.", 404);
   const o = await db.query.orders.findFirst({ where: eq(orders.id, d.orderId) });
   if (!o) throw new TradeError("거래를 찾을 수 없습니다.", 404);
   if (resolution.trim().length < 2 || resolution.length > 500) throw new TradeError("처리 결과를 2~500자로 적어 주세요.");
-  if (refundAmount !== undefined && (!Number.isInteger(refundAmount) || refundAmount < 0 || refundAmount > o.price + o.shippingFee || !["REFUND_DUE", "RETURN_SHIPPED", "RETURN_REQUESTED"].includes(o.status))) {
+  const max = o.price + o.shippingFee;
+  const amountOk = (v: number | undefined) => v !== undefined && Number.isInteger(v) && v >= 0 && v <= max;
+  if (outcome === "CONTINUE" && refundAmount !== undefined && (!amountOk(refundAmount) || !["REFUND_DUE", "RETURN_SHIPPED", "RETURN_REQUESTED"].includes(o.status))) {
     throw new TradeError("환불액은 0원 이상, 최초 결제금 이하로, 환불 전 단계에서만 바꿀 수 있어요.");
   }
+  if (outcome === "REFUND" && (!amountOk(refundAmount) || isFinal(o.status) || o.status === "AWAIT_PAYMENT" || o.status === "REFUND_SENT")) {
+    throw new TradeError("환불로 끝내려면 0원~최초 결제금 사이 금액을 적어 주세요(끝났거나 환불을 보낸 거래는 안 돼요).");
+  }
+  if (outcome === "PURCHASE" && !["RECEIVED", "TRIAL", "NEEDS_CHECK", "RETURN_REQUESTED", "RETURN_SHIPPED", "REFUND_DUE"].includes(o.status)) {
+    throw new TradeError("물건을 받은 뒤 단계에서만 구매로 확정할 수 있어요.");
+  }
+  const settings = await loadTradeSettings();
+  const pct = await feePctNow();
+  const pausedMs = Math.max(0, Date.now() - new Date(sqlToIso(d.createdAt)).getTime());
   db.transaction((tx) => {
-    tx.update(disputes).set({ status: "RESOLVED", resolution: resolution.trim(), buyerFault, resolvedAt: now() }).where(and(eq(disputes.id, d.id), eq(disputes.status, "OPEN"))).run();
-    if (refundAmount !== undefined) tx.update(orders).set({ refundAmount, updatedAt: now() }).where(eq(orders.id, o.id)).run();
-    eventTx(tx, o.id, null, "DISPUTE_RESOLVED", { buyerFault, refundAmount });
-    systemMessageTx(tx, o, `운영자가 분쟁을 정리했어요: ${resolution.trim()}${refundAmount !== undefined ? ` (환불액 ${refundAmount.toLocaleString("ko-KR")}원)` : ""}. 거래를 이어서 진행해 주세요.`);
+    const done = tx.update(disputes).set({ status: "RESOLVED", resolution: resolution.trim(), buyerFault, resolvedAt: now() }).where(and(eq(disputes.id, d.id), eq(disputes.status, "OPEN"))).run();
+    if (done.changes !== 1) throw new TradeError("이미 정리된 분쟁이에요.", 409); // 두 번 눌러도 한 번만
+    // 멈춘 시간 반영: 체험 중이면 체험 끝을 늦추고 사용 시간에서 빼며, 그 밖에는 자동 처리 기한을 늦춘다
+    const inTrial = o.status === "TRIAL" || o.status === "NEEDS_CHECK";
+    tx.update(orders).set(inTrial && o.trialEndAt
+      ? { trialEndAt: new Date(new Date(sqlToIso(o.trialEndAt)).getTime() + pausedMs).toISOString(), trialPausedMs: o.trialPausedMs + pausedMs, updatedAt: now() }
+      : { waitShiftMs: o.waitShiftMs + pausedMs, updatedAt: now() }).where(eq(orders.id, o.id)).run();
+    let text = `운영자가 분쟁을 정리했어요: ${resolution.trim()}`;
+    if (outcome === "CONTINUE") {
+      if (refundAmount !== undefined) tx.update(orders).set({ refundAmount, updatedAt: now() }).where(eq(orders.id, o.id)).run();
+      text += refundAmount !== undefined ? ` (환불액 ${refundAmount.toLocaleString("ko-KR")}원)` : "";
+      text += ". 거래를 이어서 진행해 주세요.";
+    } else if (outcome === "REFUND") {
+      const r = moveTx(tx, o.id, o.status as OrderStatus, { status: "REFUND_DUE", refundKind: "CANCEL", refundAmount: refundAmount!, decidedAt: now() });
+      if (!r) throw new TradeError("상태가 바뀌었어요. 새로고침해 주세요.", 409);
+      text += `. ${refundAmount!.toLocaleString("ko-KR")}원을 환불하고 거래를 끝내요. 판매자는 환불 뒤 '환불 보냈어요'를, 구매자는 받은 뒤 '환불 받았어요'를 눌러 주세요.${r.refundEnc ? "" : " 구매자는 환불 받을 계좌를 입력해 주세요."}`;
+    } else {
+      const fresh = tx.select().from(orders).where(eq(orders.id, o.id)).get()!;
+      if (!purchaseTx(tx, fresh, [o.status as OrderStatus], null, pct, settings, "운영자 결정으로 구매로 확정했어요.")) throw new TradeError("상태가 바뀌었어요. 새로고침해 주세요.", 409);
+      text += ".";
+    }
+    eventTx(tx, o.id, null, "DISPUTE_RESOLVED", { buyerFault, refundAmount, outcome, pausedHours: Math.round(pausedMs / 360_000) / 10 });
+    systemMessageTx(tx, o, text);
   });
 }

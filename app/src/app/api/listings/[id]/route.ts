@@ -9,7 +9,7 @@ import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { PRICE_MAX, PRICE_MIN } from "@/ui/listing-price";
 import { getCurrentUserId } from "@/lib/session";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 
 // GET /api/listings/[id] — 상세 (P0 필수). ACTIVE가 아니면 판매자 본인에게만 보인다.
 // 조회 이벤트는 상세 화면(page.tsx)에서만 기록한다(API·화면 이중 기록 방지).
@@ -106,8 +106,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (effective === "YES" && !terms && existingMax === null) return { error: "써보기 조건을 입력해 주세요." };
 
     const row = Object.keys(set).length > 0
-      ? tx.update(listings).set(set).where(eq(listings.id, id)).returning().get()
+      ? tx.update(listings).set(set).where(set.status ? and(eq(listings.id, id), ne(listings.status, "RESERVED")) : eq(listings.id, id)).returning().get()
       : listing;
+    if (!row) return { error: "거래 중인 상품은 상태를 바꿀 수 없어요. 거래를 먼저 마치거나 취소해 주세요." };
     if (components) {
       tx.delete(listingComponents).where(eq(listingComponents.listingId, id)).run();
       for (const name of components) tx.insert(listingComponents).values({ listingId: id, name }).run();

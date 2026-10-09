@@ -34,13 +34,16 @@ export function OrderSheet(p: OrderSheetProps) {
   const fee = p.kind === "TRIAL" ? tiers.find((t) => t.hours === hours)?.fee ?? 0 : null;
   const m = moneyOf(p.price, p.shippingFee, fee);
 
+  // 처음 열 때 한 번만: 첫 버튼에 초점, 뒤 화면 스크롤 막기, Esc로 닫기(최신 onClose는 ref로 읽는다)
+  const closeRef = useRef(p.onClose);
+  useEffect(() => { closeRef.current = p.onClose; }, [p.onClose]);
   useEffect(() => {
     panel.current?.querySelector<HTMLElement>("button, input")?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") p.onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeRef.current(); };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
-  }, [p]);
+  }, []);
 
   function toggleQ(q: string) {
     setQuestions((cur) => (cur.includes(q) ? cur.filter((x) => x !== q) : cur.length >= 3 ? cur : [...cur, q]));

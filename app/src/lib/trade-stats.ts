@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { xpAwards } from "@/db/schema";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
-import { RETURN_REASONS, addHours, gradeOf, median, sqlToIso } from "@/ui/trade-rules";
+import { RETURN_REASONS, addHours, gradeOf, kstDateOf, kstToday, median, sqlToIso } from "@/ui/trade-rules";
 
 const sinceExpr = (days: number) => `-${days} days`;
 
@@ -86,9 +86,9 @@ export async function buyerTrust(userId: string) {
   const ret: Count = { done: 0, total: 0 };
   const comp: Count = { done: 0, total: 0 };
   for (const r of rows) {
-    const dueDay = addHours(sqlToIso(r.requested), s.returnShipDays * 24).slice(0, 10);
+    const dueDay = kstDateOf(addHours(sqlToIso(r.requested), s.returnShipDays * 24)); // 한국 날짜 기준
     if (r.handover) { ret.total++; if (r.handover <= dueDay) ret.done++; }
-    else if (r.status === "RETURN_REQUESTED" && new Date().toISOString().slice(0, 10) > dueDay) ret.total++;
+    else if (r.status === "RETURN_REQUESTED" && kstToday() > dueDay) ret.total++;
     if (r.inspection) {
       try {
         const items = (JSON.parse(r.inspection).items ?? []) as { returned: boolean }[];

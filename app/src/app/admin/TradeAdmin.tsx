@@ -58,6 +58,7 @@ export function ResolveDisputeForm({ disputeId, maxRefund }: { disputeId: string
   const [resolution, setResolution] = useState("");
   const [buyerFault, setBuyerFault] = useState(false);
   const [amount, setAmount] = useState("");
+  const [outcome, setOutcome] = useState<"CONTINUE" | "REFUND" | "PURCHASE">("CONTINUE");
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   async function save(e: React.FormEvent) {
@@ -65,7 +66,7 @@ export function ResolveDisputeForm({ disputeId, maxRefund }: { disputeId: string
     if (pending) return;
     setPending(true);
     setMsg(null);
-    const res = await fetch("/api/admin/trade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "RESOLVE", disputeId, resolution, buyerFault, refundAmount: amount === "" ? undefined : Number(amount) }) });
+    const res = await fetch("/api/admin/trade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "RESOLVE", disputeId, resolution, buyerFault, outcome, refundAmount: amount === "" ? undefined : Number(amount) }) });
     const d = await res.json().catch(() => ({}));
     setPending(false);
     if (!res.ok) { setMsg(d.error ?? "처리하지 못했어요."); return; }
@@ -74,8 +75,13 @@ export function ResolveDisputeForm({ disputeId, maxRefund }: { disputeId: string
   return (
     <form className="order-form" onSubmit={save}>
       <input value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="처리 결과(양쪽에 보여요)" aria-label="처리 결과" maxLength={500} required />
+      <select value={outcome} onChange={(e) => setOutcome(e.target.value as typeof outcome)} aria-label="분쟁 결과">
+        <option value="CONTINUE">거래 계속 진행</option>
+        <option value="REFUND">환불로 끝내기(금액 입력)</option>
+        <option value="PURCHASE">구매로 확정</option>
+      </select>
       <label className="order-inline"><input type="checkbox" checked={buyerFault} onChange={(e) => setBuyerFault(e.target.checked)} /> 구매자 책임(훼손 등)이 확인됨</label>
-      <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} inputMode="numeric" placeholder={`환불액 조정(선택, 0~${maxRefund.toLocaleString("ko-KR")})`} aria-label="환불액 조정" />
+      <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} inputMode="numeric" placeholder={outcome === "REFUND" ? `돌려줄 금액(필수, 0~${maxRefund.toLocaleString("ko-KR")})` : `환불액 조정(선택, 0~${maxRefund.toLocaleString("ko-KR")})`} aria-label="환불액 조정" />
       {msg && <p className="form-error" role="alert">{msg}</p>}
       <button className="secondary-button" type="submit" disabled={pending}>분쟁 정리</button>
     </form>

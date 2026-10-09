@@ -56,7 +56,7 @@ export default async function AdminPage() {
   await advanceOrders();
   const trade = await loadTradeSettings();
   const byStatus = await db.select({ status: orders.status, n: sql<number>`count(*)` }).from(orders).groupBy(orders.status);
-  const recentOrders = await db.select().from(orders).orderBy(desc(orders.updatedAt)).limit(50);
+  const recentOrders = await db.select().from(orders).orderBy(desc(sql`datetime(${orders.updatedAt})`)).limit(50);
   const openDisputes = await db.select({ d: disputes, opener: users.nickname }).from(disputes).leftJoin(users, eq(users.id, disputes.openerId)).where(eq(disputes.status, "OPEN")).orderBy(desc(disputes.createdAt));
   const disputeOrders = new Map((await db.select().from(orders)).filter((o) => openDisputes.some((x) => x.d.orderId === o.id)).map((o) => [o.id, o]));
   const feeSum = db.get<{ fee: number; virtual: number; n: number }>(sql`select coalesce(sum(fee_amount),0) as fee, coalesce(sum(virtual_fee),0) as virtual, count(*) as n from orders where status = 'PURCHASED'`);

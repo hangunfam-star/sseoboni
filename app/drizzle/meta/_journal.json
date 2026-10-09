@@ -71,6 +71,13 @@
       "when": 1791520139848,
       "tag": "0009_trade",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791526868788,
+      "tag": "0010_trade_dispute_pause",
+      "breakpoints": true
     }
   ]
 }

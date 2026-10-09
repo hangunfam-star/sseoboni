@@ -97,8 +97,10 @@ export function kst(iso: string | null | undefined): string {
   return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
 
+// param: iso 시각. return: 그 시각의 한국 날짜 YYYY-MM-DD
+export const kstDateOf = (iso: string) => new Date(new Date(sqlToIso(iso)).getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 // return: 오늘 한국 날짜 YYYY-MM-DD
-export const kstToday = () => new Date(new Date().getTime() + 9 * 3600_000).toISOString().slice(0, 10);
+export const kstToday = () => kstDateOf(new Date().toISOString());
 
 // ── 돈 ──
 export type Money = {

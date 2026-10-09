@@ -9,6 +9,9 @@ import { reviewState } from "@/lib/reviews";
 import { conditionLabel, formatWon, illustrationKind } from "@/ui/presentation";
 import { RETURN_REASONS, kst, kstToday, ratioText } from "@/ui/trade-rules";
 import { buyerTrust, gradesOf } from "@/lib/trade-stats";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { categories } from "@/db/schema";
 import { OrderActions } from "./OrderActions";
 import { TradeReviewForm, TrialReviewForm } from "./ReviewForms";
 
@@ -44,6 +47,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const other = v.role === "buyer" ? v.sellerName : v.buyerName;
   const reason = RETURN_REASONS.find((r) => r.key === v.returnReason);
   // 판매자에게만: 구매자의 활동 등급과 확인된 기록(반송 약속·구성품 반환·책임이 확인된 훼손)
+  // 반납 뒤 다음 검색 제안(구매자가 누를 때만 이동, 자동 신청 없음). 필요 없었다면 제안하지 않는다.
+  const cat = v.snapshot.category ? await db.query.categories.findFirst({ where: eq(categories.name, v.snapshot.category) }) : undefined;
+  const nextSearch = v.role === "buyer" && v.status === "RETURNED" && reason?.next
+    ? { label: reason.next, href: reason.key === "SIZE" && v.snapshot.modelName ? `/?q=${encodeURIComponent(v.snapshot.modelName)}` : cat ? `/?c=${cat.id}` : "/" }
+    : null;
   const buyerInfo = v.role === "seller" ? { grade: (await gradesOf(v.buyerId)).buyer, trust: await buyerTrust(v.buyerId) } : null;
 
   // 역할·상태별 지금 할 일 안내
@@ -96,6 +104,13 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           refundAmount={v.refundAmount} needsRefundAccount={v.status === "REFUND_DUE" && !v.refundTo} price={v.price}
           disputeOpen={v.dispute?.status === "OPEN"} canDispute={!["AWAIT_PAYMENT", "CANCELLED"].includes(v.status)} disputeReasons={DISPUTE_REASONS} />
       </section>
+
+      {nextSearch && (
+        <section className="order-box" aria-label="다음에 찾아볼 상품">
+          <p>{reason?.label} 반납했어요. 원하면 이어서 찾아볼 수 있어요.</p>
+          <Link className="secondary-button" href={nextSearch.href}>{nextSearch.label}</Link>
+        </section>
+      )}
 
       <section className="order-box" aria-labelledby="money-title">
         <h2 id="money-title">금액</h2>
