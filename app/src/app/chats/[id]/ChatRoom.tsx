@@ -1,9 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-type Msg = { id: string; seq: number; senderId: string; body: string; createdAt: string };
+type Msg = { id: string; seq: number; senderId: string; body: string; kind?: string; createdAt: string };
 const POLL_STEPS = [4000, 4000, 4000, 8000]; // 새 메시지가 없으면 최대 8초 간격으로 확인
 const REASONS = ["욕설·비방", "직거래·외부 연락 유도", "사기 의심", "기타"];
+
+// param: s 저장 시각(UTC, "YYYY-MM-DD HH:MM:SS" 또는 ISO). return: 한국 시간 "10.09 14:07"
+function kstShort(s: string): string {
+  const d = new Date(new Date(s.includes("T") ? s : `${s.replace(" ", "T")}Z`).getTime() + 9 * 3600_000).toISOString();
+  return `${d.slice(5, 7)}.${d.slice(8, 10)} ${d.slice(11, 16)}`;
+}
 
 // param: threadId 채팅방, me 내 사용자 id, initial 처음 메시지, otherName 상대 닉네임
 // return: 메시지 목록(4초마다 새 메시지 확인)·입력창·신고
@@ -78,15 +84,16 @@ export function ChatRoom({ threadId, me, initial, otherName }: { threadId: strin
   return (
     <div className="chat-room">
       <ol className="chat-messages" aria-live="polite">
-        <li className="chat-system">연락처·계좌·메신저 아이디는 보낼 수 없어요. 결제·배송은 아직 열리지 않았어요.</li>
+        <li className="chat-system">연락처·계좌·메신저 아이디는 보낼 수 없어요. 입금·환불 계좌는 거래 화면에서만 확인해요.</li>
         {messages.map((m) => {
+          if (m.kind === "SYSTEM") return <li key={m.id} className="chat-system chat-system--trade"><p>{m.body}</p><time>{kstShort(m.createdAt)}</time></li>;
           const mine = m.senderId === me;
           return (
             <li key={m.id} className={`chat-bubble ${mine ? "chat-bubble--me" : "chat-bubble--other"}`}>
               {!mine && <small>{otherName}</small>}
               <p>{m.body}</p>
               <span className="chat-bubble__meta">
-                <time>{m.createdAt.slice(5, 16).replace("-", ".").replace(" ", " ")}</time>
+                <time>{kstShort(m.createdAt)}</time>
                 {!mine && <button type="button" className="text-button" onClick={() => setReporting(m.id)}>신고</button>}
               </span>
             </li>

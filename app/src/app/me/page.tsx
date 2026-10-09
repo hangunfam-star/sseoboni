@@ -12,8 +12,11 @@ import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
 import { conditionLabel, formatWon, illustrationKind, relativeTime } from "@/ui/presentation";
 import { ListingStatusActions, LogoutButton } from "./MyActions";
+import { listOrders } from "@/lib/orders";
+import { gradesOf } from "@/lib/trade-stats";
+import { sellerAccounts } from "@/db/schema";
 
-const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", HIDDEN: "숨김", SOLD: "판매완료" };
+const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", RESERVED: "거래 중", HIDDEN: "숨김", SOLD: "판매완료" };
 const PROPOSAL_LABEL: Record<string, string> = { PENDING: "답 기다리는 중", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소됨", EXPIRED: "만료" };
 const buyers = alias(users, "buyers");
 // 내 판매 상품 탭: 판매 중 / 숨김 / 판매완료. 한 번에 30개씩, 더 보기로 늘린다.
@@ -71,7 +74,14 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
     .leftJoin(categories, eq(productModels.categoryId, categories.id))
     .where(and(eq(listings.sellerId, userId), ne(listings.status, "REMOVED")))
     .orderBy(desc(listings.createdAt));
-  const tabRows = mine.filter((m) => m.status === tab.status);
+  // 거래 중(RESERVED)은 판매 중 탭에 함께 보여 준다
+  const inTab = (status: string, tabStatus: string) => status === tabStatus || (tabStatus === "ACTIVE" && status === "RESERVED");
+  const tabRows = mine.filter((m) => inTab(m.status, tab.status));
+  const myOrders = await listOrders(userId);
+  const ordersLive = myOrders.filter((o) => !["PURCHASED", "RETURNED", "CANCELLED"].includes(o.status));
+  const myTurn = ordersLive.filter((o) => o.needsMe).length;
+  const grades = await gradesOf(userId);
+  const hasAccount = Boolean(await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, userId) }));
   const [{ wishCount }] = await db.select({ wishCount: sql<number>`count(*)` }).from(wishlists).where(eq(wishlists.userId, userId));
   const [{ demandCount }] = await db
     .select({ demandCount: sql<number>`count(*)` })
@@ -82,13 +92,24 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
     <div className="page my-page">
       <div className="my-head">
         <span className="seller-avatar" aria-hidden="true">{Array.from(nickname)[0]}</span>
-        <h1 className="page-title">{nickname}님의 써보니</h1>
+        <div>
+          <h1 className="page-title">{nickname}님의 써보니</h1>
+          <p className="grade-line"><span className="grade-badge-inline">판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft">구매 {grades.buyer.name}</span>{grades.buyer.toNext !== null && <small>다음 구매 등급까지 거래 {grades.buyer.toNext}번</small>}</p>
+        </div>
       </div>
       <div className="my-stats">
         <Link className="my-stat my-stat--navy" href="#my-listings"><small>내 판매 상품</small><strong>{mine.length}</strong></Link>
         <Link className="my-stat my-stat--coral" href="/wishlist"><small>찜</small><strong>{wishCount}</strong></Link>
         <Link className="my-stat my-stat--yellow" href="/demand"><small>찾는 상품</small><strong>{demandCount}</strong></Link>
       </div>
+      <nav className="my-menu" aria-label="거래 메뉴">
+        <Link href="/orders"><strong>내 거래</strong><small>{ordersLive.length > 0 ? `진행 중 ${ordersLive.length}${myTurn > 0 ? ` · 내 차례 ${myTurn}` : ""}` : "구매·써보기·판매 거래"}</small></Link>
+        <Link href="/me/settlement"><strong>판매 정산 내역</strong><small>받은 금액·수수료 기록</small></Link>
+        <Link href="/me/reviews"><strong>내 후기</strong><small>받은·보낸·써보니 후기</small></Link>
+        <Link href="/me/account"><strong>정산 계좌</strong><small>{hasAccount ? "등록됨" : "미등록 · 등록해야 신청을 받아요"}</small></Link>
+        <Link href={`/sellers/${userId}`}><strong>내 판매자 채널</strong><small>구매자에게 보이는 화면</small></Link>
+      </nav>
+      {!hasAccount && mine.some((m) => m.status === "ACTIVE") && <p className="form-error">정산 계좌를 등록해야 구매자가 내 상품을 구매·써보기 신청할 수 있어요. <Link href="/me/account">등록하기</Link></p>}
       <Link className="chat-banner" href="/chats"><strong>채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>
       <section className="proposals" id="proposals" aria-labelledby="received-title">
         <h2 className="section-title" id="received-title">받은 써보기 제안{pendingReceived > 0 ? ` · 새 제안 ${pendingReceived}` : ""}</h2>
@@ -120,7 +141,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
                 <small><Link href={`/listings/${r.listingId}`}>{r.title}</Link> · {relativeTime(r.createdAt)}</small>
                 <strong>{r.hours}시간 · 체험비 {formatWon(r.offerFee)}</strong>
                 <b className="proposal-card__status" data-status={r.status}>{PROPOSAL_LABEL[r.status] ?? r.status}</b>
-                {r.status === "ACCEPTED" && <small>판매자가 승인했어요. 써보기 결제·배송이 열리면 이 조건으로 진행돼요.</small>}
+                {r.status === "ACCEPTED" && <small>판매자가 승인했어요. 상품 화면의 &apos;제안 조건으로 써보기&apos;로 신청할 수 있어요.</small>}
                 {r.sellerReply && <small>판매자: {r.sellerReply}</small>}
                 {r.status === "PENDING" && <ProposalActions id={r.id} role="buyer" />}
                 <ChatStartButton listingId={r.listingId} label="판매자와 채팅" className="proposal-card__chat" />
@@ -134,7 +155,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
       <nav className="chat-tabs" aria-label="내 판매 상품 구분">
         {LISTING_TABS.map((t) => (
           <Link key={t.key} href={t.key === "active" ? "/me#my-listings" : `/me?tab=${t.key}#my-listings`} scroll={false} aria-current={tab.key === t.key ? "page" : undefined}>
-            {t.label} {mine.filter((m) => m.status === t.status).length}
+            {t.label} {mine.filter((m) => inTab(m.status, t.status)).length}
           </Link>
         ))}
       </nav>

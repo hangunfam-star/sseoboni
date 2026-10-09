@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const msg = messageId
     ? await db.query.chatMessages.findFirst({ where: and(eq(chatMessages.id, messageId), eq(chatMessages.threadId, id)) })
     : undefined;
-  if (messageId && (!msg || msg.senderId === userId)) return NextResponse.json({ error: "신고할 메시지를 찾을 수 없습니다." }, { status: 404 });
+  if (messageId && (!msg || msg.senderId === userId || msg.kind === "SYSTEM")) return NextResponse.json({ error: "신고할 메시지를 찾을 수 없습니다." }, { status: 404 });
 
   const result = db.transaction((tx) => {
     const today = tx.select({ n: sql<number>`count(*)` }).from(marketValidationEvents)

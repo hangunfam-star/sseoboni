@@ -14,7 +14,7 @@ export const CHAT_REPORT_DAILY_MAX = 20;              // 한 사람이 하루에
 export const CHAT_PAGE = 200;                         // 한 번에 돌려주는 메시지 수
 
 export type ChatRole = "buyer" | "seller";
-export type ChatMsg = { id: string; seq: number; senderId: string; body: string; createdAt: string };
+export type ChatMsg = { id: string; seq: number; senderId: string; body: string; kind: string; createdAt: string };
 
 // param: threadId 채팅방, userId 사용자. return: 참여자면 { thread, role }, 아니면 null
 export async function threadFor(threadId: string, userId: string) {
@@ -69,7 +69,7 @@ export async function listThreads(userId: string) {
 // param: threadId 채팅방, afterSeq 이 순번 다음부터(없으면 최근 200개)
 // return: { messages 오래된 순, hasMore 더 가져올 새 메시지가 남았는지 }
 export async function messagesOf(threadId: string, afterSeq?: number): Promise<{ messages: ChatMsg[]; hasMore: boolean }> {
-  const cols = { id: chatMessages.id, seq: chatMessages.seq, senderId: chatMessages.senderId, body: chatMessages.body, createdAt: chatMessages.createdAt };
+  const cols = { id: chatMessages.id, seq: chatMessages.seq, senderId: chatMessages.senderId, body: chatMessages.body, kind: chatMessages.kind, createdAt: chatMessages.createdAt };
   if (afterSeq !== undefined) {
     const rows = await db.select(cols).from(chatMessages)
       .where(and(eq(chatMessages.threadId, threadId), gt(chatMessages.seq, afterSeq)))

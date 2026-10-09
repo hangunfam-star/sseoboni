@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categories, listings, productModels, users } from "@/db/schema";
+import { categories, listings, orders, productModels, users } from "@/db/schema";
 import { ListThumb } from "@/components/ListThumb";
 import { photosFor } from "@/lib/photos";
 import { markReadUpTo, messagesOf, threadFor } from "@/lib/chat";
@@ -28,6 +28,8 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
   const model = listing ? await db.query.productModels.findFirst({ where: eq(productModels.id, listing.modelId) }) : undefined;
   const category = model ? await db.query.categories.findFirst({ where: eq(categories.id, model.categoryId) }) : undefined;
   if (messages.length > 0) markReadUpTo(id, t.role, messages[messages.length - 1].seq);
+  // 이 채팅의 거래(가장 최근)
+  const order = await db.query.orders.findFirst({ where: and(eq(orders.listingId, t.thread.listingId), eq(orders.buyerId, t.thread.buyerId)), orderBy: desc(orders.createdAt) });
 
   return (
     <div className="chat-page">
@@ -44,6 +46,7 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
           <strong>{other?.nickname ?? (t.role === "buyer" ? "판매자" : "구매자")}</strong>
           {listing && <Link href={`/listings/${listing.id}`}><small>{listing.title}</small><small className="chat-head__price">{formatWon(listing.price)}{listing.status !== "ACTIVE" ? " · 판매 종료" : ""}</small></Link>}
         </div>
+        {order && <Link className="chat-head__order" href={`/orders/${order.id}`}>거래 보기</Link>}
       </header>
       <ChatRoom threadId={id} me={userId} initial={messages} otherName={other?.nickname ?? (t.role === "buyer" ? "판매자" : "구매자")} />
     </div>

@@ -53,6 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const set: Partial<typeof listings.$inferInsert> = {};
   if ("status" in body) {
+    if (listing.status === "RESERVED") return NextResponse.json({ error: "거래 중인 상품은 상태를 바꿀 수 없어요. 거래를 먼저 마치거나 취소해 주세요." }, { status: 409 });
     if (!ALLOWED.includes(str(body.status))) return NextResponse.json({ error: "상태 값이 올바르지 않습니다." }, { status: 400 });
     set.status = str(body.status);
   }

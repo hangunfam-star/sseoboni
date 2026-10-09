@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { formatWon } from "@/ui/presentation";
-import { TRIAL_HOURS, platformFee, recommendTierFee, type TrialTerms } from "@/ui/trial-pricing";
+import { TRIAL_HOURS, recommendTierFee, type TrialTerms } from "@/ui/trial-pricing";
 
 export type MyProposal = { id: string; hours: number; offerFee: number; status: string; sellerReply: string | null } | null;
 
 const STATUS_TEXT: Record<string, string> = {
   PENDING: "판매자 답을 기다리는 중이에요",
-  ACCEPTED: "판매자가 승인했어요! 써보기 결제·배송이 열리면 이 조건으로 진행돼요",
+  ACCEPTED: "판매자가 승인했어요! 상품 화면의 '제안 조건으로 써보기'로 신청할 수 있어요(거래가 열려 있을 때)",
   DECLINED: "판매자가 이번 제안은 거절했어요",
   CANCELLED: "제안을 취소했어요",
   EXPIRED: "7일 동안 답이 없어 제안이 끝났어요",
@@ -17,7 +17,7 @@ const STATUS_TEXT: Record<string, string> = {
 
 // param: listingId 상품, price 상품가, terms 판매자 조건(없으면 null), sellerNo 판매자가 '바로 판매만'이면 true, mine 내 최근 제안, onClose 닫기
 // return: 써보기 제안 시트(기간·체험비·한마디 → 제안 보내기, 보낸 제안 상태·취소). 결제는 없다.
-export function ProposalSheet({ listingId, price, terms, sellerNo, mine, feePct, onClose }: {
+export function ProposalSheet({ listingId, price, terms, sellerNo, mine, onClose }: {
   listingId: string; price: number; terms: TrialTerms | null; sellerNo: boolean; mine: MyProposal; feePct: number; onClose: () => void;
 }) {
   const [current, setCurrent] = useState<MyProposal>(mine);
@@ -29,7 +29,6 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, feePct,
   const panel = useRef<HTMLDivElement>(null);
   const recommended = recommendTierFee(price, hours);
   const sellerFee = terms?.tiers.find((t) => t.hours === hours)?.fee ?? null;
-  const platformCharge = platformFee(price, feePct);
   const showForm = !current || current.status !== "PENDING";
 
   useEffect(() => {
@@ -87,7 +86,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, feePct,
           {sellerNo
             ? "판매자는 바로 판매를 원하지만, 좋은 조건이면 써보게 해 줄 수도 있어요."
             : terms ? "판매자 조건이 맞지 않으면 원하는 기간과 체험비를 제안해 보세요." : "판매자에게 원하는 기간과 체험비를 제안해 보세요."}
-          {" "}써보고 사면 체험비는 0원이에요. 결제·배송은 아직 일어나지 않아요.
+          {" "}써보고 사면 체험비는 0원이에요. 제안은 약속일 뿐이고, 결제·배송은 승인 뒤 신청할 때 시작돼요.
         </p>
 
         {current && (
@@ -114,7 +113,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, feePct,
                 <b>원</b>
               </div>
               <small className="field-hint">
-                {sellerFee !== null ? `판매자 조건 ${formatWon(sellerFee)} · ` : ""}참고 금액 {formatWon(recommended)} · 돌려보내면 수수료 {feePct}%({formatWon(platformCharge)})도 환불금에서 빠져요
+                {sellerFee !== null ? `판매자 조건 ${formatWon(sellerFee)} · ` : ""}참고 금액 {formatWon(recommended)} · 돌려보내면 상품가에서 체험비만 빼고 돌려받아요(반납 수수료 없음)
               </small>
             </label>
             <label className="field">

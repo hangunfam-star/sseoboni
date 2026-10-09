@@ -49,5 +49,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return msg;
   });
   if (!saved) return NextResponse.json({ error: "메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내 주세요." }, { status: 429 });
-  return NextResponse.json({ message: { id: saved.id, seq: saved.seq, senderId: saved.senderId, body: saved.body, createdAt: saved.createdAt } }, { status: 201 });
+  return NextResponse.json({ message: { id: saved.id, seq: saved.seq, senderId: saved.senderId, body: saved.body, kind: saved.kind, createdAt: saved.createdAt } }, { status: 201 });
 }

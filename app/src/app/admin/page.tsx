@@ -8,6 +8,13 @@ import { currentFeePct } from "@/ui/platform-fee";
 import { PlatformFeeForm } from "./PlatformFeeForm";
 import { formatWon, relativeTime } from "@/ui/presentation";
 import { AdminLogin, AdminLogout } from "./AdminControls";
+import { ResolveDisputeForm, TradeSettingsForm } from "./TradeAdmin";
+import { loadTradeSettings } from "@/lib/trade-settings-store";
+import { advanceOrders, type Snapshot } from "@/lib/orders";
+import { db } from "@/db/client";
+import { disputes, orders, users } from "@/db/schema";
+import { desc, eq, sql } from "drizzle-orm";
+import { STATUS_LABEL, kst, type OrderStatus } from "@/ui/trade-rules";
 
 export const metadata: Metadata = { title: "운영자 결과 · 써보니", robots: { index: false, follow: false } };
 
@@ -45,6 +52,14 @@ export default async function AdminPage() {
   const feeConfig = await loadPlatformFee();
   const chats = chatStats();
   const feeNow = currentFeePct(feeConfig);
+  // 거래: 끝나지 않은 거래 자동 처리 → 상태별 수, 최근 거래, 열린 분쟁, 설정
+  await advanceOrders();
+  const trade = await loadTradeSettings();
+  const byStatus = await db.select({ status: orders.status, n: sql<number>`count(*)` }).from(orders).groupBy(orders.status);
+  const recentOrders = await db.select().from(orders).orderBy(desc(orders.updatedAt)).limit(50);
+  const openDisputes = await db.select({ d: disputes, opener: users.nickname }).from(disputes).leftJoin(users, eq(users.id, disputes.openerId)).where(eq(disputes.status, "OPEN")).orderBy(desc(disputes.createdAt));
+  const disputeOrders = new Map((await db.select().from(orders)).filter((o) => openDisputes.some((x) => x.d.orderId === o.id)).map((o) => [o.id, o]));
+  const feeSum = db.get<{ fee: number; virtual: number; n: number }>(sql`select coalesce(sum(fee_amount),0) as fee, coalesce(sum(virtual_fee),0) as virtual, count(*) as n from orders where status = 'PURCHASED'`);
   const PROPOSAL_LABEL: Record<string, string> = { PENDING: "대기", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소", EXPIRED: "만료" };
 
   return (
@@ -163,6 +178,53 @@ export default async function AdminPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section aria-labelledby="trade-title">
+        <h2 className="section-title" id="trade-title">거래 {trade.tradeOpen ? "· 열림" : "· 닫힘(신청 받지 않음)"}</h2>
+        <div className="admin-stats">
+          {byStatus.length === 0 ? <div><small>거래</small><strong>0</strong></div> : byStatus.map((b) => <div key={b.status}><small>{STATUS_LABEL[b.status as OrderStatus] ?? b.status}</small><strong>{b.n}</strong></div>)}
+          <div><small>수수료(실제)</small><strong>{formatWon(feeSum?.fee ?? 0)}</strong></div>
+          <div><small>정식이었다면</small><strong>{formatWon(feeSum?.virtual ?? 0)}</strong></div>
+        </div>
+        <p className="field-hint">돈은 구매자가 판매자에게 직접 보내요. 써보니는 돈을 받지 않고 기록·안내만 해요. 운영 확인 표시는 기한이 지난 거래예요.</p>
+        {openDisputes.length > 0 && (
+          <ul className="admin-feedback">
+            {openDisputes.map(({ d, opener }) => {
+              const o = disputeOrders.get(d.orderId);
+              const snap = o ? (JSON.parse(o.snapshot) as Snapshot) : null;
+              return (
+                <li key={d.id}>
+                  <small>분쟁 · {opener ?? "사용자"} · {relativeTime(d.createdAt)} · {snap?.title ?? "거래"} · {o ? STATUS_LABEL[o.status as OrderStatus] : ""}</small>
+                  <strong>{d.reason}</strong>
+                  {d.detail && <p>{d.detail}</p>}
+                  {o && <small>상품 {formatWon(o.price)} · 발송비 {formatWon(o.shippingFee)} · 체험료 {formatWon(o.trialFee ?? 0)} · 환불 예정 {o.refundAmount === null ? "-" : formatWon(o.refundAmount)}</small>}
+                  <ResolveDisputeForm disputeId={d.id} maxRefund={o ? o.price + o.shippingFee : 0} />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {recentOrders.length > 0 && (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead><tr><th>상품</th><th>종류</th><th>상태</th><th>금액</th><th>운영 확인</th><th>바뀐 때</th></tr></thead>
+              <tbody>
+                {recentOrders.map((o) => (
+                  <tr key={o.id}>
+                    <th>{(JSON.parse(o.snapshot) as Snapshot).title}</th>
+                    <td>{o.kind === "TRIAL" ? `써보기 ${o.trialHours}h` : "구매"}</td>
+                    <td>{STATUS_LABEL[o.status as OrderStatus] ?? o.status}</td>
+                    <td>{formatWon(o.price + o.shippingFee)}</td>
+                    <td>{o.opsFlag ?? "-"}</td>
+                    <td>{kst(o.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <TradeSettingsForm current={trade} />
       </section>
 
       <section aria-labelledby="chat-title">

@@ -149,6 +149,7 @@ export const chatMessages = sqliteTable("chat_messages", {
   threadId: text("thread_id").notNull().references(() => chatThreads.id),
   senderId: text("sender_id").notNull().references(() => users.id),
   body: text("body").notNull(),
+  kind: text("kind").notNull().default("USER"), // USER | SYSTEM(거래 진행 안내)
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 }, (t) => [
   index("chat_messages_thread_seq").on(t.threadId, t.seq),
@@ -188,3 +189,135 @@ export const marketValidationEvents = sqliteTable("market_validation_events", {
   metadata: text("metadata"), // JSON 문자열
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
+
+// ── 거래(2026-10-09, 사용자 결정: 구매자-판매자 직접 정산. 써보니는 돈을 받지 않고 계산·안내·기록만 한다) ──
+
+// 판매자 정산 계좌·기본 배송비. 계좌번호는 암호화해 저장한다(본인·거래 상대 구매자에게만 보임).
+export const sellerAccounts = sqliteTable("seller_accounts", {
+  userId: text("user_id").primaryKey().references(() => users.id),
+  bank: text("bank").notNull(),
+  accountEnc: text("account_enc").notNull(),
+  holder: text("holder").notNull(),
+  defaultShipping: integer("default_shipping").notNull().default(0), // 기본 발송비(원). 써보기 조건에 배송비가 없을 때 쓴다
+  updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
+});
+
+// 거래 1건(구매 BUY / 써보기 TRIAL). 신청 시점 상품 설명·조건을 snapshot에 저장하고 이후 수정은 소급하지 않는다.
+export const orders = sqliteTable("orders", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  listingId: text("listing_id").notNull().references(() => listings.id),
+  buyerId: text("buyer_id").notNull().references(() => users.id),
+  sellerId: text("seller_id").notNull().references(() => users.id),
+  kind: text("kind").notNull(), // BUY | TRIAL
+  status: text("status").notNull(), // AWAIT_PAYMENT | PAID | SHIPPED | RECEIVED | TRIAL | NEEDS_CHECK | RETURN_REQUESTED | RETURN_SHIPPED | REFUND_DUE | REFUND_SENT | PURCHASED | RETURNED | CANCELLED
+  snapshot: text("snapshot").notNull(), // JSON: 제목·가격·상태·설명·구성품·조건
+  price: integer("price").notNull(),
+  shippingFee: integer("shipping_fee").notNull().default(0), // 구매자 부담 발송비(최초 결제금에 포함)
+  tiers: text("tiers"), // TRIAL: 신청 시점 구간별 체험료 JSON
+  trialHours: integer("trial_hours"),
+  trialFee: integer("trial_fee"), // 고른 구간 체험료(반납 때만)
+  proposalId: text("proposal_id"),
+  questions: text("questions"), // 체험 전 궁금한 점 JSON(최대 3)
+  depositName: text("deposit_name").notNull(), // 입금자명
+  shipEnc: text("ship_enc").notNull(), // 배송지 JSON(암호화). 판매자는 입금 확인 뒤에만 본다
+  refundEnc: text("refund_enc"), // 환불 받을 계좌 JSON(암호화). 반납·취소 때 구매자가 입력
+  shipCarrier: text("ship_carrier"),
+  shipTracking: text("ship_tracking"),
+  returnReason: text("return_reason"),
+  returnNote: text("return_note"),
+  returnCarrier: text("return_carrier"),
+  returnTracking: text("return_tracking"),
+  returnHandoverAt: text("return_handover_at"), // 구매자가 택배사에 맡긴 날(YYYY-MM-DD)
+  inspection: text("inspection"), // JSON: 구성품별 반환 여부·메모
+  refundKind: text("refund_kind"), // RETURN | CANCEL
+  refundAmount: integer("refund_amount"),
+  feePct: real("fee_pct"), // 구매 확정 시점 수수료율
+  feeAmount: integer("fee_amount"), // 실제 청구 대상 수수료(베타 0%면 0)
+  virtualFee: integer("virtual_fee"), // 정식 수수료(3%)였다면 — 지불 의향 측정용 기록
+  cancelReason: text("cancel_reason"),
+  opsFlag: text("ops_flag"), // 운영 확인 필요 사유(기한 초과 등)
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  paidAt: text("paid_at"),
+  shippedAt: text("shipped_at"),
+  receivedAt: text("received_at"),
+  trialEndAt: text("trial_end_at"),
+  needsCheckAt: text("needs_check_at"),
+  decidedAt: text("decided_at"),
+  returnRequestedAt: text("return_requested_at"),
+  returnShippedAt: text("return_shipped_at"),
+  inspectedAt: text("inspected_at"),
+  refundSentAt: text("refund_sent_at"),
+  completedAt: text("completed_at"),
+  updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [
+  index("orders_buyer").on(t.buyerId),
+  index("orders_seller").on(t.sellerId),
+  index("orders_listing").on(t.listingId),
+  index("orders_status").on(t.status),
+]);
+
+// 거래 기록(시간순). 상태 변화·금액 확정을 남긴다.
+export const orderEvents = sqliteTable("order_events", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  actorId: text("actor_id"), // 자동 처리면 null
+  type: text("type").notNull(),
+  data: text("data"),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [index("order_events_order").on(t.orderId)]);
+
+// 분쟁. 거래 진행 상태와 별도. 열려 있는 동안 자동 처리와 정산을 멈춘다.
+export const disputes = sqliteTable("disputes", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  openerId: text("opener_id").notNull().references(() => users.id),
+  reason: text("reason").notNull(),
+  detail: text("detail"),
+  status: text("status").notNull().default("OPEN"), // OPEN | RESOLVED
+  resolution: text("resolution"),
+  buyerFault: integer("buyer_fault", { mode: "boolean" }), // 운영자가 확인한 구매자 책임(훼손 등)
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  resolvedAt: text("resolved_at"),
+}, (t) => [index("disputes_order").on(t.orderId)]);
+
+// 거래 평가(구매자↔판매자 교차). 둘 다 쓰거나 7일이 지나면 공개.
+export const reviews = sqliteTable("reviews", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  writerId: text("writer_id").notNull().references(() => users.id),
+  targetId: text("target_id").notNull().references(() => users.id),
+  direction: text("direction").notNull(), // B2S(구매자→판매자) | S2B
+  stars: integer("stars").notNull(), // 1~10
+  chips: text("chips").notNull(), // JSON 문구
+  sample: text("sample"),
+  body: text("body"),
+  descMatch: integer("desc_match", { mode: "boolean" }), // B2S: 설명과 실제가 같았나
+  compMatch: integer("comp_match", { mode: "boolean" }), // B2S: 구성품 안내가 맞았나
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [uniqueIndex("reviews_order_writer").on(t.orderId, t.writerId), index("reviews_target").on(t.targetId)]);
+
+// 써보니 후기(수령이 확인된 체험 거래의 구매자만). 같은 모델끼리 모아 보여 준다.
+export const trialReviews = sqliteTable("trial_reviews", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  writerId: text("writer_id").notNull().references(() => users.id),
+  modelId: text("model_id").notNull().references(() => productModels.id),
+  outcome: text("outcome").notNull(), // PURCHASED | RETURNED
+  hours: integer("hours").notNull(),
+  answers: text("answers"), // JSON [{q,a}]
+  reason: text("reason"),
+  learned: text("learned"),
+  fitFor: text("fit_for"),
+  conditionGrade: text("condition_grade"),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [uniqueIndex("trial_reviews_order").on(t.orderId), index("trial_reviews_model").on(t.modelId)]);
+
+// 활동 경험치. 거래번호·회원·종류 기준 한 번만.
+export const xpAwards = sqliteTable("xp_awards", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  userId: text("user_id").notNull().references(() => users.id),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  role: text("role").notNull(), // BUYER | SELLER
+  kind: text("kind").notNull(), // TRADE_DONE
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [uniqueIndex("xp_awards_once").on(t.orderId, t.userId, t.kind)]);

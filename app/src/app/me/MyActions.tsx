@@ -28,9 +28,10 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
   return (
     <div className="my-listing__actions">
       <Link className="my-listing__edit" href={`/listings/${id}/edit`}>수정</Link>
+      {status === "RESERVED" && <Link className="my-listing__reserved" href="/orders?tab=seller">거래 중 · 거래 보기</Link>}
       {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("HIDDEN")}>숨기기</button>}
       {status === "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("SOLD")}>판매완료</button>}
-      {status !== "ACTIVE" && <button type="button" disabled={pending} onClick={() => change("ACTIVE")}>다시 올리기</button>}
+      {(status === "HIDDEN" || status === "SOLD") && <button type="button" disabled={pending} onClick={() => change("ACTIVE")}>다시 올리기</button>}
     </div>
   );
 }

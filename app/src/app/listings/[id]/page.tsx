@@ -10,6 +10,12 @@ import { IntentActionBar } from "@/components/IntentActionBar";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { ShareButton } from "@/components/ShareButton";
+import { loadTradeSettings } from "@/lib/trade-settings-store";
+import { activeOrderOf } from "@/lib/orders";
+import { gradesOf, modelPrice, trialFeeRatio } from "@/lib/trade-stats";
+import { starSummary, trialReviewsByModel } from "@/lib/reviews";
+import { questionsFor } from "@/ui/trade-rules";
+import { sellerAccounts } from "@/db/schema";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { TryFlow } from "@/components/TryFlow";
@@ -58,7 +64,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const userId = await getCurrentUserId();
   const isOwner = userId === listing.sellerId;
 
-  if (listing.status !== "ACTIVE" && !isOwner) {
+  if (!["ACTIVE", "RESERVED"].includes(listing.status) && !isOwner) {
     return (
       <div className="page ended-page">
         <BackButton />
@@ -115,6 +121,17 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     : [{ pendingCount: 0 }];
   const seller = await db.query.users.findFirst({ where: eq(users.id, listing.sellerId) });
   const sellerName = seller?.nickname ?? "판매자";
+  // 거래: 운영자가 거래를 열었는지, 판매자 정산 계좌, 진행 중 거래(거래 중 표시·내 거래 바로가기)
+  const trade = await loadTradeSettings();
+  const account = await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, listing.sellerId) });
+  const active = listing.status === "RESERVED" ? await activeOrderOf(id) : null;
+  const myOrderId = active && (active.buyerId === userId || active.sellerId === userId) ? active.id : null;
+  const shippingFee = terms?.shippingOneWay ?? account?.defaultShipping ?? 0;
+  const grades = await gradesOf(listing.sellerId);
+  const stars = await starSummary(listing.sellerId);
+  const price = await modelPrice(listing.modelId);
+  const feeRatio = await trialFeeRatio(category?.name ?? null);
+  const modelReviews = await trialReviewsByModel(listing.modelId, 5);
 
   // 조회 이벤트: 판매자 본인 조회는 제외, 같은 사람의 30분 안 재조회는 1회로 센다.
   if (!isOwner) await recordListingView(id, listing.modelId, userId);
@@ -144,7 +161,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           : <ProductIllustration seed={id} kind={illustrationKind(category?.name ?? null, model?.modelName ?? null)} size={200} className="listing-hero__art" />}
         <BackButton />
         {listing.status === "ACTIVE" && <ShareButton listingId={id} title={listing.title} text={`${listing.title} ${formatWon(listing.price)} — 써보니에서 보기`} />}
-        {listing.status !== "ACTIVE" && <span className="status-flag">내 상품 · {listing.status === "SOLD" ? "판매완료" : "숨김"}</span>}
+        {listing.status !== "ACTIVE" && <span className="status-flag">{isOwner ? "내 상품 · " : ""}{listing.status === "SOLD" ? "판매완료" : listing.status === "RESERVED" ? "거래 중" : "숨김"}</span>}
       </div>
       <div className="listing-sheet">
         <p className="listing-meta">{[category?.name, model?.brand].filter(Boolean).join(" · ")}</p>
@@ -157,16 +174,18 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 000-7.8z" /></svg></span><strong>{wishCount}</strong><small>찜</small></div>
         </div>
         <section className="try-panel" aria-labelledby="try-panel-title">
-          <span className="try-hero__tag">사기 전에 써보기 · 준비 중</span>
-          <h2 id="try-panel-title">이 상품, 써보고 살 수 있게<br />준비하고 있어요</h2>
+          <span className="try-hero__tag">{trade.tradeOpen ? "사기 전에 써보기" : "사기 전에 써보기 · 준비 중"}</span>
+          <h2 id="try-panel-title">{trade.tradeOpen ? <>받은 날부터 써보고<br />사거나 돌려보내세요</> : <>이 상품, 써보고 살 수 있게<br />준비하고 있어요</>}</h2>
           <TryFlow label="써보기 흐름" />
           <ul className="try-panel__facts">
             <li>{sellerTryText}</li>
             <li>{tryWantLabel(tryWanters) ?? "아직 써보고 싶다는 사람이 없어요. 첫 의견을 남겨 주세요"}</li>
           </ul>
-          <p>아래 ‘써보고 싶어요’를 누르면 원하는 기간과 체험비를 판매자에게 제안할 수 있어요. 결제와 배송은 아직 일어나지 않아요.</p>
+          <p>{trade.tradeOpen
+            ? "상품가와 발송비를 판매자 계좌로 보내고, 받은 때부터 써봐요. 사면 체험료 0원, 돌려보내면 상품가에서 체험료만 빼고 돌려받아요."
+            : "아래 ‘써보고 싶어요’를 누르면 원하는 기간과 체험비를 판매자에게 제안할 수 있어요. 결제와 배송은 아직 일어나지 않아요."}</p>
           {!isOwner && listing.status === "ACTIVE" && !sellerNo && terms && (
-            <TrialCostSheet listingId={id} price={listing.price} terms={terms} feePct={feePct} />
+            <TrialCostSheet listingId={id} price={listing.price} terms={terms} shippingFee={shippingFee} tradeOpen={trade.tradeOpen} graceHours={trade.decisionGraceHours} />
           )}
           {isOwner && pendingCount > 0 && <Link className="trial-cost__toggle owner-proposals" href="/me#proposals">받은 써보기 제안 {pendingCount}개 보기</Link>}
         </section>
@@ -180,18 +199,45 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <h2>상품 설명</h2>
           <p className="listing-description">{listing.description}</p>
         </section>
+        <section className="listing-section price-stats" aria-labelledby="price-stats-title">
+          <h2 id="price-stats-title">써보니 실거래 시세</h2>
+          {price.insufficient
+            ? <p className="field-hint">비교 거래 부족 · 같은 모델의 최근 {price.days}일 구매 완료 {price.count}건(최소 {price.minCount}건부터 보여 드려요)</p>
+            : <p><strong>중앙값 {formatWon(price.median!)}</strong> <small>범위 {formatWon(price.min!)}~{formatWon(price.max!)} · {price.count}건 · 최근 {price.days}일 · {price.asOf} 기준</small></p>}
+          {feeRatio && !feeRatio.insufficient && feeRatio.pct !== null && <p className="field-hint">{feeRatio.category} 써보기 조건 참고: 하루 체험료가 상품가의 약 {feeRatio.pct}% (등록된 조건 {feeRatio.listings}개 기준)</p>}
+        </section>
+        {modelReviews.length > 0 && (
+          <section className="listing-section model-reviews" aria-labelledby="model-reviews-title">
+            <h2 id="model-reviews-title">이 모델 써본 사람들의 한마디</h2>
+            <ul>
+              {modelReviews.map((r) => (
+                <li key={r.id}>
+                  <small className="trial-cert">체험 거래 인증 · 체험 기간 {Math.round(r.hours / 24) >= 1 ? `${Math.round(r.hours / 24)}일` : `${r.hours}시간`} · {r.outcome === "PURCHASED" ? "써보고 샀어요" : "써보고 돌려보냈어요"} · 상태 {conditionLabel(r.conditionGrade ?? "")}</small>
+                  {r.learned && <p>“{r.learned}”</p>}
+                  {r.answers.map((a) => <p key={a.q}><b>{a.q}</b> {a.a}</p>)}
+                  <small>{r.writer} · {relativeTime(r.createdAt)}</small>
+                </li>
+              ))}
+            </ul>
+            <p className="field-hint">개별 중고 상품의 상태라 모델 전체 성능과 다를 수 있어요.</p>
+          </section>
+        )}
         <div className="seller-row">
           <span className="seller-avatar" aria-hidden="true">{Array.from(sellerName)[0]}</span>
-          <div><strong>{sellerName}</strong><small>판매 중인 상품 {sellerCount}개</small></div>
+          <Link className="seller-row__name" href={`/sellers/${listing.sellerId}`}><strong>{sellerName}</strong><small>판매 {grades.seller.name}{stars.asSeller ? ` · ★${stars.asSeller.avg} (${stars.asSeller.count})` : ""} · 판매 중 {sellerCount}개</small></Link>
           {!isOwner && listing.status === "ACTIVE" && <ChatStartButton listingId={id} label="채팅" className="seller-row__chat" />}
         </div>
         {seekers && <p className="listing-stats">{seekers}</p>}
       </div>
       {!isOwner && listing.status === "ACTIVE" && (
-        <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct} />
+        <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct}
+          trade={{ open: trade.tradeOpen, accountReady: Boolean(account), shippingFee, questionOptions: questionsFor(category?.name ?? null), graceHours: trade.decisionGraceHours, paymentWaitHours: trade.paymentWaitHours }} />
+      )}
+      {!isOwner && listing.status === "RESERVED" && (
+        <div className="owner-bar"><strong>{formatWon(listing.price)}</strong>{myOrderId ? <Link className="dark-button" href={`/orders/${myOrderId}`}>내 거래 보기</Link> : <span className="field-hint">다른 분과 거래 중이에요</span>}</div>
       )}
       {isOwner && (
-        <div className="owner-bar"><strong>{formatWon(listing.price)}</strong><Link className="secondary-button" href={`/listings/${id}/edit`}>수정</Link><Link className="secondary-button" href="/me">내 상품 관리</Link></div>
+        <div className="owner-bar"><strong>{formatWon(listing.price)}</strong>{myOrderId && <Link className="dark-button" href={`/orders/${myOrderId}`}>거래 보기</Link>}<Link className="secondary-button" href={`/listings/${id}/edit`}>수정</Link><Link className="secondary-button" href="/me">내 상품 관리</Link></div>
       )}
     </div>
   );

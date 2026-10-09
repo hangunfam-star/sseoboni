@@ -25,7 +25,7 @@ const SPLASH_ONCE = "try{if(sessionStorage.getItem('sb_splash')){document.docume
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const isLocal = await isLocalRequest();
   return (
-    <html lang="ko" translate="no" className="notranslate">
+    <html lang="ko" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         {/* Pretendard(OFL) — 한글 본문·제목 공통 글꼴, 사용하는 글자만 나눠 받는 dynamic subset */}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
