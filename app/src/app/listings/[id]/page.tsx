@@ -9,6 +9,9 @@ import { modelDemand } from "@/lib/queries";
 import { IntentActionBar } from "@/components/IntentActionBar";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import { ShareButton } from "@/components/ShareButton";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { TryFlow } from "@/components/TryFlow";
 import { ChatStartButton } from "@/components/ChatStartButton";
 import { TrialCostSheet } from "@/components/TrialCostSheet";
@@ -16,6 +19,28 @@ import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { photosFor } from "@/lib/photos";
 import { conditionLabel, demandLabel, formatWon, illustrationKind, relativeTime, tryWantLabel } from "@/ui/presentation";
 import { feePctNow } from "@/lib/platform-fee-store";
+
+// return: 공유 링크 미리보기(카카오톡 등). 판매 중 상품만 제목·가격·사진을 싣는다. 주소는 지금 접속한 주소(ngrok 등) 기준.
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await db.query.listings.findFirst({ where: eq(listings.id, id) });
+  if (!listing || listing.status !== "ACTIVE") return { title: "써보니 — 체험형 중고거래" };
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
+  // 판매자의 가장 최근 써보기 답(홈의 써보니 상품 구분과 같은 기준)
+  const latestTry = db.get<{ t: string }>(sql`select event_type as t from market_validation_events where listing_id = ${id} and event_type like 'SELLER_TRY_%' order by created_at desc, rowid desc limit 1`)?.t;
+  const title = `${listing.title} · ${formatWon(listing.price)}`;
+  const description = latestTry === "SELLER_TRY_YES" ? "써보기 가능한 상품이에요. 사기 전에 먼저 써보고 결정하세요 — 써보니" : "중고, 이제 써보고 사세요 — 써보니";
+  const image = { url: `/api/listings/${id}/og`, width: 1200, height: 630, alt: listing.title };
+  return {
+    metadataBase: new URL(`${proto}://${host}`),
+    title: `${title} | 써보니`,
+    description,
+    openGraph: { type: "website", siteName: "써보니", title, description, url: `/listings/${id}`, images: [image], locale: "ko_KR" },
+    twitter: { card: "summary_large_image", title, description, images: [image.url] },
+  };
+}
 
 function BackButton() {
   return (
@@ -118,6 +143,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           ? <PhotoGallery photos={photos} title={listing.title} />
           : <ProductIllustration seed={id} kind={illustrationKind(category?.name ?? null, model?.modelName ?? null)} size={200} className="listing-hero__art" />}
         <BackButton />
+        {listing.status === "ACTIVE" && <ShareButton listingId={id} title={listing.title} text={`${listing.title} ${formatWon(listing.price)} — 써보니에서 보기`} />}
         {listing.status !== "ACTIVE" && <span className="status-flag">내 상품 · {listing.status === "SOLD" ? "판매완료" : "숨김"}</span>}
       </div>
       <div className="listing-sheet">

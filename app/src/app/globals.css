@@ -1087,3 +1087,7 @@ body, input, textarea, button { font-family: "Pretendard Variable", Pretendard, 
   .splash { animation-duration: 0.01s; animation-delay: 1.2s; }
   .splash__top, .splash__copy, .splash__photo { animation: none; opacity: 1; }
 }
+
+/* 상품 공유 버튼·안내(2026-10-09) */
+.icon-button--share { left: 68px; }
+.share-toast { position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; width: min(calc(100% - 32px), 420px); padding: 12px 16px; border-radius: 14px; background: rgba(17,17,17,.92); color: #fff; font-size: 14px; line-height: 1.45; text-align: center; word-break: break-all; }
