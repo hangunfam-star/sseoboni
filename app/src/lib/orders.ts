@@ -10,6 +10,7 @@ import {
 import { nextSeqTx } from "@/lib/chat";
 import { open, seal } from "@/lib/crypto-box";
 import { photosFor } from "@/lib/photos";
+import { readSellerAccount } from "@/lib/seller-account";
 import { feePctNow } from "@/lib/platform-fee-store";
 import { getTrialTerms } from "@/lib/trial-terms";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
@@ -100,6 +101,9 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
   if (listing.status === "RESERVED") throw new TradeError("다른 분과 거래 중인 상품이에요.", 409);
   const account = await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, listing.sellerId) });
   if (!account) throw new TradeError("판매자가 아직 정산 계좌를 등록하지 않아 거래할 수 없어요. 채팅으로 알려 주세요.", 409);
+  // 계좌를 풀 수 없으면(키 변경·손상) 거래를 만들지 않는다 — 빈 계좌로 상품이 예약되는 일을 막는다
+  const sellerAcc = readSellerAccount(account);
+  if (!sellerAcc) throw new TradeError("판매자 계좌 정보를 확인할 수 없어 신청할 수 없어요. 판매자가 계좌를 다시 등록해야 해요.", 409);
   const ship = parseShipTo(input.shipTo);
   if (typeof ship === "string") throw new TradeError(ship);
   if (findContactInfo(ship.memo) === "계좌번호" || findContactInfo(ship.memo) === "메신저 아이디" || findContactInfo(ship.memo) === "이메일") throw new TradeError("배송 메모에는 배송 요청만 적어 주세요.");
@@ -148,7 +152,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
       snapshot: JSON.stringify(snapshot), price: listing.price, shippingFee, tiers: tiers ? JSON.stringify(tiers) : null,
       trialHours: hours, trialFee, proposalId, questions: JSON.stringify(questions),
       depositName: depositNameFor(buyer?.nickname ?? null, randomInt(10000)), shipEnc: seal(ship),
-      sellerAccountEnc: seal({ bank: account.bank, account: open<string>(account.accountEnc) ?? "", holder: account.holder }),
+      sellerAccountEnc: seal(sellerAcc),
     }).returning().get();
     eventTx(tx, row.id, buyerId, "CREATED", { kind: input.kind, hours, trialFee, price: listing.price, shippingFee });
     systemMessageTx(tx, row, input.kind === "TRIAL"
@@ -419,14 +423,15 @@ export async function orderView(orderId: string, userId: string, asAdmin = false
   const open_ = dispute?.status === "OPEN";
   const account = await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, o.sellerId) });
   const snapAcc = open<BankTo>(o.sellerAccountEnc);
-  const acc = snapAcc ?? (account ? { bank: account.bank, holder: account.holder, account: open<string>(account.accountEnc) ?? "" } : null);
+  const acc = snapAcc ?? readSellerAccount(account);
   const ship = open<ShipTo>(o.shipEnc);
   const refundTo = open<BankTo>(o.refundEnc);
   const buyer = await db.query.users.findFirst({ where: eq(users.id, o.buyerId) });
   const seller = await db.query.users.findFirst({ where: eq(users.id, o.sellerId) });
   const events = await db.select().from(orderEvents).where(eq(orderEvents.orderId, o.id)).orderBy(orderEvents.createdAt);
   const thread = await db.query.chatThreads.findFirst({ where: and(eq(chatThreads.listingId, o.listingId), eq(chatThreads.buyerId, o.buyerId)) });
-  const after = (iso: string | null, h: number) => (iso ? addHours(sqlToIso(iso), h) : null);
+  // 화면 기한도 자동 처리와 같이 분쟁으로 늦춘 시간(waitShiftMs)을 더한다
+  const after = (iso: string | null, h: number) => (iso ? addHours(sqlToIso(iso), h + o.waitShiftMs / 3600_000) : null);
   const showShip = role === "buyer" || asAdmin || (role === "seller" && !["AWAIT_PAYMENT", "CANCELLED"].includes(status) && Boolean(o.paidAt));
   const showRefund = role === "buyer" || asAdmin || (role === "seller" && ["REFUND_DUE", "REFUND_SENT"].includes(status));
   return {
@@ -448,7 +453,7 @@ export async function orderView(orderId: string, userId: string, asAdmin = false
       payBy: status === "AWAIT_PAYMENT" ? after(o.createdAt, settings.paymentWaitHours) : null,
       shipBy: status === "PAID" ? after(o.paidAt, settings.shipPromiseDays * 24) : null,
       trialEnd: ["TRIAL", "NEEDS_CHECK"].includes(status) ? o.trialEndAt : null,
-      decideBy: ["TRIAL", "NEEDS_CHECK"].includes(status) ? after(o.trialEndAt, settings.decisionGraceHours) : null,
+      decideBy: ["TRIAL", "NEEDS_CHECK"].includes(status) && o.trialEndAt ? addHours(sqlToIso(o.trialEndAt), settings.decisionGraceHours) : null,
       returnShipBy: status === "RETURN_REQUESTED" ? after(o.returnRequestedAt, settings.returnShipDays * 24) : null,
       autoConfirmAt: status === "RECEIVED" ? after(o.receivedAt, settings.buyAutoConfirmDays * 24) : null,
       autoReceiveAt: status === "SHIPPED" ? after(o.shippedAt, settings.autoReceiveDays * 24) : null,
@@ -532,7 +537,13 @@ export async function resolveDispute(disputeId: string, resolution: string, buye
   }
   const settings = await loadTradeSettings();
   const pct = await feePctNow();
-  const pausedMs = Math.max(0, Date.now() - new Date(sqlToIso(d.createdAt)).getTime());
+  // 멈춘 시간 = 지금 − max(분쟁 시작, 현재 단계 시작). 분쟁 중 받음·반송 등으로 단계가 바뀌면 이전 단계 시간은 빼고 센다
+  const stageStart: Record<string, string | null> = {
+    PAID: o.paidAt, SHIPPED: o.shippedAt, RECEIVED: o.receivedAt, TRIAL: o.receivedAt, NEEDS_CHECK: o.needsCheckAt ?? o.trialEndAt,
+    RETURN_REQUESTED: o.returnRequestedAt, RETURN_SHIPPED: o.returnShippedAt, REFUND_DUE: o.inspectedAt ?? o.decidedAt, REFUND_SENT: o.refundSentAt,
+  };
+  const from = Math.max(new Date(sqlToIso(d.createdAt)).getTime(), stageStart[o.status] ? new Date(sqlToIso(stageStart[o.status]!)).getTime() : 0);
+  const pausedMs = Math.max(0, Date.now() - from);
   db.transaction((tx) => {
     const done = tx.update(disputes).set({ status: "RESOLVED", resolution: resolution.trim(), buyerFault, resolvedAt: now() }).where(and(eq(disputes.id, d.id), eq(disputes.status, "OPEN"))).run();
     if (done.changes !== 1) throw new TradeError("이미 정리된 분쟁이에요.", 409); // 두 번 눌러도 한 번만

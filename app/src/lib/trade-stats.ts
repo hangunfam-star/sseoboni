@@ -68,7 +68,9 @@ export async function sellerTrust(userId: string) {
   const ev = db.get<{ dTotal: number; dYes: number; cTotal: number; cYes: number }>(sql`select
     sum(case when desc_match is not null then 1 else 0 end) as dTotal, sum(case when desc_match = 1 then 1 else 0 end) as dYes,
     sum(case when comp_match is not null then 1 else 0 end) as cTotal, sum(case when comp_match = 1 then 1 else 0 end) as cYes
-    from reviews where target_id = ${userId} and direction = 'B2S' and created_at >= datetime('now', ${since})`);
+    from reviews r where r.target_id = ${userId} and r.direction = 'B2S' and r.created_at >= datetime('now', ${since})
+      and (exists (select 1 from reviews r2 where r2.order_id = r.order_id and r2.writer_id = r.target_id)
+        or (select datetime(o.completed_at) from orders o where o.id = r.order_id) <= datetime('now', ${`-${s.reviewRevealDays} days`}))`);
   return {
     days: s.statsDays,
     shipPromise: ship,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Node 일회성 스크립트(CommonJS) */
 // 당근 판매 물품(scrape 결과 items.json + 사진)을 써보니 상품으로 한 번에 올린다. 사용자 요청(2026-10-09)으로 만든 일회성 도구.
 // 사용: node scripts/import-daangn.cjs <items.json 폴더> <판매자 userId> [--db 경로] [--dry]
 // - 판매 중(InStock)인 물품만 올린다. 예약중·판매완료는 건너뛴다.

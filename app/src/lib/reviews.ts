@@ -7,7 +7,7 @@ import { orders, reviews, trialReviews, users } from "@/db/schema";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { TradeError, type Snapshot } from "@/lib/orders";
 import { findContactInfo } from "@/ui/trial-pricing";
-import { REVIEW_CHIPS, REVIEW_SAMPLES, hoursBetween, sqlToIso } from "@/ui/trade-rules";
+import { REVIEW_SAMPLES, chipsFor, hoursBetween, sqlToIso } from "@/ui/trade-rules";
 
 const DONE = ["PURCHASED", "RETURNED"];
 
@@ -50,8 +50,11 @@ export async function writeReview(orderId: string, userId: string, body: Record<
   if (!st.canReview) throw new TradeError(st.mine ? "이미 평가를 남겼어요." : "거래가 끝난 뒤 정해진 기간 안에만 평가할 수 있어요.", 409);
   const stars = body.stars;
   if (typeof stars !== "number" || !Number.isInteger(stars) || stars < 1 || stars > 10) throw new TradeError("별점을 1~10 중에서 골라 주세요.");
-  const allowed: readonly string[] = [...REVIEW_CHIPS[st.direction].good, ...REVIEW_CHIPS[st.direction].bad];
-  const chips = Array.isArray(body.chips) ? [...new Set(body.chips.filter((c): c is string => typeof c === "string" && allowed.includes(c)))] : [];
+  // 별점에 맞는 문구만 허용(7점 이상 칭찬, 4점 이하 아쉬움). 맞지 않는 문구가 하나라도 있으면 거부한다
+  const allowed = chipsFor(st.direction, stars);
+  const raw = Array.isArray(body.chips) ? body.chips : [];
+  if (raw.some((c) => typeof c !== "string" || !allowed.includes(c))) throw new TradeError("별점에 맞지 않는 문구가 있어요. 다시 골라 주세요.");
+  const chips = [...new Set(raw as string[])];
   if (chips.length === 0) throw new TradeError("어떤 점이 좋았는지(아쉬웠는지) 하나 이상 골라 주세요.");
   const sample = body.sample === undefined || body.sample === null || body.sample === "" ? null : (REVIEW_SAMPLES[st.direction] as readonly unknown[]).includes(body.sample) ? (body.sample as string) : null;
   const text = clean(body.body, 300, "후기");

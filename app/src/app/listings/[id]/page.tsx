@@ -18,6 +18,7 @@ import { gradesOf, modelPrice, trialFeeRatio } from "@/lib/trade-stats";
 import { starSummary, trialReviewsByModel } from "@/lib/reviews";
 import { questionsFor } from "@/ui/trade-rules";
 import { sellerAccounts } from "@/db/schema";
+import { readSellerAccount } from "@/lib/seller-account";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { TryFlow } from "@/components/TryFlow";
@@ -235,7 +236,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       </div>
       {!isOwner && listing.status === "ACTIVE" && (
         <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct}
-          trade={{ open: trade.tradeOpen, accountReady: Boolean(account), shippingFee, questionOptions: questionsFor(category?.name ?? null), graceHours: trade.decisionGraceHours, paymentWaitHours: trade.paymentWaitHours }} />
+          trade={{ open: trade.tradeOpen, accountReady: readSellerAccount(account) !== null, shippingFee, questionOptions: questionsFor(category?.name ?? null), graceHours: trade.decisionGraceHours, paymentWaitHours: trade.paymentWaitHours }} />
       )}
       {!isOwner && listing.status === "RESERVED" && (
         <div className="owner-bar"><strong>{formatWon(listing.price)}</strong>{myOrderId ? <Link className="dark-button" href={`/orders/${myOrderId}`}>내 거래 보기</Link> : <span className="field-hint">다른 분과 거래 중이에요</span>}</div>

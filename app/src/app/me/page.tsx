@@ -16,6 +16,7 @@ import { ListingStatusActions, LogoutButton } from "./MyActions";
 import { listOrders } from "@/lib/orders";
 import { gradesOf } from "@/lib/trade-stats";
 import { sellerAccounts } from "@/db/schema";
+import { readSellerAccount } from "@/lib/seller-account";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", RESERVED: "거래 중", HIDDEN: "숨김", SOLD: "판매완료" };
 const PROPOSAL_LABEL: Record<string, string> = { PENDING: "답 기다리는 중", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소됨", EXPIRED: "만료" };
@@ -82,7 +83,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
   const ordersLive = myOrders.filter((o) => !["PURCHASED", "RETURNED", "CANCELLED"].includes(o.status));
   const myTurn = ordersLive.filter((o) => o.needsMe).length;
   const grades = await gradesOf(userId);
-  const hasAccount = Boolean(await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, userId) }));
+  const hasAccount = readSellerAccount(await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, userId) })) !== null;
   const [{ wishCount }] = await db.select({ wishCount: sql<number>`count(*)` }).from(wishlists).where(eq(wishlists.userId, userId));
   const [{ demandCount }] = await db
     .select({ demandCount: sql<number>`count(*)` })
