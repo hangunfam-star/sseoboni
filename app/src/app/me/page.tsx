@@ -30,8 +30,8 @@ const LISTING_TABS = [
 ] as const;
 const MY_PAGE_SIZE = 30;
 
-export default async function MyPage({ searchParams }: { searchParams: Promise<{ tab?: string; n?: string }> }) {
-  const { tab: rawTab, n } = await searchParams;
+export default async function MyPage({ searchParams }: { searchParams: Promise<{ tab?: string; n?: string; recovered?: string }> }) {
+  const { tab: rawTab, n, recovered } = await searchParams;
   const tab = LISTING_TABS.find((t) => t.key === rawTab) ?? LISTING_TABS[0];
   const shown = Math.min(Math.max(Number.parseInt(n ?? "1", 10) || 1, 1), 50) * MY_PAGE_SIZE;
   const userId = await getCurrentUserId();
@@ -43,6 +43,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
           <strong>닉네임만 정하면 내 판매 상품과 찜을 모아볼 수 있어요.</strong>
           <Link href="/login">닉네임 정하고 시작하기</Link>
         </div>
+        <p className="field-hint my-recover-hint">예전에 쓰던 계정이 안 보이나요? 사이트 주소가 바뀌어 다시 들어와야 해요. 예전 링크를 쓰던 브라우저에서 다시 누르거나, 운영자에게 복구 링크를 요청해 주세요. 같은 닉네임을 새로 입력하면 새 계정이 만들어져요.</p>
       </div>
     );
   }
@@ -95,6 +96,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
 
   return (
     <div className="page my-page">
+      {recovered === "1" && <p className="login-message" role="status">원래 계정으로 들어왔어요.{showLoginLink && !kakaoLinked ? " 다음에 또 잃어버리지 않게 로그인 연결에서 카카오를 연결해 두세요." : ""}</p>}
       <div className="my-head">
         <span className="seller-avatar" aria-hidden="true">{Array.from(nickname)[0]}</span>
         <div>

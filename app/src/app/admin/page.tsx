@@ -9,6 +9,7 @@ import { PlatformFeeForm } from "./PlatformFeeForm";
 import { formatWon, relativeTime } from "@/ui/presentation";
 import { AdminLogin, AdminLogout } from "./AdminControls";
 import { ResolveDisputeForm, TradeSettingsForm } from "./TradeAdmin";
+import { LoginLinkButton } from "./LoginLinkButton";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { advanceOrders, type Snapshot } from "@/lib/orders";
 import { db } from "@/db/client";
@@ -60,6 +61,12 @@ export default async function AdminPage() {
   const openDisputes = await db.select({ d: disputes, opener: users.nickname }).from(disputes).leftJoin(users, eq(users.id, disputes.openerId)).where(eq(disputes.status, "OPEN")).orderBy(desc(disputes.createdAt));
   const disputeOrders = new Map((await db.select().from(orders)).filter((o) => openDisputes.some((x) => x.d.orderId === o.id)).map((o) => [o.id, o]));
   const feeSum = db.get<{ fee: number; virtual: number; n: number }>(sql`select coalesce(sum(fee_amount),0) as fee, coalesce(sum(virtual_fee),0) as virtual, count(*) as n from orders where status = 'PURCHASED'`);
+  // 계정 복구: 사람 계정(시스템 계정 제외)과 상품 수·카카오 연결 여부
+  const accounts = db.all<{ id: string; nickname: string | null; createdAt: string; listings: number; kakao: number }>(sql`
+    select u.id, u.nickname, u.created_at as createdAt,
+      (select count(*) from listings l where l.seller_id = u.id and l.status != 'REMOVED') as listings,
+      exists (select 1 from social_accounts s where s.user_id = u.id and s.provider = 'KAKAO') as kakao
+    from users u where u.status = 'ACTIVE' order by u.created_at`);
   const PROPOSAL_LABEL: Record<string, string> = { PENDING: "대기", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소", EXPIRED: "만료" };
 
   return (
@@ -69,6 +76,19 @@ export default async function AdminPage() {
         <AdminLogout />
       </div>
       <p className="page-lead">모든 숫자는 실제 기록을 중복 없이 센 값이에요. 반응이 {SMALL_SAMPLE}건 미만이면 비율로 판단하지 마세요.</p>
+
+      <section aria-labelledby="acct-title">
+        <h2 className="section-title" id="acct-title">계정 · 로그인 복구</h2>
+        <p className="field-hint">사이트 주소가 바뀌었거나 로그아웃해서 못 들어오는 사람에게 1회용 복구 링크(24시간)를 만들어 보내요. 본인 확인 후 본인에게만 보내 주세요.</p>
+        <ul className="admin-accounts">
+          {accounts.map((a) => (
+            <li key={a.id}>
+              <div><strong>{a.nickname ?? "이름 없음"}</strong><small>가입 {kst(a.createdAt)} · 상품 {a.listings}개 · {a.kakao ? "카카오 연결됨" : "카카오 미연결"}</small></div>
+              <LoginLinkButton userId={a.id} />
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section aria-labelledby="sum-title">
         <h2 className="section-title" id="sum-title">한눈에 보기</h2>

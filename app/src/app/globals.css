@@ -1224,3 +1224,13 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .link-card__row div { display: grid; gap: 2px; }
 .link-card__row small { color: var(--w-sub); }
 .link-card__logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #FEE500; color: #000; font-weight: 800; }
+
+/* 계정 복구(2026-10-11) */
+.my-recover-hint { margin-top: 12px; }
+.admin-accounts { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.admin-accounts li { display: grid; gap: 10px; padding: 14px; border-radius: 14px; background: var(--color-fill); }
+.admin-accounts li > div:first-child { display: grid; gap: 2px; }
+.admin-accounts small { color: var(--w-sub); }
+.login-link-admin { display: grid; gap: 8px; }
+.login-link-admin__out { display: grid; gap: 6px; }
+.login-link-admin__out code { padding: 8px 10px; border-radius: 10px; background: #fff; font-size: 12px; word-break: break-all; }

@@ -333,3 +333,12 @@ export const socialAccounts = sqliteTable("social_accounts", {
   userId: text("user_id").notNull().references(() => users.id),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 }, (t) => [uniqueIndex("social_accounts_provider_uid").on(t.provider, t.providerUserId), uniqueIndex("social_accounts_provider_user").on(t.provider, t.userId)]);
+
+// 운영자가 만든 1회용 로그인 복구 링크. 링크 원문은 저장하지 않고 SHA-256 값만 둔다. 24시간 안에 한 번만 쓸 수 있다.
+export const loginLinks = sqliteTable("login_links", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  expiresAt: text("expires_at").notNull(), // ISO 시각
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [index("login_links_user").on(t.userId)]);

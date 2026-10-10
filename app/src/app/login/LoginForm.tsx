@@ -78,6 +78,7 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
           {pending ? "시작하는 중…" : "닉네임 정하고 시작하기"}
         </button>
         {error && <p className="form-error" role="alert">{error}</p>}
+        {!kakaoStep && <p className="field-hint">예전에 쓰던 계정이 있나요? 닉네임을 다시 입력하면 새 계정이 만들어져요. 예전 링크를 쓰던 브라우저에서 다시 누르거나 운영자에게 복구 링크를 요청해 주세요.</p>}
       </form>
     </div>
   );
