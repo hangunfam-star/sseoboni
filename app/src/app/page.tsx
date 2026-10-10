@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
@@ -14,11 +14,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { q: rawQ, c, b, s, n, t } = await searchParams;
   const q = rawQ?.trim() || undefined;
   const sort = s === "popular" ? "popular" : "new";
-  // 브랜드 칩은 판매 중 상품이 있는 모델의 브랜드만(찾는 상품 직접 입력으로 생긴 빈 브랜드 제외)
-  const brands = (await db.selectDistinct({ brand: productModels.brand }).from(productModels)
+  // 브랜드 칩은 판매 중 상품이 있는 모델의 브랜드만(찾는 상품 직접 입력으로 생긴 빈 브랜드 제외), 판매 중 상품이 많은 순. "기타"는 브랜드가 아니라 칩에서 뺀다
+  const brands = (await db.select({ brand: productModels.brand, n: count(listings.id) }).from(productModels)
     .innerJoin(listings, and(eq(listings.modelId, productModels.id), eq(listings.status, "ACTIVE")))
-    .where(eq(productModels.active, true)).orderBy(asc(productModels.brand))).map((r) => r.brand);
+    .where(and(eq(productModels.active, true), ne(productModels.brand, "기타"))).groupBy(productModels.brand)
+    .orderBy(desc(count(listings.id)), asc(productModels.brand))).map((r) => r.brand);
   const brand = b && brands.includes(b) ? b : undefined;
+  // 화면에는 상품이 많은 브랜드 7개만. 링크로 고른 브랜드가 7개 밖이면 끝에 붙여 선택 상태를 보이게 한다
+  const BRAND_CHIPS = 7;
+  const shownBrands = brands.slice(0, BRAND_CHIPS);
+  if (brand && !shownBrands.includes(brand)) shownBrands.push(brand);
   // 목록 나누기: n쪽까지 보여 준다(한 쪽 20개). 하나 더 가져와 다음 쪽이 있는지 안다. 50쪽(1,000개)이 한도.
   // 홈은 써보니 상품(써보기 허용, 쪽 수 t)과 일반 중고(쪽 수 n)를 나눠 써보니 상품을 위에 보여 준다. 검색 결과는 함께 보여 준다.
   const pageOf = (v?: string) => Math.min(Math.max(Number.parseInt(v ?? "1", 10) || 1, 1), 50);
@@ -114,7 +119,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <section className="brand-section" aria-labelledby="brand-title">
         <h2 className="section-title" id="brand-title"><Icon name="tag" />브랜드로 찾기</h2>
         <nav className="brand-row" aria-label="브랜드">
-          {brands.map((name) => (
+          {shownBrands.map((name) => (
             <Link key={name} className="brand-tile" href={href({ b: brand === name ? undefined : name, s: sort })} aria-current={brand === name ? "true" : undefined}>
               <span className="brand-tile__mark" aria-hidden="true">{Array.from(name)[0]}</span>
               <span>{name}</span>
