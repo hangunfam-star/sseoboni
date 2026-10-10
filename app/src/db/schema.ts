@@ -324,3 +324,12 @@ export const xpAwards = sqliteTable("xp_awards", {
   kind: text("kind").notNull(), // TRADE_DONE
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 }, (t) => [uniqueIndex("xp_awards_once").on(t.orderId, t.userId, t.kind)]);
+
+// 외부 로그인 연결(카카오 등). 카카오 회원번호만 저장하고 닉네임·이메일 같은 개인정보는 받지 않는다.
+// 한 카카오 계정은 한 사용자에만, 한 사용자는 공급자마다 하나만 연결된다.
+export const socialAccounts = sqliteTable("social_accounts", {
+  provider: text("provider").notNull(), // KAKAO
+  providerUserId: text("provider_user_id").notNull(),
+  userId: text("user_id").notNull().references(() => users.id),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [uniqueIndex("social_accounts_provider_uid").on(t.provider, t.providerUserId), uniqueIndex("social_accounts_provider_user").on(t.provider, t.userId)]);

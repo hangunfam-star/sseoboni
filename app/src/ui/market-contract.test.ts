@@ -26,7 +26,7 @@ test("링크를 받은 누구나 닉네임만으로 시작하고, 닉네임은 �
   const api = read("src/app/api/session/route.ts");
   assert.match(api, /createUser\(nickname\)/);
   assert.doesNotMatch(api, /where\(eq\(users\.nickname/);
-  const login = read("src/app/login/page.tsx");
+  const login = read("src/app/login/LoginForm.tsx"); // 화면 본문(page.tsx는 카카오 상태만 넘기는 서버 쪽)
   assert.match(login, /사기 전에, 써보니/);
   assert.match(login, /결제와 배송은 일어나지 않아요/);
   assert.match(login, /JSON\.stringify\(\{ nickname \}\)/);

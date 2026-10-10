@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import {
+  allowCreate,
   cleanNickname,
   clearSessionCookie,
   createUser,
@@ -12,22 +13,6 @@ import {
 } from "@/lib/session";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-
-// 같은 접속지에서 계정을 대량으로 만드는 것을 막는 간단한 제한(서버 메모리 기준, 재시작 시 초기화)
-const CREATE_LIMIT_PER_HOUR = 20;
-const createLog = new Map<string, number[]>();
-
-// param: ip 접속지. return: 이번 생성이 허용되면 true
-function allowCreate(ip: string, now: number): boolean {
-  const recent = (createLog.get(ip) ?? []).filter((t) => now - t < 60 * 60 * 1000);
-  if (recent.length >= CREATE_LIMIT_PER_HOUR) {
-    createLog.set(ip, recent);
-    return false;
-  }
-  recent.push(now);
-  createLog.set(ip, recent);
-  return true;
-}
 
 export async function GET() {
   const userId = await getCurrentUserId();

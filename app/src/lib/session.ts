@@ -82,3 +82,39 @@ export async function setSessionCookie(userId: string) {
 export async function clearSessionCookie() {
   (await cookies()).delete(COOKIE_NAME);
 }
+
+// param: payload 쿠키에 담을 값(객체). return: "본문.서명" 문자열. 짧게 쓰는 확인용 쿠키(카카오 로그인 상태 등)에 쓴다. 예외: SESSION_SECRET 미설정 시 throw
+export function signValue(payload: object): string {
+  const key = secret();
+  if (!key) throw new Error("SESSION_SECRET is not configured");
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `${body}.${sign(body, key)}`;
+}
+
+// param: raw signValue로 만든 문자열. return: 서명이 맞으면 담긴 값, 아니면 null
+export function readSignedValue<T>(raw: string | undefined): T | null {
+  const key = secret();
+  if (!key || !raw) return null;
+  const [body, sig] = raw.split(".");
+  if (!body || !sig) return null;
+  const expected = Buffer.from(sign(body, key));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  try { return JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as T; } catch { return null; }
+}
+
+// 같은 접속지에서 계정을 대량으로 만드는 것을 막는 간단한 제한(서버 메모리 기준, 재시작 시 초기화)
+const CREATE_LIMIT_PER_HOUR = 20;
+const createLog = new Map<string, number[]>();
+
+// param: ip 접속지, now 현재 시각(ms). return: 이번 생성이 허용되면 true
+export function allowCreate(ip: string, now: number): boolean {
+  const recent = (createLog.get(ip) ?? []).filter((t) => now - t < 60 * 60 * 1000);
+  if (recent.length >= CREATE_LIMIT_PER_HOUR) {
+    createLog.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  createLog.set(ip, recent);
+  return true;
+}

@@ -17,6 +17,7 @@ import { listOrders } from "@/lib/orders";
 import { gradesOf } from "@/lib/trade-stats";
 import { sellerAccounts } from "@/db/schema";
 import { readSellerAccount } from "@/lib/seller-account";
+import { hasKakao, kakaoConfigured } from "@/lib/kakao";
 
 const STATUS_LABEL: Record<string, string> = { ACTIVE: "판매 중", RESERVED: "거래 중", HIDDEN: "숨김", SOLD: "판매완료" };
 const PROPOSAL_LABEL: Record<string, string> = { PENDING: "답 기다리는 중", ACCEPTED: "승인", DECLINED: "거절", CANCELLED: "취소됨", EXPIRED: "만료" };
@@ -83,6 +84,8 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
   const ordersLive = myOrders.filter((o) => !["PURCHASED", "RETURNED", "CANCELLED"].includes(o.status));
   const myTurn = ordersLive.filter((o) => o.needsMe).length;
   const grades = await gradesOf(userId);
+  const kakaoLinked = hasKakao(userId);
+  const showLoginLink = kakaoLinked || kakaoConfigured(); // 카카오 키가 설정되기 전에는 메뉴를 숨긴다
   const hasAccount = readSellerAccount(await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, userId) })) !== null;
   const [{ wishCount }] = await db.select({ wishCount: sql<number>`count(*)` }).from(wishlists).where(eq(wishlists.userId, userId));
   const [{ demandCount }] = await db
@@ -110,6 +113,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <Link href="/me/reviews"><strong><Icon name="star" />내 후기</strong><small>받은·보낸·써보니 후기</small></Link>
         <Link href="/me/account"><strong><Icon name="bank" />정산 계좌</strong><small>{hasAccount ? "등록됨" : "미등록 · 등록해야 신청을 받아요"}</small></Link>
         <Link href={`/sellers/${userId}`}><strong><Icon name="store" />내 판매자 채널</strong><small>구매자에게 보이는 화면</small></Link>
+        {showLoginLink && <Link href="/me/login"><strong><Icon name="shield" />로그인 연결</strong><small>{kakaoLinked ? "카카오 연결됨" : "카카오 미연결 · 연결하면 다른 기기에서도 들어와요"}</small></Link>}
       </nav>
       {!hasAccount && mine.some((m) => m.status === "ACTIVE") && <p className="form-error">정산 계좌를 등록해야 구매자가 내 상품을 구매·써보기 신청할 수 있어요. <Link href="/me/account">등록하기</Link></p>}
       <Link className="chat-banner" href="/chats"><strong><Icon name="chat" />채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>
@@ -188,7 +192,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
       )}
       <Link className="feedback-banner" href="/feedback"><strong>써보니에 의견 보내기</strong><small>망설인 이유, 바라는 점을 알려 주세요</small></Link>
       <p className="page-lead">로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 새로 시작하면 새 계정이 만들어져요.</p>
-      <LogoutButton />
+      <LogoutButton kakaoLinked={kakaoLinked} />
     </div>
   );
 }

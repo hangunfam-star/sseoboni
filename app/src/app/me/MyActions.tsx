@@ -38,10 +38,11 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
   );
 }
 
-export function LogoutButton() {
+// param: kakaoLinked 카카오 연결 여부(연결돼 있으면 다시 들어올 수 있다고 안내)
+export function LogoutButton({ kakaoLinked = false }: { kakaoLinked?: boolean }) {
   const router = useRouter();
   async function logout() {
-    if (!confirm("로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 계속할까요?")) return;
+    if (!confirm(kakaoLinked ? "로그아웃할까요? 카카오로 시작하면 지금 계정에 다시 들어올 수 있어요." : "로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 계속할까요?")) return;
     await fetch("/api/session", { method: "DELETE" });
     router.push("/login");
     router.refresh();

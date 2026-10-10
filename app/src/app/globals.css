@@ -1211,3 +1211,16 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .attr-strip__wish[aria-pressed="true"] .attr-strip__icon { color: var(--color-coral); }
 .attr-strip__wish small { color: var(--w-sub); }
 .attr-strip__wish { min-width: 0; gap: 4px; padding: 0 4px; text-align: center; border-left: 1px solid var(--w-divider); min-height: 44px; }
+
+/* 카카오 로그인(2026-10-10): 카카오 디자인 가이드 색 #FEE500, 글자 85% 검정 */
+.kakao-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 16px; border-radius: 12px; background: #FEE500; color: rgba(0, 0, 0, .85); font-weight: 700; font-size: 16px; text-decoration: none; }
+.kakao-button:focus-visible { outline: 3px solid var(--color-navy); outline-offset: 2px; }
+.login-or { display: flex; align-items: center; gap: 10px; color: var(--w-sub); font-size: 13px; }
+.login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--w-divider); }
+.login-message { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: var(--color-fill); font-size: 14px; line-height: 1.5; }
+.login-message--warn { color: #b42318; background: #fdecea; }
+.link-card { display: grid; gap: 14px; padding: 18px; margin: 16px 0 10px; border-radius: var(--radius-card); background: var(--tone-paper); border: 1px solid var(--tone-line); }
+.link-card__row { display: flex; align-items: center; gap: 12px; }
+.link-card__row div { display: grid; gap: 2px; }
+.link-card__row small { color: var(--w-sub); }
+.link-card__logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #FEE500; color: #000; font-weight: 800; }
