@@ -1284,3 +1284,8 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .install-steps__glyph--app { background: #111; color: #fff; font-weight: 800; font-size: 12px; border: 0; }
 .install-open { border: 0; width: 100%; cursor: pointer; font: inherit; font-weight: 700; }
 .install-done { margin: 0; color: #1a7f37; font-weight: 600; }
+
+/* 로고: 글자 로고 앞에 마스코트(윙크하는 쇼핑백) — 홈·메뉴·시작 화면 공통(2026-10-12) */
+.wordmark { display: inline-flex; align-items: center; gap: 0; }
+.wordmark::before { content: ""; flex: none; width: 1.35em; height: 1.35em; margin-right: 8px; border-radius: 28%; background: url("/icons/icon-192.png") center / cover no-repeat; box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+.splash__mascot { display: block; width: 96px; height: 96px; border-radius: 26px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); margin-bottom: -4px; }

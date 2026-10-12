@@ -4,10 +4,13 @@ import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL || "https://sseoboni.mwwork.co.kr"),
   title: "써보니 — 체험형 중고거래",
   description: "판매자가 허용한 중고제품을 직접 써보고 구매를 결정하는 플랫폼 (Gate 0 검증용)",
   // 휴대폰 브라우저 자동 번역이 한국어 문구를 바꾸지 않도록 막는다.
   other: { google: "notranslate" },
+  // 공유 미리보기 기본 그림(상품 상세는 상품 사진으로 따로 정함): 써보니 마스코트
+  openGraph: { siteName: "써보니", type: "website", locale: "ko_KR", images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "써보니 — 윙크하는 쇼핑백" }] },
 };
 
 // return: 이 PC에서 직접 연 요청이면 true. 터널(ngrok)을 거치면 Host가 공개 주소이고 X-Forwarded-For에 바깥 IP가 붙는다.
@@ -44,6 +47,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <div className="splash" aria-hidden="true">
           <div className="splash__top">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="splash__mascot" src="/icons/icon-192.png" alt="" width={96} height={96} />
             <strong className="splash__logo">써보니<span>.</span></strong>
             <i className="splash__rule" />
             <p className="splash__title">사기 전에,<br />써보고 사세요</p>
