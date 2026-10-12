@@ -1,3 +1,4 @@
+import { markNotificationsRead } from "@/lib/notify";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
@@ -28,6 +29,7 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
   const model = listing ? await db.query.productModels.findFirst({ where: eq(productModels.id, listing.modelId) }) : undefined;
   const category = model ? await db.query.categories.findFirst({ where: eq(categories.id, model.categoryId) }) : undefined;
   if (messages.length > 0) markReadUpTo(id, t.role, messages[messages.length - 1].seq);
+  markNotificationsRead(userId, `/chats/${id}`);
   // 이 채팅의 거래(가장 최근)
   const order = await db.query.orders.findFirst({ where: and(eq(orders.listingId, t.thread.listingId), eq(orders.buyerId, t.thread.buyerId)), orderBy: desc(orders.createdAt) });
 

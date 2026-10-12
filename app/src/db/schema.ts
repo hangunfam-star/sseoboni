@@ -342,3 +342,41 @@ export const loginLinks = sqliteTable("login_links", {
   usedAt: text("used_at"),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 }, (t) => [index("login_links_user").on(t.userId)]);
+
+// ── 알림(2026-10-12) ──
+// 알림 한 건. 사이트 안 알림함에 보이고, 웹 푸시는 deliverAfter(밤 시간 미룸) 이후 pushedAt이 비어 있는 것만 보낸다.
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  userId: text("user_id").notNull().references(() => users.id),
+  category: text("category").notNull(), // TRADE | CHAT | INTEREST | REVIEW
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  url: text("url").notNull(),
+  dedupeKey: text("dedupe_key"), // 같은 알림을 두 번 만들지 않기 위한 키(기한 알림 등)
+  deliverAfter: text("deliver_after").notNull(), // ISO. 이 시각 이후에 휴대폰으로 보낸다
+  pushedAt: text("pushed_at"), // 휴대폰 발송을 처리한 시각(기기가 없어도 처리됨으로 기록)
+  readAt: text("read_at"),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [index("notifications_user").on(t.userId, t.createdAt), uniqueIndex("notifications_dedupe").on(t.userId, t.dedupeKey), index("notifications_pending").on(t.pushedAt, t.deliverAfter)]);
+
+// 웹 푸시를 받을 기기(브라우저). endpoint가 기기마다 다르다. 실패가 이어지거나 410이면 지운다.
+export const pushSubscriptions = sqliteTable("push_subscriptions", {
+  endpoint: text("endpoint").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  failCount: integer("fail_count").notNull().default(0),
+  lastSuccessAt: text("last_success_at"),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [index("push_subscriptions_user").on(t.userId)]);
+
+// 알림 설정. 행이 없으면 모두 켬. 거래 알림은 끌 수 없다.
+export const notificationPrefs = sqliteTable("notification_prefs", {
+  userId: text("user_id").primaryKey().references(() => users.id),
+  chat: integer("chat", { mode: "boolean" }).notNull().default(true),
+  interest: integer("interest", { mode: "boolean" }).notNull().default(true),
+  review: integer("review", { mode: "boolean" }).notNull().default(true),
+  quiet: integer("quiet", { mode: "boolean" }).notNull().default(true), // 밤 10시~아침 8시 휴대폰 알림 미룸(거래 제외)
+  updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
+});

@@ -1,3 +1,4 @@
+import { markNotificationsRead } from "@/lib/notify";
 import type { Metadata } from "next";
 import { Icon } from "@/components/Icon";
 import Link from "next/link";
@@ -41,6 +42,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   if (!userId) return <div className="page"><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
   const v = await orderView(id, userId);
   if (!v || !v.role) notFound();
+  markNotificationsRead(userId, `/orders/${id}`); // 이 거래 알림은 읽음
   const rs = await reviewState(id, userId);
   const steps = STEPS[v.kind];
   const cur = STEP_OF[v.status];

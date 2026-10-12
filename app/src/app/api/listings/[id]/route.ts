@@ -1,3 +1,4 @@
+import { notifyWishersTx } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { listings, productModels, listingComponents, marketValidationEvents } from "@/db/schema";
@@ -118,6 +119,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // 판매자 써보기 의향은 덮어쓰지 않고 새 이벤트로 남긴다(상세는 가장 최근 답을 보여 준다).
     if (tryWillingness) tx.insert(marketValidationEvents).values({ eventType: TRY_EVENT[tryWillingness], listingId: id, modelId: listing.modelId, userId }).run();
     const edited = Object.keys(set).some((k) => k !== "status") || components !== null || terms !== null;
+    if (row.status === "ACTIVE" && set.price !== undefined && set.price < listing.price) {
+      notifyWishersTx(tx, id, [userId], { category: "INTEREST", title: `찜한 상품 가격이 내렸어요`, body: `${row.title} · ${listing.price.toLocaleString("ko-KR")}원 → ${set.price.toLocaleString("ko-KR")}원`, url: `/listings/${id}`, dedupeKey: `price:${id}:${set.price}` });
+    }
+    if (set.status === "SOLD" && listing.status !== "SOLD") {
+      notifyWishersTx(tx, id, [userId], { category: "INTEREST", title: "찜한 상품이 판매완료됐어요", body: `${row.title}`, url: `/listings/${id}`, dedupeKey: `sold:${id}` });
+    }
     if (edited) tx.insert(marketValidationEvents).values({ eventType: "SELLER_LISTING_EDITED", listingId: id, modelId: listing.modelId, userId }).run();
     return { row };
   });

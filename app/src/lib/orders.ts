@@ -10,6 +10,7 @@ import {
 import { nextSeqTx } from "@/lib/chat";
 import { open, seal } from "@/lib/crypto-box";
 import { photosFor } from "@/lib/photos";
+import { notifyTx, notifyWishersTx } from "@/lib/notify";
 import { readSellerAccount } from "@/lib/seller-account";
 import { feePctNow } from "@/lib/platform-fee-store";
 import { getTrialTerms } from "@/lib/trial-terms";
@@ -46,12 +47,17 @@ function eventTx(tx: Tx, orderId: string, actorId: string | null, type: string, 
   tx.insert(orderEvents).values({ orderId, actorId, type, data: data === undefined ? null : JSON.stringify(data) }).run();
 }
 
-// param: tx, o 거래, text 안내 문구. 상품 채팅방(없으면 만든다)에 거래 안내 메시지를 남긴다.
-function systemMessageTx(tx: Tx, o: Pick<OrderRow, "listingId" | "buyerId" | "sellerId">, text: string) {
+// param: tx, o 거래, text 안내 문구, actorId 이 일을 한 사람(자동·운영자면 null).
+// 상품 채팅방(없으면 만든다)에 거래 안내 메시지를 남기고, 한 사람이 아닌 쪽(자동이면 양쪽)에 거래 알림을 보낸다.
+function systemMessageTx(tx: Tx, o: Pick<OrderRow, "id" | "listingId" | "buyerId" | "sellerId">, text: string, actorId: string | null) {
   let thread = tx.select().from(chatThreads).where(and(eq(chatThreads.listingId, o.listingId), eq(chatThreads.buyerId, o.buyerId))).get();
   if (!thread) thread = tx.insert(chatThreads).values({ listingId: o.listingId, buyerId: o.buyerId, sellerId: o.sellerId }).returning().get();
   tx.insert(chatMessages).values({ threadId: thread.id, senderId: SYSTEM_USER, body: `[거래] ${text}`, kind: "SYSTEM", seq: nextSeqTx(tx) }).run();
   tx.update(chatThreads).set({ lastMessageAt: sql`(current_timestamp)` }).where(eq(chatThreads.id, thread.id)).run();
+  const title = tx.select({ title: listings.title }).from(listings).where(eq(listings.id, o.listingId)).get()?.title ?? "거래";
+  for (const to of [o.buyerId, o.sellerId]) {
+    if (to !== actorId) notifyTx(tx, to, { category: "TRADE", title: `거래 · ${title}`, body: text, url: `/orders/${o.id}` });
+  }
 }
 
 // param: tx, id, from 예상 상태(들), set 바꿀 값, opts.blockIfDispute 열린 분쟁이 있으면 바꾸지 않음(금액·결과 확정 행동)
@@ -157,7 +163,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
     eventTx(tx, row.id, buyerId, "CREATED", { kind: input.kind, hours, trialFee, price: listing.price, shippingFee });
     systemMessageTx(tx, row, input.kind === "TRIAL"
       ? `${hours}시간 써보기 신청이 들어왔어요. 구매자가 ${(listing.price + shippingFee).toLocaleString("ko-KR")}원을 판매자 계좌로 보내면, 판매자가 입금을 확인해 주세요.`
-      : `구매 신청이 들어왔어요. 구매자가 ${(listing.price + shippingFee).toLocaleString("ko-KR")}원을 판매자 계좌로 보내면, 판매자가 입금을 확인해 주세요.`);
+      : `구매 신청이 들어왔어요. 구매자가 ${(listing.price + shippingFee).toLocaleString("ko-KR")}원을 판매자 계좌로 보내면, 판매자가 입금을 확인해 주세요.`, buyerId);
     return row;
   });
 }
@@ -198,7 +204,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "PAID", paidAt: t }) ?? fail();
         eventTx(tx, o.id, userId, "PAYMENT_CONFIRMED");
-        systemMessageTx(tx, r, `판매자가 입금을 확인했어요. ${settings.shipPromiseDays}일 안에 발송할 예정이에요.`);
+        systemMessageTx(tx, r, `판매자가 입금을 확인했어요. ${settings.shipPromiseDays}일 안에 발송할 예정이에요.`, userId);
         return r;
       });
     case "SHIP": {
@@ -207,7 +213,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "PAID", { status: "SHIPPED", shippedAt: t, shipCarrier: body.carrier as string, shipTracking: (body.tracking as string).trim() }) ?? fail();
         eventTx(tx, o.id, userId, "SHIPPED", { carrier: body.carrier });
-        systemMessageTx(tx, r, `판매자가 발송했어요(${body.carrier}). 받으면 '받았어요'를 눌러 주세요. ${o.kind === "TRIAL" ? "그때부터 써보기 시간이 시작돼요." : ""}`.trim());
+        systemMessageTx(tx, r, `판매자가 발송했어요(${body.carrier}). 받으면 '받았어요'를 눌러 주세요. ${o.kind === "TRIAL" ? "그때부터 써보기 시간이 시작돼요." : ""}`.trim(), userId);
         return r;
       });
     }
@@ -220,7 +226,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "TRIAL", { trialHours: next.hours, trialFee: next.fee, trialEndAt: addHours(sqlToIso(o.trialEndAt!), next.hours - o.trialHours!) }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "EXTENDED", { from: o.trialHours, to: next.hours, fee: next.fee });
-        systemMessageTx(tx, r, `구매자가 써보기를 ${next.hours}시간으로 늘렸어요. 돌려보내면 체험료는 ${next.fee.toLocaleString("ko-KR")}원이에요(추가 입금 없음).`);
+        systemMessageTx(tx, r, `구매자가 써보기를 ${next.hours}시간으로 늘렸어요. 돌려보내면 체험료는 ${next.fee.toLocaleString("ko-KR")}원이에요(추가 입금 없음).`, userId);
         return r;
       });
     }
@@ -246,7 +252,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
           trialFee: fee, refundAmount: refund, refundKind: "RETURN", refundEnc: seal(acc),
         }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "RETURN_REQUESTED", { reason: reason.key, usedHours: Math.round(used), trialFee: fee, refund });
-        systemMessageTx(tx, r, `구매자가 반납을 신청했어요(${reason.label}). ${settings.returnShipDays}일 안에 반송할 예정이에요. 환불 예정액은 ${refund.toLocaleString("ko-KR")}원(상품가 − 체험료 ${fee.toLocaleString("ko-KR")}원)이에요.`);
+        systemMessageTx(tx, r, `구매자가 반납을 신청했어요(${reason.label}). ${settings.returnShipDays}일 안에 반송할 예정이에요. 환불 예정액은 ${refund.toLocaleString("ko-KR")}원(상품가 − 체험료 ${fee.toLocaleString("ko-KR")}원)이에요.`, userId);
         return r;
       });
     }
@@ -260,7 +266,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "RETURN_REQUESTED", { status: "RETURN_SHIPPED", returnShippedAt: t, returnCarrier: body.carrier as string, returnTracking: (body.tracking as string).trim(), returnHandoverAt: day }) ?? fail();
         eventTx(tx, o.id, userId, "RETURN_SHIPPED", { carrier: body.carrier, handoverDate: day });
-        systemMessageTx(tx, r, `구매자가 반송했어요(${body.carrier}, 맡긴 날 ${day}). 받으면 구성품을 확인하고 검수를 마쳐 주세요.`);
+        systemMessageTx(tx, r, `구매자가 반송했어요(${body.carrier}, 맡긴 날 ${day}). 받으면 구성품을 확인하고 검수를 마쳐 주세요.`, userId);
         return r;
       });
     }
@@ -276,7 +282,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
         eventTx(tx, o.id, userId, "INSPECTED", { missing });
         systemMessageTx(tx, r, missing.length
           ? `판매자가 검수를 마쳤어요. 빠진 구성품: ${missing.join(", ")}. 환불 예정액 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원은 그대로이고, 다툼이 있으면 분쟁을 신청할 수 있어요.`
-          : `판매자가 검수를 마쳤어요. 구성품이 모두 돌아왔어요. ${settings.refundDays}일 안에 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불할 예정이에요.`);
+          : `판매자가 검수를 마쳤어요. 구성품이 모두 돌아왔어요. ${settings.refundDays}일 안에 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불할 예정이에요.`, userId);
         return r;
       });
     }
@@ -285,7 +291,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "REFUND_DUE", { status: "REFUND_SENT", refundSentAt: t }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "REFUND_SENT", { amount: o.refundAmount });
-        systemMessageTx(tx, r, `판매자가 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불했다고 알렸어요. 통장에서 확인되면 '환불 받았어요'를 눌러 주세요.`);
+        systemMessageTx(tx, r, `판매자가 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불했다고 알렸어요. 통장에서 확인되면 '환불 받았어요'를 눌러 주세요.`, userId);
         return r;
       });
     case "REFUND_RECEIVED":
@@ -295,7 +301,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
         eventTx(tx, o.id, userId, "REFUND_RECEIVED", { amount: o.refundAmount });
         if (done === "RETURNED") awardXpTx(tx, r);
         releaseListingTx(tx, o.listingId);
-        systemMessageTx(tx, r, done === "RETURNED" ? "구매자가 환불을 확인했어요. 반납이 완료됐어요. 서로 후기를 남겨 주세요." : "구매자가 환불을 확인했어요. 거래가 취소됐어요.");
+        systemMessageTx(tx, r, done === "RETURNED" ? "구매자가 환불을 확인했어요. 반납이 완료됐어요. 서로 후기를 남겨 주세요." : "구매자가 환불을 확인했어요. 거래가 취소됐어요.", userId);
         return r;
       });
     case "CANCEL": {
@@ -306,7 +312,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
           const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "CANCELLED", cancelReason: reason || (role === "buyer" ? "구매자 취소" : "판매자 취소"), completedAt: t }, LOCK) ?? fail();
           eventTx(tx, o.id, userId, "CANCELLED", { by: role, reason });
           releaseListingTx(tx, o.listingId);
-          systemMessageTx(tx, r, `${role === "buyer" ? "구매자" : "판매자"}가 입금 전에 거래를 취소했어요.`);
+          systemMessageTx(tx, r, `${role === "buyer" ? "구매자" : "판매자"}가 입금 전에 거래를 취소했어요.`, userId);
           return r;
         });
       }
@@ -321,7 +327,7 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       return db.transaction((tx) => {
         const r = moveTx(tx, o.id, "PAID", { status: "REFUND_DUE", refundKind: "CANCEL", refundAmount: amount, refundEnc, cancelReason: reason || (role === "buyer" ? "구매자 취소" : "판매자 취소"), decidedAt: t }, LOCK) ?? fail();
         eventTx(tx, o.id, userId, "CANCEL_AFTER_PAYMENT", { by: role, amount });
-        systemMessageTx(tx, r, `${role === "buyer" ? "구매자" : "판매자"}가 발송 전에 거래를 취소했어요. 판매자가 ${amount.toLocaleString("ko-KR")}원 전액을 돌려줘야 해요.${refundEnc ? "" : " 구매자는 거래 화면에서 환불 받을 계좌를 입력해 주세요."}`);
+        systemMessageTx(tx, r, `${role === "buyer" ? "구매자" : "판매자"}가 발송 전에 거래를 취소했어요. 판매자가 ${amount.toLocaleString("ko-KR")}원 전액을 돌려줘야 해요.${refundEnc ? "" : " 구매자는 거래 화면에서 환불 받을 계좌를 입력해 주세요."}`, userId);
         return r;
       });
     }
@@ -339,7 +345,7 @@ function receiveTx(tx: Tx, o: OrderRow, at: string, actorId: string | null, sett
   eventTx(tx, o.id, actorId, actorId ? "RECEIVED" : "AUTO_RECEIVED");
   systemMessageTx(tx, r, o.kind === "TRIAL"
     ? `${actorId ? "구매자가 물건을 받았어요" : `발송 뒤 ${settings.autoReceiveDays}일이 지나 받은 것으로 처리했어요`}. 지금부터 ${o.trialHours}시간 써볼 수 있어요. 마음에 들면 '살게요', 아니면 '돌려보낼게요'를 눌러 주세요.`
-    : `${actorId ? "구매자가 물건을 받았어요" : `발송 뒤 ${settings.autoReceiveDays}일이 지나 받은 것으로 처리했어요`}. 확인 뒤 '구매 확정'을 눌러 주세요. ${settings.buyAutoConfirmDays}일 뒤에는 자동으로 구매 확정돼요.`);
+    : `${actorId ? "구매자가 물건을 받았어요" : `발송 뒤 ${settings.autoReceiveDays}일이 지나 받은 것으로 처리했어요`}. 확인 뒤 '구매 확정'을 눌러 주세요. ${settings.buyAutoConfirmDays}일 뒤에는 자동으로 구매 확정돼요.`, actorId);
   return r;
 }
 
@@ -352,7 +358,8 @@ function purchaseTx(tx: Tx, o: OrderRow, from: OrderStatus[], actorId: string | 
   eventTx(tx, o.id, actorId, actorId ? "PURCHASED" : "AUTO_PURCHASED", { feePct, ...fees });
   awardXpTx(tx, r);
   tx.update(listings).set({ status: "SOLD" }).where(eq(listings.id, o.listingId)).run();
-  systemMessageTx(tx, r, `${text} 체험료는 0원이고 추가로 낼 돈은 없어요. 서로 후기를 남겨 주세요.`);
+  notifyWishersTx(tx, o.listingId, [o.buyerId, o.sellerId], { category: "INTEREST", title: "찜한 상품이 판매완료됐어요", body: tx.select({ t: listings.title }).from(listings).where(eq(listings.id, o.listingId)).get()?.t ?? "상품", url: `/listings/${o.listingId}`, dedupeKey: `sold:${o.listingId}` });
+  systemMessageTx(tx, r, `${text} 체험료는 0원이고 추가로 낼 돈은 없어요. 서로 후기를 남겨 주세요.`, actorId);
   return r;
 }
 
@@ -373,7 +380,7 @@ export async function advanceOrders(ids?: string[]): Promise<void> {
       if (s === "AWAIT_PAYMENT" && past(o.createdAt, settings.paymentWaitHours)) {
         next = db.transaction((tx) => {
           const r = moveTx(tx, o.id, "AWAIT_PAYMENT", { status: "CANCELLED", cancelReason: "입금 기한 지남", completedAt: now() }, LOCK);
-          if (r) { eventTx(tx, o.id, null, "AUTO_CANCELLED"); releaseListingTx(tx, o.listingId); systemMessageTx(tx, r, `${settings.paymentWaitHours}시간 안에 입금 확인이 되지 않아 거래가 자동 취소됐어요.`); }
+          if (r) { eventTx(tx, o.id, null, "AUTO_CANCELLED"); releaseListingTx(tx, o.listingId); systemMessageTx(tx, r, `${settings.paymentWaitHours}시간 안에 입금 확인이 되지 않아 거래가 자동 취소됐어요.`, null); }
           return r;
         });
       } else if (s === "SHIPPED" && past(o.shippedAt, settings.autoReceiveDays * 24, o.waitShiftMs)) {
@@ -384,7 +391,7 @@ export async function advanceOrders(ids?: string[]): Promise<void> {
       } else if (s === "TRIAL" && past(o.trialEndAt, 0)) {
         next = db.transaction((tx) => {
           const r = moveTx(tx, o.id, "TRIAL", { status: "NEEDS_CHECK", needsCheckAt: o.trialEndAt }, LOCK);
-          if (r) { eventTx(tx, o.id, null, "NEEDS_CHECK"); systemMessageTx(tx, r, `써보기 시간이 끝났어요. ${settings.decisionGraceHours}시간 안에 '살게요' 또는 '돌려보낼게요'를 골라 주세요. 그때까지 답이 없으면 신청할 때 안내한 대로 구매로 확정돼요.`); }
+          if (r) { eventTx(tx, o.id, null, "NEEDS_CHECK"); systemMessageTx(tx, r, `써보기 시간이 끝났어요. ${settings.decisionGraceHours}시간 안에 '살게요' 또는 '돌려보낼게요'를 골라 주세요. 그때까지 답이 없으면 신청할 때 안내한 대로 구매로 확정돼요.`, null); }
           return r;
         });
       } else if (s === "NEEDS_CHECK" && past(o.trialEndAt, settings.decisionGraceHours)) {
@@ -508,7 +515,7 @@ export async function openDispute(orderId: string, userId: string, reason: unkno
     if (exists) throw new TradeError("이미 운영자가 확인 중인 분쟁이 있어요.", 409);
     const d = tx.insert(disputes).values({ orderId, openerId: userId, reason: reason as string, detail: text }).returning().get();
     eventTx(tx, orderId, userId, "DISPUTE_OPENED", { reason });
-    systemMessageTx(tx, o, `${o.buyerId === userId ? "구매자" : "판매자"}가 분쟁을 신청했어요(${reason}). 운영자가 양쪽 이야기와 기록을 확인할 때까지 금액 확정·자동 처리를 멈춰요.`);
+    systemMessageTx(tx, o, `${o.buyerId === userId ? "구매자" : "판매자"}가 분쟁을 신청했어요(${reason}). 운영자가 양쪽 이야기와 기록을 확인할 때까지 금액 확정·자동 처리를 멈춰요.`, userId);
     return d;
   });
 }
@@ -567,6 +574,6 @@ export async function resolveDispute(disputeId: string, resolution: string, buye
       text += ".";
     }
     eventTx(tx, o.id, null, "DISPUTE_RESOLVED", { buyerFault, refundAmount, outcome, pausedHours: Math.round(pausedMs / 360_000) / 10 });
-    systemMessageTx(tx, o, text);
+    systemMessageTx(tx, o, text, null);
   });
 }

@@ -20,6 +20,8 @@ async function isLocalRequest(): Promise<boolean> {
   return ["localhost", "127.0.0.1", "[::1]"].includes(host) && forwarded.every((ip) => LOOPBACK.includes(ip));
 }
 
+// 안드로이드 설치 창 이벤트는 화면 준비 전에 올 수 있어 미리 받아 둔다(설치 안내 레이어가 버튼으로 연다).
+const CATCH_INSTALL = "window.__sbBip=null;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__sbBip=e;window.dispatchEvent(new Event('sb-bip'))});";
 const SPLASH_ONCE = "try{if(sessionStorage.getItem('sb_splash')){document.documentElement.classList.add('no-splash')}else{sessionStorage.setItem('sb_splash','1')}}catch(e){}";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +38,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" />
         {/* 로딩 화면은 탭마다 처음 한 번만 보여 준다(그 뒤 이동·새로고침에서는 바로 숨김). 저장소를 못 쓰면 매번 보이지만 1.9초 뒤 스스로 사라진다. */}
         <script dangerouslySetInnerHTML={{ __html: SPLASH_ONCE }} />
+        <script dangerouslySetInnerHTML={{ __html: CATCH_INSTALL }} />
+        <meta name="apple-mobile-web-app-title" content="써보니" />
       </head>
       <body>
         <div className="splash" aria-hidden="true">

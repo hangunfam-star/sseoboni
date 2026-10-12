@@ -1,3 +1,4 @@
+import { notifyTx } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       eventType: "TRIAL_PROPOSAL_SENT", listingId, modelId: listing.modelId, userId,
       metadata: JSON.stringify({ proposalId: row.id, hours: p.hours, offerFee: p.offerFee, price: listing.price, sellerTerms }),
     }).run();
+    notifyTx(tx, listing.sellerId, { category: "TRADE", title: `써보기 제안 · ${listing.title}`, body: `${p.hours}시간 써보기, 체험료 ${p.offerFee.toLocaleString("ko-KR")}원을 제안했어요. MY에서 답해 주세요.`, url: "/me#proposals" });
     return row;
   });
   if (result === "PENDING_EXISTS") return NextResponse.json({ error: "이 상품에 답을 기다리는 제안이 이미 있어요. MY에서 확인하거나 취소할 수 있어요." }, { status: 409 });

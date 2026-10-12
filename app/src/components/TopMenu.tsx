@@ -30,6 +30,7 @@ const ITEMS: { href: string; label: string; icon: keyof typeof ICON }[] = [
 export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [alerts, setAlerts] = useState(0);
   const pathname = usePathname();
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -42,7 +43,10 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
   // 안 읽은 채팅 수: 화면이 바뀔 때·메뉴를 열 때·30초마다 확인(상단 채팅 아이콘 배지)
   useEffect(() => {
     if (pathname === "/login") return;
-    const load = () => fetch("/api/chats").then((r) => r.json()).then((d) => setUnread(d.unread ?? 0)).catch(() => undefined);
+    const load = () => {
+      void fetch("/api/chats").then((r) => r.json()).then((d) => setUnread(d.unread ?? 0)).catch(() => undefined);
+      void fetch("/api/notifications?count=1").then((r) => r.json()).then((d) => setAlerts(d.unread ?? 0)).catch(() => undefined);
+    };
     void load();
     const timer = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 30000);
     return () => clearInterval(timer);
@@ -78,6 +82,10 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
 
   return (
     <>
+      <Link className="top-bell__button" href="/notifications" aria-label={alerts > 0 ? `알림, 안 읽은 알림 ${alerts}개` : "알림"} aria-current={pathname === "/notifications" ? "page" : undefined}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0112 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z" /><path d="M10 19.5a2 2 0 004 0" /></svg>
+        {alerts > 0 && <b className="top-chat__badge" aria-hidden="true">{alerts > 99 ? "99+" : alerts}</b>}
+      </Link>
       <Link className="top-chat__button" href="/chats" aria-label={unread > 0 ? `채팅 목록, 안 읽은 채팅 ${unread}개` : "채팅 목록"} aria-current={pathname === "/chats" ? "page" : undefined}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z" /><path d="M8 9h8M8 12h5" /></svg>
         {unread > 0 && <b className="top-chat__badge" aria-hidden="true">{unread > 99 ? "99+" : unread}</b>}

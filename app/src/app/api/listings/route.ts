@@ -1,6 +1,7 @@
+import { notifyTx } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
-import { listingComponents, listings, marketValidationEvents, productModels } from "@/db/schema";
+import { demandIntents, listingComponents, listings, marketValidationEvents, productModels } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { MODEL_CREATE_DAILY_MAX, modelsCreatedToday, parseComponents, parseCustomModel, resolveCustomModel, validateCustomModel } from "@/lib/models";
@@ -109,6 +110,11 @@ export async function POST(req: NextRequest) {
     for (const name of components) tx.insert(listingComponents).values({ listingId: row.id, name }).run();
     if (terms) saveTrialTermsTx(tx, row.id, terms);
     tx.insert(marketValidationEvents).values({ eventType: "SELLER_LISTING_COMPLETE", listingId: row.id, modelId, userId }).run();
+    // 이 모델을 찾는 상품으로 올려 둔 사람에게(판매자 본인 제외, 한 사람에 한 번)
+    const seekers = tx.select({ userId: demandIntents.userId }).from(demandIntents).where(and(eq(demandIntents.modelId, modelId), eq(demandIntents.active, true))).all();
+    for (const u of new Set(seekers.map((x) => x.userId))) {
+      if (u !== userId) notifyTx(tx, u, { category: "INTEREST", title: "찾던 상품이 올라왔어요", body: `${title} · ${price.toLocaleString("ko-KR")}원`, url: `/listings/${row.id}`, dedupeKey: `demand:${row.id}` });
+    }
     if (createdModel) {
       tx.insert(marketValidationEvents).values({ eventType: "SELLER_MODEL_CREATED", listingId: row.id, modelId, userId }).run();
     }

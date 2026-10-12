@@ -5,6 +5,8 @@ import { chatMessages, chatThreads, listings, marketValidationEvents } from "@/d
 import { CHAT_BODY_MAX, CHAT_RATE, markReadUpTo, messagesOf, nextSeqTx, threadFor } from "@/lib/chat";
 import { getCurrentUserId } from "@/lib/session";
 import { findContactInfo } from "@/ui/trial-pricing";
+import { markNotificationsRead, notifyTx } from "@/lib/notify";
+import { users } from "@/db/schema";
 
 // GET /api/chats/[id]?after=순번 — 참여자만. after 다음 메시지를 순번 순으로(최대 200개, hasMore로 남은 것 알림).
 // 읽음은 돌려준 메시지 중 마지막 순번까지만 표시한다(보여 주지 않은 메시지는 읽음 처리하지 않음).
@@ -18,6 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const after = raw !== null && /^\d{1,15}$/.test(raw) ? Number(raw) : undefined;
   const { messages, hasMore } = await messagesOf(id, after);
   if (messages.length > 0) markReadUpTo(id, t.role, messages[messages.length - 1].seq);
+  markNotificationsRead(userId, `/chats/${id}`);
   return NextResponse.json({ messages, hasMore, me: userId, role: t.role });
 }
 
@@ -45,6 +48,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     tx.update(chatThreads).set({ lastMessageAt: msg.createdAt }).where(eq(chatThreads.id, id)).run();
     // 내 메시지는 내 읽음 커서에 영향을 주지 않는다(내 메시지는 안 읽음 계산에서 빠짐).
     // 시장검증 기록에는 메시지 본문을 남기지 않는다(개인정보 최소화).
+    // 상대에게 채팅 알림(같은 방 안 읽은 알림이 5분 안에 있으면 내용만 바꿈)
+    const other = t.role === "buyer" ? t.thread.sellerId : t.thread.buyerId;
+    const me = tx.select({ nickname: users.nickname }).from(users).where(eq(users.id, userId)).get()?.nickname ?? "상대";
+    notifyTx(tx, other, { category: "CHAT", title: `${me} · ${listing?.title ?? "채팅"}`, body: text.length > 80 ? `${text.slice(0, 80)}…` : text, url: `/chats/${id}` });
     tx.insert(marketValidationEvents).values({ eventType: "CHAT_MESSAGE_SENT", listingId: t.thread.listingId, modelId: listing?.modelId, userId, metadata: JSON.stringify({ threadId: id, role: t.role, length: text.length }) }).run();
     return msg;
   });

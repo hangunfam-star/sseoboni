@@ -115,6 +115,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <Link href="/me/reviews"><strong><Icon name="star" />내 후기</strong><small>받은·보낸·써보니 후기</small></Link>
         <Link href="/me/account"><strong><Icon name="bank" />정산 계좌</strong><small>{hasAccount ? "등록됨" : "미등록 · 등록해야 신청을 받아요"}</small></Link>
         <Link href={`/sellers/${userId}`}><strong><Icon name="store" />내 판매자 채널</strong><small>구매자에게 보이는 화면</small></Link>
+        <Link href="/me/notifications"><strong><Icon name="inbox" />알림 · 홈 화면 추가</strong><small>휴대폰 알림 켜기, 받을 알림 고르기</small></Link>
         {showLoginLink && <Link href="/me/login"><strong><Icon name="shield" />로그인 연결</strong><small>{kakaoLinked ? "카카오 연결됨" : "카카오 미연결 · 연결하면 다른 기기에서도 들어와요"}</small></Link>}
       </nav>
       {!hasAccount && mine.some((m) => m.status === "ACTIVE") && <p className="form-error">정산 계좌를 등록해야 구매자가 내 상품을 구매·써보기 신청할 수 있어요. <Link href="/me/account">등록하기</Link></p>}

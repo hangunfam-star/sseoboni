@@ -1,3 +1,4 @@
+import { notifyTx } from "@/lib/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -48,6 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .where(sql`${trialProposals.id} = ${id} and ${trialProposals.status} = 'PENDING' and ${trialProposals.createdAt} >= datetime('now', ${`-${PROPOSAL_TTL_DAYS} days`})`)
       .returning().get();
     if (!row) return null;
+    if (action !== "CANCEL") notifyTx(tx, proposal.buyerId, { category: "TRADE", title: `써보기 제안 ${action === "ACCEPT" ? "승인" : "거절"} · ${listing.title}`, body: action === "ACCEPT" ? "판매자가 제안을 받아들였어요. 상품에서 써보기를 신청해 주세요." : `판매자가 제안을 거절했어요.${reply ? ` "${reply}"` : ""}`, url: `/listings/${listing.id}` });
     tx.insert(marketValidationEvents).values({
       eventType: EVENT[key], listingId: listing.id, modelId: listing.modelId, userId,
       metadata: JSON.stringify({ proposalId: id, hours: proposal.hours, offerFee: proposal.offerFee, price: listing.price, sellerTerms }),
