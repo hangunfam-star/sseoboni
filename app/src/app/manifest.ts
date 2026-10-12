@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-// 홈 화면에 추가했을 때의 앱 정보(이름·아이콘·전체 화면). 아이콘: 장바구니 + 순환 화살표
+// 홈 화면에 추가했을 때의 앱 정보(이름·아이콘·전체 화면). 아이콘: 에코백 + 안쪽 순환 화살표(주황→분홍 바탕)
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "써보니 — 써보고 사는 중고거래",
@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/?from=home-screen",
     scope: "/",
     display: "standalone",
-    background_color: "#111111",
+    background_color: "#FF8A65",
     theme_color: "#111111",
     lang: "ko",
     icons: [
