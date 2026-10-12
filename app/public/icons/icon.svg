@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="0" fill="#111111"/>
-  <!-- 순환 화살표: 위쪽 호(오른쪽으로) + 아래쪽 호(왼쪽으로), 장바구니를 감싼다 -->
-  <g fill="none" stroke="#E8553E" stroke-width="26" stroke-linecap="round">
-    <path d="M118 214 A146 146 0 0 1 370 150"/>
-    <path d="M394 298 A146 146 0 0 1 142 362"/>
-  </g>
-  <g fill="#E8553E">
-    <path d="M404 116 L392 196 L322 160 Z"/>
-    <path d="M108 396 L120 316 L190 352 Z"/>
-  </g>
-  <!-- 장바구니 -->
-  <g fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M168 206 h22 l26 104 h104 l24 -76 h-140"/>
+  <rect width="512" height="512" fill="#111111"/>
+  <!-- 장바구니(크게) -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M86 132 H140 L182 348 H392 L438 182 H152"/>
   </g>
   <g fill="#FFFFFF">
-    <circle cx="228" cy="346" r="16"/>
-    <circle cx="306" cy="346" r="16"/>
+    <circle cx="214" cy="408" r="24"/>
+    <circle cx="362" cy="408" r="24"/>
+  </g>
+  <!-- 바구니 안 순환 화살표 -->
+  <g fill="none" stroke="#E8553E" stroke-width="22" stroke-linecap="round">
+    <path d="M235.5 245.2 A58 58 0 0 1 333.1 226.2"/>
+    <path d="M344.5 284.8 A58 58 0 0 1 246.9 303.8"/>
+  </g>
+  <g fill="#E8553E">
+    <path d="M355.2 262 L356.3 219.8 L318.1 241.8 Z"/>
+    <path d="M224.8 268 L223.7 310.2 L261.9 288.2 Z"/>
   </g>
 </svg>
