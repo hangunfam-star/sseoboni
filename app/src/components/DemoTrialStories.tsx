@@ -1,21 +1,19 @@
 import { Slider } from "./Slider";
 import { DEMO_ACTIVITY, DEMO_REVIEWS, DEMO_STATS, DEMO_VERDICTS } from "@/content/demo-trial";
 
-const Tag = ({ text = "예시" }: { text?: string }) => <span className="demo-tag">{text}</span>;
-
-// 메인 "써보기 이야기": 숫자·후기·모델별 결론·활동을 예시 데이터로 보여 준다(블록마다 3개, 슬라이드).
-// 실제 기록이 아니므로 블록 제목마다 "예시", 아래에 "실제 기록이 아니에요"를 붙인다.
+// 메인 "써보기 이야기": 숫자·후기·모델별 결론·활동을 미리보기 데이터로 보여 준다(블록마다 3개, 슬라이드).
+// 실제 기록이 아니므로 섹션 맨 위에 "미리보기 화면" 안내를 한 줄 둔다(사용자 결정 2026-10-13: 블록·카드별 표시는 없앰). 이 줄은 지우지 않는다.
 export function DemoTrialStories() {
   return (
     <section className="demo-stories" aria-labelledby="demo-title">
       <div className="demo-stories__head">
-        <h2 className="section-title" id="demo-title">써보니는 이렇게 쌓여요 <Tag text="예시 화면" /></h2>
-        <p>서비스 시작 전이라 아래 숫자·후기·활동은 모두 <b>예시</b>예요. 실제 거래가 쌓이면 진짜 기록으로 바뀌어요.</p>
+        <h2 className="section-title" id="demo-title">써보니는 이렇게 쌓여요</h2>
+        <p className="demo-disclosure">써보니가 열리면 이렇게 보여요 · <b>미리보기 화면</b></p>
       </div>
 
       <div className="demo-block">
-        <h3>📊 써보니 숫자 <Tag /></h3>
-        <Slider label="써보니 숫자 예시">
+        <h3>📊 써보니 숫자</h3>
+        <Slider label="써보니 숫자 미리보기">
           {DEMO_STATS.map((s) => (
             <div key={s.title} className="demo-stats">
               <span className="demo-stats__title">{s.title}</span>
@@ -28,8 +26,8 @@ export function DemoTrialStories() {
       </div>
 
       <div className="demo-block">
-        <h3>⭐ 써보고 결정한 사람들 <Tag text="예시 후기" /></h3>
-        <Slider label="써보기 후기 예시" peek>
+        <h3>⭐ 써보고 결정한 사람들</h3>
+        <Slider label="써보기 후기 미리보기" peek>
           {DEMO_REVIEWS.map((r) => (
             <article key={r.model} className="demo-review">
               <div className="demo-review__top">
@@ -43,15 +41,14 @@ export function DemoTrialStories() {
               <div className="demo-chips">{r.checked.map((c) => <span key={c}>{c}</span>)}</div>
               <p className="demo-better">👍 {r.better}</p>
               <p className="demo-quote">“{r.quote}”</p>
-              <small className="demo-mark">예시 후기 · 실제 이용자 후기가 아니에요</small>
             </article>
           ))}
         </Slider>
       </div>
 
       <div className="demo-block">
-        <h3>🧪 써본 사람들의 결론 <Tag /></h3>
-        <Slider label="모델별 써본 결론 예시">
+        <h3>🧪 써본 사람들의 결론</h3>
+        <Slider label="모델별 써본 결론 미리보기">
           {DEMO_VERDICTS.map((v) => {
             const total = v.bought + v.returned;
             return (
@@ -73,13 +70,12 @@ export function DemoTrialStories() {
       </div>
 
       <div className="demo-block">
-        <h3>🔔 써보기 활동 <Tag text="예시 활동" /></h3>
-        <Slider label="써보기 활동 예시" autoMs={3500}>
+        <h3>🔔 써보기 활동</h3>
+        <Slider label="써보기 활동 미리보기" autoMs={3500}>
           {DEMO_ACTIVITY.map((a) => (
             <p key={a.text} className="demo-activity"><span className="demo-activity__dot" aria-hidden="true" /><b>{a.when}</b> {a.place}에서 {a.text}</p>
           ))}
         </Slider>
-        <p className="demo-note">※ 예시 활동이에요. 실제 기록이 아니에요.</p>
       </div>
     </section>
   );

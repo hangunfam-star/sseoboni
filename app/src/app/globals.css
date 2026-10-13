@@ -1350,3 +1350,6 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .try-hero--closed { padding: 10px 12px; }
 .try-hero__reopen { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; border: 0; background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: left; }
 .try-hero__reopen-text { flex: 1; }
+
+.demo-stories__head .demo-disclosure { margin: 4px 0 0; font-size: 12px; color: var(--w-sub); }
+.demo-stories__head .demo-disclosure b { color: #b4402c; }
