@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { listings, productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
 import { TryFlow } from "@/components/TryFlow";
+import { MissionCard } from "@/components/MissionCard";
 import { DemoTrialStories } from "@/components/DemoTrialStories";
 import { DEMO_UNTIL_REAL } from "@/content/demo-trial";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
@@ -108,13 +109,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <Link className="wordmark" href="/">써보니<span>.</span></Link>
       </header>
       <HomeStory />
-      <section className="try-hero" aria-labelledby="try-hero-title">
-        <span className="try-hero__tag">베타테스터 미션</span>
-        <h2 id="try-hero-title">마음에 드는 상품에서<br /><em>‘써보고 싶어요’</em>를 눌러 주세요</h2>
+      <MissionCard tag="베타테스터 미션" title={<>마음에 드는 상품에서<br /><em>‘써보고 싶어요’</em>를 눌러 주세요</>}>
         <TryFlow label="써보기 흐름 (준비 중)" />
         <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
         <Link className="try-hero__link" href="/feedback">망설여진다면 이유를 알려 주세요 →</Link>
-      </section>
+      </MissionCard>
       {realTrials < DEMO_UNTIL_REAL && <DemoTrialStories />}
       <form className="search-bar" action="/" method="get">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
