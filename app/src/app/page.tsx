@@ -115,9 +115,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
         <Link className="try-hero__link" href="/feedback">망설여진다면 이유를 알려 주세요 →</Link>
       </MissionCard>
-      {/* 비교 그림 A안·B안: 사용자가 하나를 고르면 다른 하나를 지운다 */}
-      <CompareBlock version="a" label="A안 · 여성이 안내" />
-      <CompareBlock version="b" label="B안 · 마스코트가 안내" />
+      <CompareBlock />
       {realTrials < DEMO_UNTIL_REAL && <DemoTrialStories />}
       <form className="search-bar" action="/" method="get">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
