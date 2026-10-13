@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
-import { and, asc, count, desc, eq, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
 import { TryFlow } from "@/components/TryFlow";
+import { DemoTrialStories } from "@/components/DemoTrialStories";
+import { DEMO_UNTIL_REAL } from "@/content/demo-trial";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
 import { listCards, modelDemand, PAGE_SIZE } from "@/lib/queries";
 import { demandLabel } from "@/ui/presentation";
@@ -97,6 +99,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   const trial = await section(true, trialPages);
+  // 실제 써보기 완료가 기준 이상 쌓이면 예시 "써보기 이야기"를 내린다
+  const realTrials = db.get<{ n: number }>(sql`select count(*) as n from orders where kind = 'TRIAL' and status in ('PURCHASED', 'RETURNED')`)?.n ?? 0;
   const used = await section(false, pages);
   return (
     <div className="page home-page">
@@ -111,6 +115,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
         <Link className="try-hero__link" href="/feedback">망설여진다면 이유를 알려 주세요 →</Link>
       </section>
+      {realTrials < DEMO_UNTIL_REAL && <DemoTrialStories />}
       <form className="search-bar" action="/" method="get">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
         <label className="sr-only" htmlFor="home-search">상품 검색</label>
