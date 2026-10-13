@@ -1353,3 +1353,22 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 
 .demo-stories__head .demo-disclosure { margin: 4px 0 0; font-size: 12px; color: var(--w-sub); }
 .demo-stories__head .demo-disclosure b { color: #b4402c; }
+
+/* 일반 중고 vs 써보니 비교 그림(2026-10-13) */
+.compare-block { display: grid; gap: 10px; margin: 6px 0 22px; }
+.compare-block__label { justify-self: start; margin: 0; font-size: 12px; font-weight: 800; color: #fff; background: #3b4fb0; padding: 4px 10px; border-radius: 999px; }
+.compare-block__note { margin-top: -4px; font-size: 11px; color: var(--w-sub); }
+.compare-slide { margin: 0; height: 100%; display: grid; grid-template-rows: auto 1fr; border-radius: 18px; overflow: hidden; background: var(--color-fill); }
+.compare-slide img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.compare-slide__img { position: relative; }
+.compare-chip { position: absolute; top: 10px; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+.compare-chip--before { left: 10px; background: rgba(60, 60, 67, .78); color: #fff; }
+.compare-chip--after { left: calc(50% + 10px); background: #E8553E; color: #fff; }
+.compare-slide figcaption { display: grid; gap: 6px; padding: 12px 14px 14px; align-content: start; }
+.compare-slide figcaption strong { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.compare-slide figcaption strong em { font-style: normal; flex: none; width: 22px; height: 22px; border-radius: 50%; background: #111; color: #fff; display: grid; place-items: center; font-size: 12px; }
+.compare-slide--hero figcaption span { font-size: 13px; color: var(--w-sub); }
+.compare-row { display: flex; gap: 8px; font-size: 13px; color: var(--w-sub); line-height: 1.45; }
+.compare-row b { flex: none; width: 54px; font-size: 12px; color: #6b6f78; }
+.compare-row--after { color: #111; font-weight: 600; }
+.compare-row--after b { color: #E8553E; }
