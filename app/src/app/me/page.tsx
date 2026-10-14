@@ -12,7 +12,7 @@ import { chatThreads } from "@/db/schema";
 import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
 import { conditionLabel, formatWon, illustrationKind, relativeTime } from "@/ui/presentation";
-import { ListingStatusActions, LogoutButton, NicknameEditor, PhotoToggle } from "./MyActions";
+import { ListingStatusActions, LogoutButton, PhotoToggle } from "./MyActions";
 import { Avatar } from "@/components/Avatar";
 import { photoOf } from "@/lib/kakao";
 import { AutoLoadMore } from "@/components/AutoLoadMore";
@@ -104,7 +104,6 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <Avatar name={nickname} src={photoOf(me)} />
         <div>
           <h1 className="page-title my-title"><strong>{nickname}</strong><span>님의 써보니</span></h1>
-          <NicknameEditor current={me?.nickname ?? ""} />
           {me?.kakaoImageUrl && <PhotoToggle shown={me.showPhoto} />}
           <p className="grade-line"><span className="grade-badge-inline"><Icon name="store" />판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft"><Icon name="bag" />구매 {grades.buyer.name}</span>{grades.buyer.toNext !== null && <small>다음 구매 등급까지 거래 {grades.buyer.toNext}번</small>}</p>
         </div>

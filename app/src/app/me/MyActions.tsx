@@ -75,35 +75,3 @@ export function PhotoToggle({ shown }: { shown: boolean }) {
   );
 }
 
-export function NicknameEditor({ current }: { current: string }) {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(current);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const router = useRouter();
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    if (pending) return;
-    setError(null);
-    setPending(true);
-    const res = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname: value }) }).catch(() => null);
-    setPending(false);
-    if (!res?.ok) {
-      const d = await res?.json().catch(() => ({}));
-      setError(d?.error ?? "닉네임을 바꾸지 못했어요. 다시 시도해 주세요.");
-      return;
-    }
-    setOpen(false);
-    router.refresh();
-  }
-  if (!open) return <button type="button" className="text-button nickname-edit__open" onClick={() => { setValue(current); setError(null); setOpen(true); }}>닉네임 바꾸기</button>;
-  return (
-    <form className="nickname-edit" onSubmit={save} onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}>
-      <label className="sr-only" htmlFor="nickname-edit-input">새 닉네임</label>
-      <input id="nickname-edit-input" value={value} onChange={(e) => setValue(e.target.value)} maxLength={12} placeholder="2~12자" autoFocus autoComplete="nickname" />
-      <button type="submit" className="primary-button" disabled={pending}>{pending ? "저장 중…" : "저장"}</button>
-      <button type="button" className="text-button" onClick={() => setOpen(false)}>취소</button>
-      {error && <p className="form-error" role="alert">{error}</p>}
-    </form>
-  );
-}

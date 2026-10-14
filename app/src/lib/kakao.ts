@@ -117,6 +117,7 @@ export async function kakaoUserId(code: string, origin: string): Promise<KakaoMe
   }
   const nickname = me.kakao_account?.profile?.nickname ?? me.properties?.nickname ?? null;
   const p = me.kakao_account?.profile;
+  console.log(`[kakao] 프로필 받음 nickname=${p?.nickname || me.properties?.nickname ? "있음" : "없음"} image=${p?.thumbnail_image_url || p?.profile_image_url ? (p?.is_default_image ? "기본사진" : "있음") : "없음"}`);
   const image = p && p.is_default_image !== true ? cleanKakaoImage(p.thumbnail_image_url ?? p.profile_image_url) : null;
   return { id: String(me.id), nickname: typeof nickname === "string" && nickname.trim() ? nickname.trim() : null, image };
 }

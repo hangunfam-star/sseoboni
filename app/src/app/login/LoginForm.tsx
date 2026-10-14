@@ -62,7 +62,7 @@ export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, kakaoI
       {message && <p className={kakaoStep ? "login-message" : "login-message login-message--warn"} role="status">{message}</p>}
       {kakaoStep ? (
         <form className="login-card" onSubmit={handleSubmit}>
-          <p className="validation-notice">카카오 로그인을 마쳤어요. 써보니에서 쓸 닉네임을 정해 주세요. 닉네임은 나중에 MY에서 바꿀 수 있어요.</p>
+          <p className="validation-notice">카카오 로그인을 마쳤어요. 써보니에서 쓸 닉네임을 정해 주세요. 닉네임은 한 번 정하면 바꿀 수 없어요.</p>
           {kakaoNickname && (
             <fieldset className="nick-choice">
               <legend className="sr-only">닉네임 고르기</legend>

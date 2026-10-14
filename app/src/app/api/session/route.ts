@@ -21,7 +21,7 @@ export async function GET() {
   return NextResponse.json({ user });
 }
 
-// POST /api/session { nickname } — 로그인한 사람의 닉네임 바꾸기.
+// POST /api/session { nickname } — 닉네임은 한 번 정하면 바꿀 수 없다(닉네임이 비어 있는 계정만 정할 수 있음).
 // 새 계정은 카카오 로그인으로만 만든다(2026-10-14). 격리 시험 서버에서만 ALLOW_NICKNAME_LOGIN=1이면 닉네임으로 새 계정을 만든다.
 export async function POST(req: NextRequest) {
   if (!sessionConfigured()) {
@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
 
   const current = await getCurrentUserId();
   if (current) {
+    const mine = await db.query.users.findFirst({ where: eq(users.id, current) });
+    if (mine?.nickname) return NextResponse.json({ error: "닉네임은 한 번 정하면 바꿀 수 없어요." }, { status: 403 });
     const [user] = await db.update(users).set({ nickname }).where(eq(users.id, current)).returning();
     return NextResponse.json({ user, created: false });
   }
