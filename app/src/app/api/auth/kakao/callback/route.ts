@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserId, readSignedValue, setSessionCookie, signValue } from "@/lib/session";
+import { cleanNickname, getCurrentUserId, readSignedValue, setSessionCookie, signValue } from "@/lib/session";
 import { KakaoError, kakaoUserId, linkKakao, PENDING_COOKIE, siteOrigin, STATE_COOKIE, STATE_MINUTES, userOfKakao, type KakaoPending, type KakaoState } from "@/lib/kakao";
 
 // GET /api/auth/kakao/callback?code=…&state=… — 카카오에서 돌아오는 곳.
@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
   if (!code) return fail("state");
 
   let kakaoId: string;
-  try { kakaoId = await kakaoUserId(code, origin); }
+  let kakaoNick: string | null = null;
+  try { const me = await kakaoUserId(code, origin); kakaoId = me.id; kakaoNick = me.nickname; }
   catch (e) { return fail(e instanceof KakaoError ? e.code : "token"); }
 
   const current = await getCurrentUserId();
@@ -38,7 +39,9 @@ export async function GET(req: NextRequest) {
     try { linkKakao(current, kakaoId); } catch (e) { return fail(e instanceof KakaoError ? e.code : "token"); }
     return NextResponse.redirect(`${origin}/me/login?kakao=linked`);
   }
-  const pending: KakaoPending = { k: kakaoId, e: Date.now() + STATE_MINUTES * 60_000 };
+  // 카카오 닉네임이 써보니 규칙(2~12자)에 맞을 때만 "그대로 쓰기" 선택지로 넘긴다
+  const nick = cleanNickname(kakaoNick);
+  const pending: KakaoPending = { k: kakaoId, e: Date.now() + STATE_MINUTES * 60_000, ...(nick ? { n: nick } : {}) };
   jar.set(PENDING_COOKIE, signValue(pending), { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production", maxAge: STATE_MINUTES * 60 });
   return NextResponse.redirect(`${origin}/login?step=kakao&next=${encodeURIComponent(st.n)}`);
 }

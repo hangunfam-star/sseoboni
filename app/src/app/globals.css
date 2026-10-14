@@ -1379,3 +1379,11 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .nickname-edit input { flex: 1 1 140px; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--w-divider); font: inherit; }
 .nickname-edit .primary-button { height: 40px; padding: 0 16px; }
 .nickname-edit .form-error { flex-basis: 100%; margin: 0; }
+
+/* 카카오 닉네임 그대로 쓰기 / 새로 만들기 선택(2026-10-14) */
+.nick-choice { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.nick-choice__item { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; border: 2px solid var(--w-divider); background: #fff; cursor: pointer; }
+.nick-choice__item.is-on { border-color: #111; }
+.nick-choice__item input { width: 20px; height: 20px; accent-color: #111; flex: none; }
+.nick-choice__item span { display: grid; gap: 2px; }
+.nick-choice__item small { color: var(--w-sub); font-size: 13px; }

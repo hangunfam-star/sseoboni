@@ -10,9 +10,10 @@ const STEPS = [
   { n: "3", title: "결정하기", text: "마음에 들면 사고, 아니면 돌려보내요", tone: "yellow" },
 ];
 
-// param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, message 안내 문구, next 로그인 후 갈 경로
-export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: boolean; kakaoStep: boolean; message: string | null; next: string }) {
+// param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, kakaoNickname 카카오 닉네임(동의·규칙 맞을 때만), message 안내 문구, next 로그인 후 갈 경로
+export function LoginForm({ kakaoOn, kakaoStep, kakaoNickname, message, next }: { kakaoOn: boolean; kakaoStep: boolean; kakaoNickname: string | null; message: string | null; next: string }) {
   const [nickname, setNickname] = useState("");
+  const [useKakao, setUseKakao] = useState<boolean>(Boolean(kakaoNickname));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
@@ -25,7 +26,7 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
     const res = await fetch("/api/auth/kakao/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify(useKakao && kakaoNickname ? { useKakao: true } : { nickname }),
     });
     setPending(false);
     if (!res.ok) {
@@ -61,12 +62,27 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
       {kakaoStep ? (
         <form className="login-card" onSubmit={handleSubmit}>
           <p className="validation-notice">카카오 로그인을 마쳤어요. 써보니에서 쓸 닉네임을 정해 주세요. 닉네임은 나중에 MY에서 바꿀 수 있어요.</p>
-          <label className="field">
-            <span>닉네임</span>
-            <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="2~12자 (예: 맥북찾는중)" maxLength={12} autoComplete="nickname" autoFocus />
-            <small className="field-hint">화면에 보이는 이름이에요. 같은 이름이 있어도 괜찮아요.</small>
-          </label>
-          <button className="primary-button" type="submit" disabled={pending}>{pending ? "시작하는 중…" : "이 닉네임으로 시작하기"}</button>
+          {kakaoNickname && (
+            <fieldset className="nick-choice">
+              <legend className="sr-only">닉네임 고르기</legend>
+              <label className={useKakao ? "nick-choice__item is-on" : "nick-choice__item"}>
+                <input type="radio" name="nick-mode" checked={useKakao} onChange={() => setUseKakao(true)} />
+                <span><strong>카카오 닉네임 그대로 쓰기</strong><small>{kakaoNickname}</small></span>
+              </label>
+              <label className={!useKakao ? "nick-choice__item is-on" : "nick-choice__item"}>
+                <input type="radio" name="nick-mode" checked={!useKakao} onChange={() => setUseKakao(false)} />
+                <span><strong>써보니 닉네임 새로 만들기</strong><small>다른 이름으로 활동해요</small></span>
+              </label>
+            </fieldset>
+          )}
+          {(!kakaoNickname || !useKakao) && (
+            <label className="field">
+              <span>써보니 닉네임</span>
+              <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="2~12자 (예: 맥북찾는중)" maxLength={12} autoComplete="nickname" autoFocus />
+              <small className="field-hint">화면에 보이는 이름이에요. 같은 이름이 있어도 괜찮아요.</small>
+            </label>
+          )}
+          <button className="primary-button" type="submit" disabled={pending}>{pending ? "시작하는 중…" : useKakao && kakaoNickname ? "카카오 닉네임으로 시작하기" : "이 닉네임으로 시작하기"}</button>
           {error && <p className="form-error" role="alert">{error}</p>}
         </form>
       ) : (
@@ -74,7 +90,7 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
           {kakaoOn
             ? <KakaoButton href={`/api/auth/kakao/start?mode=login&next=${encodeURIComponent(next)}`} label="카카오로 로그인" />
             : <p className="form-error">카카오 로그인을 준비하고 있어요. 잠시 후 다시 시도해 주세요.</p>}
-          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호만 받고 이름·연락처는 받지 않아요. 지금은 테스트 기간이라 결제와 배송은 일어나지 않아요.</p>
+          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호와, 동의하면 닉네임만 받아요. 이름·연락처는 받지 않아요. 지금은 테스트 기간이라 결제와 배송은 일어나지 않아요.</p>
           <p className="field-hint">예전에 닉네임으로 쓰던 계정이 있나요? 그 계정에 카카오를 연결했다면 카카오로 로그인하면 그대로 이어져요. 연결하지 않았다면 운영자에게 복구 링크를 요청해 주세요.</p>
         </div>
       )}
