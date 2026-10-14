@@ -2,6 +2,7 @@
 // - 알림은 사이트 안 알림함에 바로 보이고, 휴대폰 발송은 deliverAfter 이후 뒤에서 보낸다(발송 실패가 거래·채팅을 막지 않게).
 // - 거래(TRADE) 알림은 끌 수 없고 밤 시간에도 바로 보낸다. 채팅·관심·후기는 설정으로 끌 수 있고, 밤 10시~아침 8시(한국 시간)에는 아침으로 미룬다.
 // - 채팅은 같은 대화방의 안 읽은 알림이 5분 안에 있으면 새로 만들지 않고 내용만 바꾼다(휴대폰도 다시 울리지 않음).
+// - 받는 사람이 그 대화방을 보고 있으면(20초 안에 화면이 새 메시지를 확인함) 휴대폰 알림은 보내지 않고 알림함에만 남긴다.
 import webpush from "web-push";
 import { and, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -19,6 +20,22 @@ export function prefsOf(userId: string, run: Runner = db) {
   return { chat: p?.chat ?? true, interest: p?.interest ?? true, review: p?.review ?? true, quiet: p?.quiet ?? true };
 }
 
+const VIEWING_MS = 20_000; // 채팅 화면은 보이는 동안 4~8초마다 새 메시지를 확인한다
+const viewers = ((globalThis as typeof globalThis & { __sseoboniViewers?: Map<string, number> }).__sseoboniViewers ??= new Map<string, number>());
+
+// param: userId, url 지금 보고 있는 화면 주소. 화면이 새 내용을 확인할 때마다 부른다
+export function markViewing(userId: string, url: string): void {
+  const now = Date.now();
+  if (viewers.size > 5000) for (const [k, t] of viewers) if (now - t > VIEWING_MS) viewers.delete(k);
+  viewers.set(`${userId}|${url}`, now);
+}
+
+// param: userId, url. return: 그 사람이 지금 그 화면을 보고 있는지
+export function isViewing(userId: string, url: string, now = Date.now()): boolean {
+  const t = viewers.get(`${userId}|${url}`);
+  return t !== undefined && now - t <= VIEWING_MS;
+}
+
 // param: tx 트랜잭션(또는 db), userId 받는 사람, n 알림 내용. return: 만들었으면 true(설정으로 끔·중복이면 false)
 export function notifyTx(tx: Runner, userId: string, n: NotifyInput): boolean {
   const prefs = prefsOf(userId, tx);
@@ -33,9 +50,10 @@ export function notifyTx(tx: Runner, userId: string, n: NotifyInput): boolean {
     }
   }
   const deliverAfter = n.category !== "TRADE" && prefs.quiet ? quietUntil(now) : new Date(now).toISOString();
-  const r = tx.insert(notifications).values({ userId, category: n.category, title: n.title.slice(0, 80), body: n.body.slice(0, 300), url: n.url, dedupeKey: n.dedupeKey ?? null, deliverAfter })
+  const watching = n.category === "CHAT" && isViewing(userId, n.url, now); // 보고 있으면 휴대폰은 울리지 않음(보낸 것으로 표시)
+  const r = tx.insert(notifications).values({ userId, category: n.category, title: n.title.slice(0, 80), body: n.body.slice(0, 300), url: n.url, dedupeKey: n.dedupeKey ?? null, deliverAfter, ...(watching ? { pushedAt: new Date(now).toISOString() } : {}) })
     .onConflictDoNothing().run();
-  if (r.changes > 0) kickPush();
+  if (r.changes > 0 && !watching) kickPush();
   return r.changes > 0;
 }
 

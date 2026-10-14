@@ -5,7 +5,7 @@ import { chatMessages, chatThreads, listings, marketValidationEvents } from "@/d
 import { CHAT_BODY_MAX, CHAT_RATE, markReadUpTo, messagesOf, nextSeqTx, threadFor } from "@/lib/chat";
 import { getCurrentUserId } from "@/lib/session";
 import { findContactInfo } from "@/ui/trial-pricing";
-import { markNotificationsRead, notifyTx } from "@/lib/notify";
+import { markNotificationsRead, markViewing, notifyTx } from "@/lib/notify";
 import { users } from "@/db/schema";
 
 // GET /api/chats/[id]?after=순번 — 참여자만. after 다음 메시지를 순번 순으로(최대 200개, hasMore로 남은 것 알림).
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { messages, hasMore } = await messagesOf(id, after);
   if (messages.length > 0) markReadUpTo(id, t.role, messages[messages.length - 1].seq);
   markNotificationsRead(userId, `/chats/${id}`);
+  markViewing(userId, `/chats/${id}`);
   return NextResponse.json({ messages, hasMore, me: userId, role: t.role });
 }
 
