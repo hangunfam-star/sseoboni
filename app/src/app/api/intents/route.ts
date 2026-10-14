@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
+import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 
 // POST /api/intents { listingId, kind: "TRY" | "BUY" }
 // Gate 0: 거래·결제·신청이 아니라 의향 이벤트만 기록한다. 같은 사람·상품·종류는 1회만 기록.
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
 
   const listing = await db.query.listings.findFirst({ where: and(eq(listings.id, listingId), eq(listings.status, "ACTIVE")) });
   if (!listing) return NextResponse.json({ error: "판매 중인 상품이 아닙니다." }, { status: 404 });
+  if (isTestListing(listing.title)) return NextResponse.json({ error: TEST_LISTING_MESSAGE }, { status: 409 }); // 시험 상품은 시장검증 기록에 섞지 않는다
 
   const eventType = EVENT[kind];
   const exists = await db.query.marketValidationEvents.findFirst({

@@ -5,6 +5,7 @@ import { db } from "@/db/client";
 import { xpAwards } from "@/db/schema";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { RETURN_REASONS, addHours, gradeOf, kstDateOf, kstToday, median, sqlToIso } from "@/ui/trade-rules";
+import { TEST_LISTING_PREFIX } from "@/ui/test-listing";
 
 const sinceExpr = (days: number) => `-${days} days`;
 
@@ -29,7 +30,7 @@ export async function trialFeeRatio(category: string | null) {
   if (!category) return null;
   const rows = db.all<{ price: number; tiers: string | null }>(sql`select l.price, t.tier_fees as tiers from listing_trial_terms t
     join listings l on l.id = t.listing_id join product_models m on m.id = l.model_id join categories c on c.id = m.category_id
-    where l.status in ('ACTIVE','RESERVED') and c.name = ${category}`);
+    where l.status in ('ACTIVE','RESERVED') and c.name = ${category} and l.title not like ${TEST_LISTING_PREFIX + "%"}`); // 시험용 상품은 참고 통계에서 뺀다
   const ratios: number[] = [];
   for (const r of rows) {
     try {

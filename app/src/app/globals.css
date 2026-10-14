@@ -1422,3 +1422,6 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .model-picker__list li { padding: 12px 10px; border-radius: 10px; font-size: 15px; cursor: pointer; }
 .model-picker__list li:hover, .model-picker__list li.is-active { background: var(--w-surface); }
 .model-picker__ok { color: #1f7a4d; }
+
+/* 시험용 상품 안내(2026-10-15) */
+.test-listing-note { margin: 12px 16px 96px; }

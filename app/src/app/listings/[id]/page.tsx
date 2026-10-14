@@ -20,6 +20,7 @@ import { questionsFor } from "@/ui/trade-rules";
 import { sellerAccounts } from "@/db/schema";
 import { readSellerAccount } from "@/lib/seller-account";
 import { Avatar } from "@/components/Avatar";
+import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 import { photoOf } from "@/lib/kakao";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -139,7 +140,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const modelReviews = await trialReviewsByModel(listing.modelId, 5);
 
   // 조회 이벤트: 판매자 본인 조회는 제외, 같은 사람의 30분 안 재조회는 1회로 센다.
-  if (!isOwner) await recordListingView(id, listing.modelId, userId);
+  if (!isOwner && !isTestListing(listing.title)) await recordListingView(id, listing.modelId, userId); // 시험용 상품 조회는 시장검증 기록에 넣지 않는다
 
   let wished = false;
   const intents = { TRY: false, BUY: false };
@@ -236,7 +237,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         </div>
         {seekers && <p className="listing-stats">{seekers}</p>}
       </div>
-      {!isOwner && listing.status === "ACTIVE" && (
+      {isTestListing(listing.title) && <p className="form-error test-listing-note" role="note">{TEST_LISTING_MESSAGE}</p>}
+      {!isOwner && listing.status === "ACTIVE" && !isTestListing(listing.title) && (
         <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct}
           trade={{ open: trade.tradeOpen, accountReady: readSellerAccount(account) !== null, shippingFee, questionOptions: questionsFor(category?.name ?? null), graceHours: trade.decisionGraceHours, paymentWaitHours: trade.paymentWaitHours }} />
       )}

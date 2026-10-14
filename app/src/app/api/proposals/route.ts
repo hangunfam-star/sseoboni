@@ -6,6 +6,7 @@ import { listings, marketValidationEvents, trialProposals } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { expireOldProposals, getTrialTerms } from "@/lib/trial-terms";
 import { parseProposal } from "@/ui/trial-pricing";
+import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 
 const DAILY_MAX = 10; // 한 사람이 하루에 보낼 수 있는 제안 수
 
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
   const listing = listingId ? await db.query.listings.findFirst({ where: eq(listings.id, listingId) }) : undefined;
   if (!listing || listing.status !== "ACTIVE") return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });
   if (listing.sellerId === userId) return NextResponse.json({ error: "내 상품에는 제안할 수 없어요." }, { status: 400 });
+  if (isTestListing(listing.title)) return NextResponse.json({ error: TEST_LISTING_MESSAGE }, { status: 409 });
   const p = parseProposal(body, listing.price);
   if (typeof p === "string") return NextResponse.json({ error: p }, { status: 400 });
 
