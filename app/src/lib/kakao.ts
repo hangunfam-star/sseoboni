@@ -14,7 +14,7 @@ export const STATE_MINUTES = 10;
 
 export type KakaoMode = "login" | "link";
 export type KakaoState = { s: string; m: KakaoMode; n: string; e: number };
-export type KakaoPending = { k: string; e: number; n?: string }; // n: 카카오 닉네임(사용자가 닉네임 제공에 동의한 경우만)
+export type KakaoPending = { k: string; e: number; n?: string; i?: string }; // n: 카카오 닉네임, i: 카카오 프로필 사진 주소(각각 동의한 경우만)
 
 export class KakaoError extends Error {
   constructor(public code: string) { super(code); }
@@ -60,7 +60,26 @@ export function authorizeUrl(state: string, origin: string): string {
 }
 
 // param: code 카카오가 돌려준 인가 코드, origin 사이트 주소. return: 카카오 회원번호(문자열)와 닉네임(동의한 경우만). 예외: KakaoError("token"|"profile")
-export async function kakaoUserId(code: string, origin: string): Promise<{ id: string; nickname: string | null }> {
+// param: raw 카카오가 준 사진 주소. return: 카카오 사진 서버의 https 주소만, 아니면 null
+export function cleanKakaoImage(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length > 500) return null;
+  try {
+    const u = new URL(raw.replace(/^http:\/\//, "https://"));
+    return u.protocol === "https:" && (u.hostname === "kakaocdn.net" || u.hostname.endsWith(".kakaocdn.net")) ? u.toString() : null;
+  } catch { return null; }
+}
+
+// param: userId 사용자, image 카카오 사진 주소(없으면 null). return: 없음. 카카오 로그인할 때마다 최신 사진으로 바꾼다(보일지는 showPhoto가 정함)
+export function saveKakaoImage(userId: string, image: string | null): void {
+  db.update(users).set({ kakaoImageUrl: image }).where(eq(users.id, userId)).run();
+}
+
+// param: u 사용자 행. return: 화면에 보일 프로필 사진 주소, 숨겼거나 없으면 null
+export function photoOf(u: { kakaoImageUrl: string | null; showPhoto: boolean } | null | undefined): string | null {
+  return u && u.showPhoto && u.kakaoImageUrl ? u.kakaoImageUrl : null;
+}
+
+export async function kakaoUserId(code: string, origin: string): Promise<{ id: string; nickname: string | null; image: string | null }> {
   const c = cfg();
   const tokenRes = await fetch(`${c.authBase}/oauth/token`, {
     method: "POST",
@@ -71,10 +90,12 @@ export async function kakaoUserId(code: string, origin: string): Promise<{ id: s
   const token = tokenRes?.ok ? ((await tokenRes.json().catch(() => null)) as { access_token?: string } | null) : null;
   if (!token?.access_token) throw new KakaoError("token");
   const meRes = await fetch(`${c.apiBase}/v2/user/me`, { headers: { Authorization: `Bearer ${token.access_token}` }, cache: "no-store" }).catch(() => null);
-  const me = meRes?.ok ? ((await meRes.json().catch(() => null)) as { id?: number | string; kakao_account?: { profile?: { nickname?: string } }; properties?: { nickname?: string } } | null) : null;
+  const me = meRes?.ok ? ((await meRes.json().catch(() => null)) as { id?: number | string; kakao_account?: { profile?: { nickname?: string; thumbnail_image_url?: string; profile_image_url?: string; is_default_image?: boolean } }; properties?: { nickname?: string } } | null) : null;
   if (me?.id === undefined || me.id === null || !/^\d+$/.test(String(me.id))) throw new KakaoError("profile");
   const nickname = me.kakao_account?.profile?.nickname ?? me.properties?.nickname ?? null;
-  return { id: String(me.id), nickname: typeof nickname === "string" && nickname.trim() ? nickname.trim() : null };
+  const p = me.kakao_account?.profile;
+  const image = p && p.is_default_image !== true ? cleanKakaoImage(p.thumbnail_image_url ?? p.profile_image_url) : null;
+  return { id: String(me.id), nickname: typeof nickname === "string" && nickname.trim() ? nickname.trim() : null, image };
 }
 
 // param: kakaoId 카카오 회원번호. return: 연결된 사용자 id(정상 계정만), 없으면 null

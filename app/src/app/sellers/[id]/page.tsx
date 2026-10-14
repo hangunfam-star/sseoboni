@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Avatar } from "@/components/Avatar";
+import { photoOf } from "@/lib/kakao";
 import { Icon } from "@/components/Icon";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -40,7 +42,7 @@ export default async function SellerChannelPage({ params, searchParams }: { para
     <div className="page seller-page">
       <div className="page-top"><Link className="icon-button" href="/" aria-label="홈으로"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg></Link></div>
       <header className="my-header">
-        <span className="seller-avatar seller-avatar--lg" aria-hidden="true">{Array.from(name)[0]}</span>
+        <Avatar name={name} src={photoOf(seller)} large />
         <div>
           <h1 className="page-title">{name}</h1>
           <p className="grade-line"><span className="grade-badge-inline"><Icon name="store" />판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft"><Icon name="bag" />구매 {grades.buyer.name}</span>{stars.asSeller && <span>★{stars.asSeller.avg} ({stars.asSeller.count})</span>}</p>

@@ -10,10 +10,11 @@ const STEPS = [
   { n: "3", title: "결정하기", text: "마음에 들면 사고, 아니면 돌려보내요", tone: "yellow" },
 ];
 
-// param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, kakaoNickname 카카오 닉네임(동의·규칙 맞을 때만), message 안내 문구, next 로그인 후 갈 경로
-export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, message, next }: { tradeOpen: boolean; kakaoOn: boolean; kakaoStep: boolean; kakaoNickname: string | null; message: string | null; next: string }) {
+// param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, kakaoNickname 카카오 닉네임(동의·규칙 맞을 때만), kakaoImage 카카오 프로필 사진(동의했을 때만), message 안내 문구, next 로그인 후 갈 경로
+export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, kakaoImage, message, next }: { tradeOpen: boolean; kakaoOn: boolean; kakaoStep: boolean; kakaoNickname: string | null; kakaoImage: string | null; message: string | null; next: string }) {
   const [nickname, setNickname] = useState("");
   const [useKakao, setUseKakao] = useState<boolean>(Boolean(kakaoNickname));
+  const [showPhoto, setShowPhoto] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
@@ -26,7 +27,7 @@ export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, messag
     const res = await fetch("/api/auth/kakao/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(useKakao && kakaoNickname ? { useKakao: true } : { nickname }),
+      body: JSON.stringify({ ...(useKakao && kakaoNickname ? { useKakao: true } : { nickname }), showPhoto }),
     });
     setPending(false);
     if (!res.ok) {
@@ -82,6 +83,14 @@ export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, messag
               <small className="field-hint">화면에 보이는 이름이에요. 같은 이름이 있어도 괜찮아요.</small>
             </label>
           )}
+          {kakaoImage && (
+            <label className="photo-choice">
+              <input type="checkbox" checked={showPhoto} onChange={(e) => setShowPhoto(e.target.checked)} />
+              {/* eslint-disable-next-line @next/next/no-img-element -- 카카오 사진 서버 주소를 그대로 쓴다 */}
+              <img src={kakaoImage} alt="" referrerPolicy="no-referrer" />
+              <span><strong>카카오 프로필 사진 쓰기</strong><small>내 상품·판매자 화면에 보여요. MY에서 언제든 숨길 수 있어요.</small></span>
+            </label>
+          )}
           <button className="primary-button" type="submit" disabled={pending}>{pending ? "시작하는 중…" : useKakao && kakaoNickname ? "카카오 닉네임으로 시작하기" : "이 닉네임으로 시작하기"}</button>
           {error && <p className="form-error" role="alert">{error}</p>}
         </form>
@@ -90,7 +99,7 @@ export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, messag
           {kakaoOn
             ? <KakaoButton href={`/api/auth/kakao/start?mode=login&next=${encodeURIComponent(next)}`} label="카카오로 로그인" />
             : <p className="form-error">카카오 로그인을 준비하고 있어요. 잠시 후 다시 시도해 주세요.</p>}
-          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호와, 동의하면 닉네임만 받아요. 이름·연락처는 받지 않아요. {tradeOpen ? "거래 돈은 판매자 계좌로 직접 보내고, 써보니 수수료는 0원이에요." : "지금은 테스트 기간이라 결제와 배송은 일어나지 않아요."}</p>
+          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호와, 동의하면 닉네임·프로필 사진만 받아요. 이름·연락처는 받지 않아요. {tradeOpen ? "거래 돈은 판매자 계좌로 직접 보내고, 써보니 수수료는 0원이에요." : "지금은 테스트 기간이라 결제와 배송은 일어나지 않아요."}</p>
           <p className="field-hint">예전에 닉네임으로 쓰던 계정이 있나요? 그 계정에 카카오를 연결했다면 카카오로 로그인하면 그대로 이어져요. 연결하지 않았다면 운영자에게 복구 링크를 요청해 주세요.</p>
         </div>
       )}

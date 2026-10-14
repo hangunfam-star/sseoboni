@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { cleanNickname, getCurrentUserId, readSignedValue, setSessionCookie, signValue } from "@/lib/session";
-import { KakaoError, kakaoUserId, linkKakao, PENDING_COOKIE, siteOrigin, STATE_COOKIE, STATE_MINUTES, userOfKakao, type KakaoPending, type KakaoState } from "@/lib/kakao";
+import { KakaoError, kakaoUserId, linkKakao, PENDING_COOKIE, saveKakaoImage, siteOrigin, STATE_COOKIE, STATE_MINUTES, userOfKakao, type KakaoPending, type KakaoState } from "@/lib/kakao";
 
 // GET /api/auth/kakao/callback?code=…&state=… — 카카오에서 돌아오는 곳.
 // 로그인: 연결된 계정이 있으면 그 계정으로 들어가고, 없으면 지금 들어와 있는 계정에 연결하거나 닉네임을 정해 새 계정을 만든다.
@@ -20,28 +20,32 @@ export async function GET(req: NextRequest) {
 
   let kakaoId: string;
   let kakaoNick: string | null = null;
-  try { const me = await kakaoUserId(code, origin); kakaoId = me.id; kakaoNick = me.nickname; }
+  let kakaoImage: string | null = null;
+  try { const me = await kakaoUserId(code, origin); kakaoId = me.id; kakaoNick = me.nickname; kakaoImage = me.image; }
   catch (e) { return fail(e instanceof KakaoError ? e.code : "token"); }
 
   const current = await getCurrentUserId();
   if (st.m === "link") {
     if (!current) return fail("need-login", "login");
     try { linkKakao(current, kakaoId); } catch (e) { return fail(e instanceof KakaoError ? e.code : "token"); }
+    saveKakaoImage(current, kakaoImage);
     return NextResponse.redirect(`${origin}/me/login?kakao=linked`);
   }
 
   const owner = userOfKakao(kakaoId);
   if (owner) {
+    saveKakaoImage(owner, kakaoImage);
     await setSessionCookie(owner);
     return NextResponse.redirect(`${origin}${st.n}`);
   }
   if (current) { // 닉네임으로 쓰던 계정에서 카카오로 시작하면 그 계정에 연결한다(상품·거래가 그대로 이어짐)
     try { linkKakao(current, kakaoId); } catch (e) { return fail(e instanceof KakaoError ? e.code : "token"); }
+    saveKakaoImage(current, kakaoImage);
     return NextResponse.redirect(`${origin}/me/login?kakao=linked`);
   }
   // 카카오 닉네임이 써보니 규칙(2~12자)에 맞을 때만 "그대로 쓰기" 선택지로 넘긴다
   const nick = cleanNickname(kakaoNick);
-  const pending: KakaoPending = { k: kakaoId, e: Date.now() + STATE_MINUTES * 60_000, ...(nick ? { n: nick } : {}) };
+  const pending: KakaoPending = { k: kakaoId, e: Date.now() + STATE_MINUTES * 60_000, ...(nick ? { n: nick } : {}), ...(kakaoImage ? { i: kakaoImage } : {}) };
   jar.set(PENDING_COOKIE, signValue(pending), { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production", maxAge: STATE_MINUTES * 60 });
   return NextResponse.redirect(`${origin}/login?step=kakao&next=${encodeURIComponent(st.n)}`);
 }

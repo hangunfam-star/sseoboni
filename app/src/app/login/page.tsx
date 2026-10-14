@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { KAKAO_MESSAGES, kakaoConfigured, PENDING_COOKIE, readPending, safeNext } from "@/lib/kakao";
+import { KAKAO_MESSAGES, kakaoConfigured, PENDING_COOKIE, readPending, safeNext, cleanKakaoImage } from "@/lib/kakao";
 import { LoginForm } from "./LoginForm";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 
@@ -12,5 +12,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const kakaoStep = step === "kakao" && pendingOk;
   const message = step === "kakao" && !pendingOk ? KAKAO_MESSAGES.expired : kakao ? KAKAO_MESSAGES[kakao] ?? null : null;
   const { tradeOpen } = await loadTradeSettings();
-  return <LoginForm tradeOpen={tradeOpen} kakaoOn={kakaoConfigured()} kakaoStep={kakaoStep} kakaoNickname={kakaoStep ? pending?.n ?? null : null} message={message} next={safeNext(next)} />;
+  return <LoginForm tradeOpen={tradeOpen} kakaoOn={kakaoConfigured()} kakaoStep={kakaoStep} kakaoNickname={kakaoStep ? pending?.n ?? null : null} kakaoImage={kakaoStep ? cleanKakaoImage(pending?.i) : null} message={message} next={safeNext(next)} />;
 }

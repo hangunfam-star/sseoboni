@@ -19,6 +19,8 @@ import { starSummary, trialReviewsByModel } from "@/lib/reviews";
 import { questionsFor } from "@/ui/trade-rules";
 import { sellerAccounts } from "@/db/schema";
 import { readSellerAccount } from "@/lib/seller-account";
+import { Avatar } from "@/components/Avatar";
+import { photoOf } from "@/lib/kakao";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { TryFlow } from "@/components/TryFlow";
@@ -228,7 +230,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           </section>
         )}
         <div className="seller-row">
-          <span className="seller-avatar" aria-hidden="true">{Array.from(sellerName)[0]}</span>
+          <Avatar name={sellerName} src={photoOf(seller)} />
           <Link className="seller-row__name" href={`/sellers/${listing.sellerId}`}><strong>{sellerName}</strong><small>판매 {grades.seller.name}{stars.asSeller ? ` · ★${stars.asSeller.avg} (${stars.asSeller.count})` : ""} · 판매 중 {sellerCount}개</small></Link>
           {!isOwner && listing.status === "ACTIVE" && <ChatStartButton listingId={id} label="채팅" className="seller-row__chat" />}
         </div>

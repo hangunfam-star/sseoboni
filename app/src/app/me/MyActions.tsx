@@ -53,6 +53,27 @@ export function LogoutButton({ kakaoLinked = false }: { kakaoLinked?: boolean })
 }
 
 // param: current 지금 닉네임. return: "닉네임 바꾸기" 버튼 → 입력·저장(Enter)·취소(Esc). 2~12자
+// param: shown 지금 프로필 사진을 보이는지. 카카오 프로필 사진 보이기/숨기기
+export function PhotoToggle({ shown }: { shown: boolean }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState(false);
+  const router = useRouter();
+  async function toggle() {
+    if (pending) return;
+    setPending(true); setError(false);
+    const res = await fetch("/api/profile-photo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: !shown }) }).catch(() => null);
+    setPending(false);
+    if (!res?.ok) { setError(true); return; }
+    router.refresh();
+  }
+  return (
+    <>
+      <button type="button" className="text-button nickname-edit__open photo-toggle" onClick={toggle} disabled={pending}>{shown ? "프로필 사진 숨기기" : "카카오 프로필 사진 보이기"}</button>
+      {error && <p className="form-error" role="alert">바꾸지 못했어요. 다시 시도해 주세요.</p>}
+    </>
+  );
+}
+
 export function NicknameEditor({ current }: { current: string }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(current);

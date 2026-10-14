@@ -1,9 +1,12 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { allowCreate, cleanNickname, createUser, NICKNAME_MAX, NICKNAME_MIN, readSignedValue, setSessionCookie } from "@/lib/session";
-import { KakaoError, linkKakao, PENDING_COOKIE, userOfKakao, type KakaoPending } from "@/lib/kakao";
+import { cleanKakaoImage, KakaoError, linkKakao, PENDING_COOKIE, userOfKakao, type KakaoPending } from "@/lib/kakao";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-// POST /api/auth/kakao/complete { useKakao: true } | { nickname } — 카카오 확인을 마친 새 사용자가 카카오 닉네임을 그대로 쓰거나 써보니 닉네임을 만들면 계정을 만들고 카카오를 연결한다.
+// POST /api/auth/kakao/complete { useKakao: true } | { nickname }, showPhoto?(기본 true) — 카카오 확인을 마친 새 사용자가 카카오 닉네임을 그대로 쓰거나 써보니 닉네임을 만들면 계정을 만들고 카카오를 연결한다.
 export async function POST(req: NextRequest) {
   const jar = await cookies();
   const pending = readSignedValue<KakaoPending>(jar.get(PENDING_COOKIE)?.value);
@@ -24,6 +27,7 @@ export async function POST(req: NextRequest) {
   const user = createUser(nickname);
   try { linkKakao(user.id, pending.k); }
   catch (e) { return NextResponse.json({ error: "카카오 연결에 실패했어요. 다시 시도해 주세요.", code: e instanceof KakaoError ? e.code : "link" }, { status: 409 }); }
+  db.update(users).set({ kakaoImageUrl: cleanKakaoImage(pending.i), showPhoto: body?.showPhoto !== false }).where(eq(users.id, user.id)).run();
   jar.delete(PENDING_COOKIE);
   await setSessionCookie(user.id);
   return NextResponse.json({ created: true }, { status: 201 });
