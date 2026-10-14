@@ -70,9 +70,16 @@ export async function enablePush(): Promise<"on" | "denied" | "unsupported" | "e
   const info = await fetch("/api/push").then((x) => x.json()).catch(() => null);
   if (!info?.publicKey) return "error";
   try {
+    const key = keyBytes(info.publicKey);
+    const post = (s: PushSubscription) => fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s.toJSON()) });
     let sub = await reg.pushManager.getSubscription();
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(info.publicKey) });
-    const res = await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sub.toJSON()) });
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    let res = await post(sub);
+    if (res.status === 409) { // 이 기기 구독이 다른 계정 것이면 구독을 새로 만들어 지금 계정으로 등록
+      await sub.unsubscribe().catch(() => undefined);
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+      res = await post(sub);
+    }
     return res.ok ? "on" : "error";
   } catch {
     return "error";

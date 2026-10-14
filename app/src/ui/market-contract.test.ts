@@ -24,11 +24,12 @@ test("카카오로 로그인하고 닉네임은 그 뒤에 고른다(닉네임�
   assert.match(session, /timingSafeEqual/);
   assert.doesNotMatch(session, /invites/);
   const api = read("src/app/api/session/route.ts");
-  assert.match(api, /ALLOW_NICKNAME_LOGIN !== "1"/); // 닉네임만으로 새 계정은 막는다(격리 시험 서버만 예외)
+  assert.match(api, /NODE_ENV === "production" \|\| process\.env\.ALLOW_NICKNAME_LOGIN !== "1"/); // 운영은 항상 막음 // 닉네임만으로 새 계정은 막는다(격리 시험 서버만 예외)
   assert.doesNotMatch(api, /where\(eq\(users\.nickname/);
   const login = read("src/app/login/LoginForm.tsx"); // 화면 본문(page.tsx는 카카오 상태만 넘기는 서버 쪽)
   assert.match(login, /사기 전에, 써보니/);
-  assert.match(login, /결제와 배송은 일어나지 않아요/);
+  assert.match(login, /결제와 배송은 일어나지 않아요/); // 거래 닫힘일 때
+  assert.match(login, /tradeOpen \?/); // 거래 열림이면 직접 입금·수수료 0원 안내
   assert.match(login, /KakaoButton/);
   assert.match(login, /useKakao: true/); // 카카오 닉네임 그대로 쓰기 / 써보니 닉네임 만들기
   assert.match(login, /disabled=\{pending\}/);

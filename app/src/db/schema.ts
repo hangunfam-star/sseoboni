@@ -380,3 +380,10 @@ export const notificationPrefs = sqliteTable("notification_prefs", {
   quiet: integer("quiet", { mode: "boolean" }).notNull().default(true), // 밤 10시~아침 8시 휴대폰 알림 미룸(거래 제외)
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
 });
+
+// 예전 주소 로그인 이어받기 표(carry)의 1회용 번호. 해시만 저장하고, 처음 넣는 데 성공한 요청만 쓴다(재시작·여러 인스턴스에도 한 번만).
+export const carryNonces = sqliteTable("carry_nonces", {
+  nonceHash: text("nonce_hash").primaryKey(),
+  expiresAt: integer("expires_at").notNull(), // ms
+  usedAt: text("used_at").notNull().default(sql`(current_timestamp)`),
+});

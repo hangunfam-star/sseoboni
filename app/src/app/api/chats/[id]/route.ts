@@ -51,7 +51,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // 상대에게 채팅 알림(같은 방 안 읽은 알림이 5분 안에 있으면 내용만 바꿈)
     const other = t.role === "buyer" ? t.thread.sellerId : t.thread.buyerId;
     const me = tx.select({ nickname: users.nickname }).from(users).where(eq(users.id, userId)).get()?.nickname ?? "상대";
-    notifyTx(tx, other, { category: "CHAT", title: `${me} · ${listing?.title ?? "채팅"}`, body: text.length > 80 ? `${text.slice(0, 80)}…` : text, url: `/chats/${id}` });
+    // 알림·잠금 화면에는 메시지 원문을 싣지 않는다(주소 등 민감한 내용 노출 방지) — 내용은 채팅방에서만
+    notifyTx(tx, other, { category: "CHAT", title: `새 채팅 · ${listing?.title ?? "채팅"}`, body: `${me}님이 메시지를 보냈어요.`, url: `/chats/${id}` });
     tx.insert(marketValidationEvents).values({ eventType: "CHAT_MESSAGE_SENT", listingId: t.thread.listingId, modelId: listing?.modelId, userId, metadata: JSON.stringify({ threadId: id, role: t.role, length: text.length }) }).run();
     return msg;
   });

@@ -9,6 +9,7 @@ import { MissionCard } from "@/components/MissionCard";
 import { CompareBlock } from "@/components/CompareBlock";
 import { DemoTrialStories } from "@/components/DemoTrialStories";
 import { DEMO_UNTIL_REAL } from "@/content/demo-trial";
+import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { ProductCard, ProductRow } from "@/components/ProductCard";
 import { listCards, modelDemand, PAGE_SIZE } from "@/lib/queries";
 import { demandLabel } from "@/ui/presentation";
@@ -101,6 +102,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   const trial = await section(true, trialPages);
+  const { tradeOpen } = await loadTradeSettings();
   // 실제 써보기 완료가 기준 이상 쌓이면 예시 "써보기 이야기"를 내린다
   const realTrials = db.get<{ n: number }>(sql`select count(*) as n from orders where kind = 'TRIAL' and status in ('PURCHASED', 'RETURNED')`)?.n ?? 0;
   const used = await section(false, pages);
@@ -111,8 +113,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       </header>
       <HomeStory />
       <MissionCard tag="베타테스터 미션" title={<>마음에 드는 상품에서<br /><em>‘써보고 싶어요’</em>를 눌러 주세요</>}>
-        <TryFlow label="써보기 흐름 (준비 중)" />
-        <p>써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요.</p>
+        <TryFlow label={tradeOpen ? "써보기 흐름" : "써보기 흐름 (준비 중)"} />
+        <p>{tradeOpen
+          ? "구매·써보기 신청을 받고 있어요. 돈은 판매자 계좌로 직접 보내고 판매자가 직접 보내요. 써보니 수수료는 0원이에요. 써보기 조건이 없는 상품은 ‘써보고 싶어요’로 의견을 남겨 주세요."
+          : "써보기는 아직 준비 중이에요. 모인 의견으로 어떤 상품부터 써보기를 열지 정해요. 결제와 배송은 일어나지 않아요."}</p>
         <Link className="try-hero__link" href="/feedback">망설여진다면 이유를 알려 주세요 →</Link>
       </MissionCard>
       <CompareBlock />

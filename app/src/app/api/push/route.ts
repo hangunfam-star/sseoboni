@@ -27,8 +27,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "알림 구독 정보가 올바르지 않아요." }, { status: 400 });
   }
   const userAgent = (req.headers.get("user-agent") ?? "").slice(0, 200);
-  db.insert(pushSubscriptions).values({ endpoint, userId, p256dh, auth, userAgent })
-    .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: { userId, p256dh, auth, userAgent, failCount: 0 } }).run();
+  const owner = db.select({ userId: pushSubscriptions.userId }).from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint)).get();
+  if (owner && owner.userId !== userId) {
+    return NextResponse.json({ error: "이 기기는 다른 계정의 알림으로 등록돼 있어요.", code: "taken" }, { status: 409 });
+  }
+  // 동시에 다른 계정이 같은 기기를 등록해도 덮어쓰지 않게: 소유자가 같을 때만 갱신(바뀐 행 0이면 거부)
+  const r = db.insert(pushSubscriptions).values({ endpoint, userId, p256dh, auth, userAgent })
+    .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: { p256dh, auth, userAgent, failCount: 0 }, setWhere: eq(pushSubscriptions.userId, userId) }).run();
+  if (r.changes === 0) return NextResponse.json({ error: "이 기기는 다른 계정의 알림으로 등록돼 있어요.", code: "taken" }, { status: 409 });
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 

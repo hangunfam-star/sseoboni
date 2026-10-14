@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ user, created: false });
   }
 
-  if (process.env.ALLOW_NICKNAME_LOGIN !== "1") {
+  // 시험 예외는 개발 서버에서만(운영 빌드는 환경 변수가 잘못 들어가도 항상 403)
+  if (process.env.NODE_ENV === "production" || process.env.ALLOW_NICKNAME_LOGIN !== "1") {
     return NextResponse.json({ error: "카카오로 로그인해 주세요." }, { status: 403 });
   }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";

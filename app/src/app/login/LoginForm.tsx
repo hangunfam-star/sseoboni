@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 // param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, kakaoNickname 카카오 닉네임(동의·규칙 맞을 때만), message 안내 문구, next 로그인 후 갈 경로
-export function LoginForm({ kakaoOn, kakaoStep, kakaoNickname, message, next }: { kakaoOn: boolean; kakaoStep: boolean; kakaoNickname: string | null; message: string | null; next: string }) {
+export function LoginForm({ tradeOpen, kakaoOn, kakaoStep, kakaoNickname, message, next }: { tradeOpen: boolean; kakaoOn: boolean; kakaoStep: boolean; kakaoNickname: string | null; message: string | null; next: string }) {
   const [nickname, setNickname] = useState("");
   const [useKakao, setUseKakao] = useState<boolean>(Boolean(kakaoNickname));
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,7 @@ export function LoginForm({ kakaoOn, kakaoStep, kakaoNickname, message, next }: 
           {kakaoOn
             ? <KakaoButton href={`/api/auth/kakao/start?mode=login&next=${encodeURIComponent(next)}`} label="카카오로 로그인" />
             : <p className="form-error">카카오 로그인을 준비하고 있어요. 잠시 후 다시 시도해 주세요.</p>}
-          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호와, 동의하면 닉네임만 받아요. 이름·연락처는 받지 않아요. 지금은 테스트 기간이라 결제와 배송은 일어나지 않아요.</p>
+          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호와, 동의하면 닉네임만 받아요. 이름·연락처는 받지 않아요. {tradeOpen ? "거래 돈은 판매자 계좌로 직접 보내고, 써보니 수수료는 0원이에요." : "지금은 테스트 기간이라 결제와 배송은 일어나지 않아요."}</p>
           <p className="field-hint">예전에 닉네임으로 쓰던 계정이 있나요? 그 계정에 카카오를 연결했다면 카카오로 로그인하면 그대로 이어져요. 연결하지 않았다면 운영자에게 복구 링크를 요청해 주세요.</p>
         </div>
       )}

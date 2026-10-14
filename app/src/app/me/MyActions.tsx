@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { disablePush } from "@/ui/pwa";
 
 // param: id 상품 id, status 현재 상태. return: 상태에 맞는 숨기기·판매완료·다시 올리기 버튼
 export function ListingStatusActions({ id, status }: { id: string; status: string }) {
@@ -43,6 +44,7 @@ export function LogoutButton({ kakaoLinked = false }: { kakaoLinked?: boolean })
   const router = useRouter();
   async function logout() {
     if (!confirm(kakaoLinked ? "로그아웃할까요? 카카오로 시작하면 지금 계정에 다시 들어올 수 있어요." : "로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 계속할까요?")) return;
+    await disablePush().catch(() => undefined); // 이 기기 알림은 로그아웃한 계정으로 더 오지 않게
     await fetch("/api/session", { method: "DELETE" });
     router.push("/login");
     router.refresh();

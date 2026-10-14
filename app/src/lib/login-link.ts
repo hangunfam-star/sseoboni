@@ -2,9 +2,9 @@
 // 링크 원문은 DB에 두지 않고 해시만 저장한다. 링크를 여는 것(GET)만으로는 쓰이지 않고, 화면의 버튼(POST)을 눌러야 쓰인다
 // — 카카오톡 미리보기 로봇이 링크를 먼저 열어도 링크가 소모되지 않게.
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { db } from "@/db/client";
-import { loginLinks, users } from "@/db/schema";
+import { carryNonces, loginLinks, users } from "@/db/schema";
 import { readSignedValue } from "@/lib/session";
 
 export const LINK_HOURS = 24;
@@ -44,19 +44,17 @@ export function consumeLoginLink(token: string): string | null {
   return user?.status === "ACTIVE" ? row.userId : null;
 }
 
-// 예전 주소 넘겨받기 표: { k: "carry", u: 계정, e: 만료(ms), n: 1회용 번호 }. 같은 번호는 서버가 켜져 있는 동안 한 번만 받는다.
+// 예전 주소 넘겨받기 표: { k: "carry", u: 계정, e: 만료(ms), n: 1회용 번호 }. 같은 번호는 DB에 기록해 한 번만 받는다.
 type Carry = { k: string; u: string; e: number; n: string };
-const g = globalThis as typeof globalThis & { __sseoboniCarryNonces?: Map<string, number> };
-const usedCarry = (g.__sseoboniCarryNonces ??= new Map<string, number>());
 
 // param: raw 표 문자열. return: 유효하면 계정 id, 아니면 null
 export function readCarry(raw: string | null): string | null {
   const c = readSignedValue<Carry>(raw ?? undefined);
   const now = Date.now();
   if (!c || c.k !== "carry" || typeof c.u !== "string" || typeof c.n !== "string" || !(c.e > now) || c.e > now + 5 * 60_000) return null;
-  for (const [n, e] of usedCarry) if (e < now) usedCarry.delete(n);
-  if (usedCarry.has(c.n)) return null;
-  usedCarry.set(c.n, c.e);
+  db.delete(carryNonces).where(lt(carryNonces.expiresAt, now)).run(); // 지난 기록 정리
+  const first = db.insert(carryNonces).values({ nonceHash: hash(`carry:${c.n}`), expiresAt: c.e }).onConflictDoNothing().run().changes === 1;
+  if (!first) return null; // 이미 쓴 표
   const user = db.select({ status: users.status }).from(users).where(eq(users.id, c.u)).get();
   return user?.status === "ACTIVE" ? c.u : null;
 }

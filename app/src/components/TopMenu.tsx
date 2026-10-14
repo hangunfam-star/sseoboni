@@ -27,7 +27,7 @@ const ITEMS: { href: string; label: string; icon: keyof typeof ICON }[] = [
 
 // param: showAdmin 이 PC에서 직접 연 경우(localhost) true — 운영자 결과 링크를 보여 준다.
 // return: 오른쪽 위 햄버거 버튼과 오른쪽에서 열리는 메뉴
-export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
+export function TopMenu({ showAdmin, tradeOpen = false }: { showAdmin: boolean; tradeOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [alerts, setAlerts] = useState(0);
@@ -115,7 +115,7 @@ export function TopMenu({ showAdmin }: { showAdmin: boolean }) {
                 ))}
               </ul>
             </nav>
-            <p className="top-menu__note">테스트 기간이에요. 결제와 배송은 일어나지 않아요.</p>
+            <p className="top-menu__note">{tradeOpen ? "베타 기간이에요. 거래 돈은 판매자에게 직접 보내고, 써보니 수수료는 0원이에요." : "테스트 기간이에요. 결제와 배송은 일어나지 않아요."}</p>
           </div>
         </div>
       )}

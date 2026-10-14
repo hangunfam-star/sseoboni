@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AppShell } from "@/components/AppShell";
+import { loadTradeSettings } from "@/lib/trade-settings-store";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -60,7 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <small className="splash__note">AI로 만든 연출 이미지</small>
           </div>
         </div>
-        <AppShell isLocal={isLocal}>{children}</AppShell>
+        <AppShell isLocal={isLocal} tradeOpen={(await loadTradeSettings()).tradeOpen}>{children}</AppShell>
       </body>
     </html>
   );
