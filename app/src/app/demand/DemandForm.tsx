@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SELL_CATEGORIES } from "@/ui/categories";
-
-const CUSTOM = "__custom__"; // 모델 목록에 없을 때 직접 입력
+import { CUSTOM_MODEL as CUSTOM, ModelPicker } from "@/components/ModelPicker";
 
 const INTENTS = [
   { value: "LOOKING_TO_BUY", label: "바로 사고 싶어요" },
@@ -12,11 +11,12 @@ const INTENTS = [
 ] as const;
 
 export function DemandForm({ models, initialModelId }: { models: { id: string; label: string }[]; initialModelId: string }) {
-  const [modelId, setModelId] = useState(models.some((m) => m.id === initialModelId) ? initialModelId : "");
+  const initial = models.find((m) => m.id === initialModelId);
+  const [modelId, setModelId] = useState(initial?.id ?? "");
   const [intentType, setIntentType] = useState<string>("LOOKING_TO_BUY");
   const [customCategory, setCustomCategory] = useState("");
   const [customBrand, setCustomBrand] = useState("");
-  const [customModelName, setCustomModelName] = useState("");
+  const [customModelName, setCustomModelName] = useState(initial?.label ?? ""); // 입력칸 글자(목록에 없으면 그대로 모델명)
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -58,11 +58,7 @@ export function DemandForm({ models, initialModelId }: { models: { id: string; l
     <form className="demand-form" onSubmit={handleSubmit}>
       <label className="field">
         <span>모델</span>
-        <select value={modelId} onChange={(e) => setModelId(e.target.value)} required>
-          <option value="">모델을 선택하세요</option>
-          {models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-          <option value={CUSTOM}>목록에 없어요 · 직접 입력</option>
-        </select>
+        <ModelPicker models={models} text={customModelName} modelId={modelId} onChange={(v) => { setCustomModelName(v.text); setModelId(v.modelId); }} />
       </label>
       {isCustom && (
         <>
@@ -76,11 +72,6 @@ export function DemandForm({ models, initialModelId }: { models: { id: string; l
           <label className="field">
             <span>브랜드</span>
             <input value={customBrand} onChange={(e) => setCustomBrand(e.target.value)} placeholder="예: 애플, 소니" maxLength={30} required />
-          </label>
-          <label className="field">
-            <span>모델명</span>
-            <input value={customModelName} onChange={(e) => setCustomModelName(e.target.value)} placeholder="예: 아이패드 에어 5세대" maxLength={60} required />
-            <small className="field-hint">같은 모델이 이미 있으면 그 모델로 함께 묶여요.</small>
           </label>
         </>
       )}

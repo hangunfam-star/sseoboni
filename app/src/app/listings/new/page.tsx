@@ -6,13 +6,13 @@ import { priceProblem } from "@/ui/listing-price";
 import { CONDITION_GRADES, conditionLabel, demandLabel } from "@/ui/presentation";
 import { SELL_CATEGORIES } from "@/ui/categories";
 import { ComponentPicker } from "@/components/ComponentPicker";
+import { CUSTOM_MODEL as CUSTOM, ModelPicker } from "@/components/ModelPicker";
 import { EMPTY_TERMS, TrialTermsFields, termsPayload, type TermsDraft } from "@/components/TrialTermsFields";
 
 type ProductModel = { id: string; brand: string; modelName: string; seekers: number };
 
 const MAX_PHOTOS = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
-const CUSTOM = "__custom__"; // 모델 목록에 없을 때 직접 입력
 
 const TRY_OPTIONS = [
   { value: "YES", label: "써보기 허용" },
@@ -130,11 +130,8 @@ export default function NewListingPage() {
 
         <label className="field">
           <span>모델</span>
-          <select value={modelId} onChange={(e) => setModelId(e.target.value)} required>
-            <option value="">모델을 선택하세요</option>
-            {models.map((m) => <option key={m.id} value={m.id}>{m.brand} {m.modelName}</option>)}
-            <option value={CUSTOM}>목록에 없어요 · 직접 입력</option>
-          </select>
+          <ModelPicker models={models.map((m) => ({ id: m.id, label: `${m.brand} ${m.modelName}` }))} text={customModelName} modelId={modelId}
+            onChange={(v) => { setCustomModelName(v.text); setModelId(v.modelId); }} />
         </label>
           {hint && <p className="hint-chip">{hint}</p>}
 
@@ -150,11 +147,6 @@ export default function NewListingPage() {
             <label className="field">
               <span>브랜드</span>
               <input value={customBrand} onChange={(e) => setCustomBrand(e.target.value)} placeholder="예: 소니, 조이트론, 브랜드 없음" maxLength={30} required />
-            </label>
-            <label className="field">
-              <span>모델명</span>
-              <input value={customModelName} onChange={(e) => setCustomModelName(e.target.value)} placeholder="예: MDR-7506" maxLength={60} required />
-              <small className="field-hint">같은 모델이 이미 있으면 그 모델로 함께 묶여요.</small>
             </label>
           </>
         )}
