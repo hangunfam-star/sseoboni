@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "판매 정산 내역 · 써보니", 
 // 판매자 정산 내역 — 돈은 구매자에게 직접 받으므로, 여기서는 받은 금액·수수료(베타 0%)·정식이었다면 수수료를 기록으로 보여 준다.
 export default async function SettlementPage() {
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="wallet" />판매 정산 내역</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="wallet" />판매 정산 내역</h1><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   const rows = await db.select().from(orders).where(and(eq(orders.sellerId, userId), inArray(orders.status, ["PURCHASED", "RETURNED"]))).orderBy(desc(orders.completedAt)).limit(500);
   const items = rows.map((o) => {
     const received = o.status === "PURCHASED" ? o.price + o.shippingFee : (o.trialFee ?? 0) + o.shippingFee; // 반납: 체험료 + 발송비만 남는다

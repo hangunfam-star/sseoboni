@@ -18,7 +18,7 @@ export default async function MyReviewsPage({ searchParams }: { searchParams: Pr
   const { tab: raw } = await searchParams;
   const tab = TABS.find((t) => t.key === raw)?.key ?? "received";
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="star" />내 후기</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="star" />내 후기</h1><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   const received = tab === "received" ? await receivedReviews(userId) : [];
   const sent = tab === "sent" ? await sentReviews(userId) : [];
   const trialMine = tab === "trial" ? await trialReviewsOf(userId, "writer") : [];

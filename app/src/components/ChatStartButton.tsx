@@ -16,7 +16,7 @@ export function ChatStartButton({ listingId, label = "판매자와 채팅", clas
     const res = await fetch("/api/chats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listingId }) });
     const d = await res.json().catch(() => ({}));
     setPending(false);
-    if (!res.ok) { setError(res.status === 401 ? "닉네임을 정하고 시작하면 채팅할 수 있어요." : d.error ?? "채팅을 열지 못했어요."); return; }
+    if (!res.ok) { setError(res.status === 401 ? "카카오로 로그인하면 채팅할 수 있어요." : d.error ?? "채팅을 열지 못했어요."); return; }
     router.push(`/chats/${d.threadId}`);
   }
 

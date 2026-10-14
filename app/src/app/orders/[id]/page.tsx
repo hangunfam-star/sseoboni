@@ -39,7 +39,7 @@ const WHO: Record<string, string> = { buyer: "구매자", seller: "판매자", s
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   const v = await orderView(id, userId);
   if (!v || !v.role) notFound();
   markNotificationsRead(userId, `/orders/${id}`); // 이 거래 알림은 읽음

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 // POST /api/orders { listingId, kind: BUY|TRIAL, hours?, proposalId?, questions?, shipTo } — 구매·써보기 신청
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "먼저 카카오로 로그인해 주세요." }, { status: 401 });
   const body = await req.json().catch(() => null);
   if (!body || typeof body.listingId !== "string") return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
   try {

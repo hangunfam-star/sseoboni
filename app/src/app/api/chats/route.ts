@@ -15,7 +15,7 @@ export async function GET() {
 // POST /api/chats { listingId } — 구매자가 판매자에게 말 걸기. 있으면 기존 채팅방을 돌려준다(상품·구매자당 1개).
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "닉네임을 정하고 시작하면 채팅할 수 있어요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "카카오로 로그인하면 채팅할 수 있어요." }, { status: 401 });
   const body = await req.json().catch(() => null);
   const listingId = typeof body?.listingId === "string" ? body.listingId : "";
   const listing = listingId ? await db.query.listings.findFirst({ where: eq(listings.id, listingId) }) : undefined;

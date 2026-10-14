@@ -58,7 +58,7 @@ export function ProposalSheet({ listingId, price, terms, sellerNo, mine, onClose
     });
     const d = await res.json().catch(() => ({}));
     setPending(false);
-    if (!res.ok) { setNotice({ ok: false, text: res.status === 401 ? "닉네임을 정하고 시작하면 제안할 수 있어요." : d.error ?? "보내지 못했어요." }); return; }
+    if (!res.ok) { setNotice({ ok: false, text: res.status === 401 ? "카카오로 로그인하면 제안할 수 있어요." : d.error ?? "보내지 못했어요." }); return; }
     setCurrent({ id: d.proposal.id, hours: d.proposal.hours, offerFee: d.proposal.offerFee, status: "PENDING", sellerReply: null });
     setNotice({ ok: true, text: "제안을 보냈어요. 판매자가 답하면 MY에서 확인할 수 있어요." });
   }

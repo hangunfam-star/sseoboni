@@ -38,7 +38,7 @@ export function TrialCostSheet({ listingId, price, terms, shippingFee, tradeOpen
     setNotice(null);
     const res = await send(action);
     setPending(false);
-    if (res.status === 401) { setNotice("닉네임을 정하고 시작하면 의견을 남길 수 있어요."); return; }
+    if (res.status === 401) { setNotice("카카오로 로그인하면 의견을 남길 수 있어요."); return; }
     if (!res.ok) { setNotice("지금은 기록하지 못했어요. 잠시 후 다시 눌러 주세요."); return; }
     setChosen(action);
     setNotice(action === "STILL_TRY"

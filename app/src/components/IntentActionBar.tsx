@@ -46,7 +46,7 @@ export function IntentActionBar({ listingId, wished, priceLabel, initial, price,
     setNotice(null);
     const res = await fetch("/api/intents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listingId, kind }) });
     setPending(null);
-    if (res.status === 401) { setNotice("닉네임을 정하고 시작하면 이용할 수 있어요."); return false; }
+    if (res.status === 401) { setNotice("카카오로 로그인하면 이용할 수 있어요."); return false; }
     if (!res.ok) { setNotice("지금은 기록하지 못했어요. 잠시 후 다시 눌러 주세요."); return false; }
     setDone((d) => ({ ...d, [kind]: true }));
     return true;

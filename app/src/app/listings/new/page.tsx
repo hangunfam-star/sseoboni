@@ -85,7 +85,7 @@ export default function NewListingPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setPending(false);
-      setError(res.status === 401 ? "닉네임을 정하고 시작한 뒤 등록할 수 있어요." : data.error ?? "등록에 실패했습니다.");
+      setError(res.status === 401 ? "카카오로 로그인한 뒤 등록할 수 있어요." : data.error ?? "등록에 실패했습니다.");
       return;
     }
     if (photos.length > 0) {

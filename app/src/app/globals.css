@@ -1372,3 +1372,10 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .compare-row b { flex: none; width: 54px; font-size: 12px; color: #6b6f78; }
 .compare-row--after { color: #111; font-weight: 600; }
 .compare-row--after b { color: #E8553E; }
+
+/* MY 닉네임 바꾸기(2026-10-14) */
+.nickname-edit__open { font-size: 13px; padding: 0; min-height: 28px; }
+.nickname-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; }
+.nickname-edit input { flex: 1 1 140px; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--w-divider); font: inherit; }
+.nickname-edit .primary-button { height: 40px; padding: 0 16px; }
+.nickname-edit .form-error { flex-basis: 100%; margin: 0; }

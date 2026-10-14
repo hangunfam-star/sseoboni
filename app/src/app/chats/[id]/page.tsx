@@ -16,7 +16,7 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const userId = await getCurrentUserId();
   if (!userId) {
-    return <div className="page"><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+    return <div className="page"><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   }
   const t = await threadFor(id, userId);
   if (!t) notFound();

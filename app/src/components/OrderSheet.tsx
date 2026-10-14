@@ -69,7 +69,7 @@ export function OrderSheet(p: OrderSheetProps) {
     });
     const d = await res.json().catch(() => ({}));
     setPending(false);
-    if (res.status === 401) { setError("닉네임을 정하고 시작하면 신청할 수 있어요."); return; }
+    if (res.status === 401) { setError("카카오로 로그인하면 신청할 수 있어요."); return; }
     if (!res.ok) { setError(d.error ?? "신청하지 못했어요."); return; }
     router.push(`/orders/${d.orderId}`);
   }

@@ -41,11 +41,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ listings: rows });
 }
 
-// POST /api/listings — 상품 등록 (P0 필수). 판매자 세션(닉네임으로 시작) 필요.
+// POST /api/listings — 상품 등록 (P0 필수). 판매자 세션(카카오 로그인) 필요.
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+    return NextResponse.json({ error: "먼저 카카오로 로그인해 주세요." }, { status: 401 });
   }
 
   const body = await req.json().catch(() => null);

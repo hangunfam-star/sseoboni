@@ -21,8 +21,8 @@ export async function GET() {
   return NextResponse.json({ user });
 }
 
-// POST /api/session { nickname } — 링크를 받은 누구나 닉네임만으로 시작.
-// 이미 세션이 있으면 새 계정을 만들지 않고 닉네임만 바꾼다(같은 사람의 계정 중복 방지).
+// POST /api/session { nickname } — 로그인한 사람의 닉네임 바꾸기.
+// 새 계정은 카카오 로그인으로만 만든다(2026-10-14). 격리 시험 서버에서만 ALLOW_NICKNAME_LOGIN=1이면 닉네임으로 새 계정을 만든다.
 export async function POST(req: NextRequest) {
   if (!sessionConfigured()) {
     return NextResponse.json({ error: "서버 로그인 설정이 완료되지 않았습니다." }, { status: 503 });
@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ user, created: false });
   }
 
+  if (process.env.ALLOW_NICKNAME_LOGIN !== "1") {
+    return NextResponse.json({ error: "카카오로 로그인해 주세요." }, { status: 403 });
+  }
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (!allowCreate(ip, Date.now())) {
     return NextResponse.json({ error: "잠시 후 다시 시도해 주세요." }, { status: 429 });

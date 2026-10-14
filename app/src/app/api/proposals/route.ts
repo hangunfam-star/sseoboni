@@ -13,7 +13,7 @@ const DAILY_MAX = 10; // 한 사람이 하루에 보낼 수 있는 제안 수
 // 판매자가 "바로 판매만"을 골랐어도 제안은 받는다(사용자 결정 2026-10-08). 결제·배송은 없다.
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "닉네임을 정하고 시작하면 제안할 수 있어요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "카카오로 로그인하면 제안할 수 있어요." }, { status: 401 });
   const body = await req.json().catch(() => null);
   const listingId = typeof body?.listingId === "string" ? body.listingId : "";
   const listing = listingId ? await db.query.listings.findFirst({ where: eq(listings.id, listingId) }) : undefined;

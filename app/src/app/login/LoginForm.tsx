@@ -3,15 +3,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KakaoButton } from "@/components/KakaoButton";
 
-// Gate 0 테스터 시작 화면 — 링크를 받은 누구나 닉네임만 정하면 참여한다.
-// 서버가 무작위 계정을 만들어 서명 쿠키로 유지하며, 실명·휴대폰 인증은 Gate 1/2 이후에 구현한다.
+// 시작 화면 — 카카오로 로그인(2026-10-14부터 닉네임만으로 시작하기는 없앰). 처음 온 사람은 카카오 확인 뒤 닉네임을 정한다.
 const STEPS = [
   { n: "1", title: "고르기", text: "판매자가 올린 중고 제품을 둘러봐요", tone: "navy" },
   { n: "2", title: "써보기", text: "사기 전에 직접 써봐요 · 준비 중", tone: "coral" },
   { n: "3", title: "결정하기", text: "마음에 들면 사고, 아니면 돌려보내요", tone: "yellow" },
 ];
 
-// param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, message 안내 문구, next 시작 후 갈 경로
+// param: kakaoOn 카카오 키 설정 여부, kakaoStep 카카오 확인을 마치고 닉네임만 남은 상태, message 안내 문구, next 로그인 후 갈 경로
 export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: boolean; kakaoStep: boolean; message: string | null; next: string }) {
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +22,7 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
     if (pending) return;
     setError(null);
     setPending(true);
-    const res = await fetch(kakaoStep ? "/api/auth/kakao/complete" : "/api/session", {
+    const res = await fetch("/api/auth/kakao/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nickname }),
@@ -34,7 +33,7 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
       setError(data.error ?? "시작하지 못했어요. 다시 시도해 주세요.");
       return;
     }
-    router.push(kakaoStep ? next : "/");
+    router.push(next);
     router.refresh();
   }
 
@@ -59,27 +58,26 @@ export function LoginForm({ kakaoOn, kakaoStep, message, next }: { kakaoOn: bool
         <p>여러분이 누른 의견으로 어떤 상품부터 써보기를 열지 정해요. 찾는 물건이 없으면 ‘찾는 상품’으로 남겨 주세요.</p>
       </section>
       {message && <p className={kakaoStep ? "login-message" : "login-message login-message--warn"} role="status">{message}</p>}
-      <form className="login-card" onSubmit={handleSubmit}>
-        {kakaoStep ? (
-          <p className="validation-notice">카카오 확인을 마쳤어요. 써보니에서 쓸 닉네임만 정하면 바로 시작해요.</p>
-        ) : (
-          <>
-            {kakaoOn && <KakaoButton href={`/api/auth/kakao/start?mode=login&next=${encodeURIComponent(next)}`} label="카카오로 시작하기" />}
-            {kakaoOn && <p className="login-or"><span>또는 닉네임으로 시작</span></p>}
-            <p className="validation-notice">지금은 링크를 받은 누구나 참여할 수 있는 테스트 기간이에요. 결제와 배송은 일어나지 않아요.{kakaoOn ? " 닉네임으로 시작하면 이 기기에서만 들어올 수 있어요." : ""}</p>
-          </>
-        )}
-        <label className="field">
-          <span>닉네임</span>
-          <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="2~12자 (예: 맥북찾는중)" maxLength={12} autoComplete="nickname" />
-          <small className="field-hint">화면에 보이는 이름이에요. 같은 이름이 있어도 괜찮아요.</small>
-        </label>
-        <button className="primary-button" type="submit" disabled={pending}>
-          {pending ? "시작하는 중…" : "닉네임 정하고 시작하기"}
-        </button>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {!kakaoStep && <p className="field-hint">예전에 쓰던 계정이 있나요? 닉네임을 다시 입력하면 새 계정이 만들어져요. 예전 링크를 쓰던 브라우저에서 다시 누르거나 운영자에게 복구 링크를 요청해 주세요.</p>}
-      </form>
+      {kakaoStep ? (
+        <form className="login-card" onSubmit={handleSubmit}>
+          <p className="validation-notice">카카오 로그인을 마쳤어요. 써보니에서 쓸 닉네임을 정해 주세요. 닉네임은 나중에 MY에서 바꿀 수 있어요.</p>
+          <label className="field">
+            <span>닉네임</span>
+            <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="2~12자 (예: 맥북찾는중)" maxLength={12} autoComplete="nickname" autoFocus />
+            <small className="field-hint">화면에 보이는 이름이에요. 같은 이름이 있어도 괜찮아요.</small>
+          </label>
+          <button className="primary-button" type="submit" disabled={pending}>{pending ? "시작하는 중…" : "이 닉네임으로 시작하기"}</button>
+          {error && <p className="form-error" role="alert">{error}</p>}
+        </form>
+      ) : (
+        <div className="login-card">
+          {kakaoOn
+            ? <KakaoButton href={`/api/auth/kakao/start?mode=login&next=${encodeURIComponent(next)}`} label="카카오로 로그인" />
+            : <p className="form-error">카카오 로그인을 준비하고 있어요. 잠시 후 다시 시도해 주세요.</p>}
+          <p className="validation-notice">처음이면 카카오 로그인 뒤 닉네임만 정하면 바로 시작해요. 카카오에서는 회원번호만 받고 이름·연락처는 받지 않아요. 지금은 테스트 기간이라 결제와 배송은 일어나지 않아요.</p>
+          <p className="field-hint">예전에 닉네임으로 쓰던 계정이 있나요? 그 계정에 카카오를 연결했다면 카카오로 로그인하면 그대로 이어져요. 연결하지 않았다면 운영자에게 복구 링크를 요청해 주세요.</p>
+        </div>
+      )}
     </div>
   );
 }

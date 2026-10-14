@@ -19,7 +19,7 @@ export default function WishlistButton({ listingId, initialWished, variant = "ba
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
-    if (res.status === 401) { alert("먼저 닉네임을 정하고 시작하세요."); return; }
+    if (res.status === 401) { alert("먼저 카카오로 로그인해 주세요."); return; }
     if (!res.ok || typeof data.wished !== "boolean") { alert(data.error ?? "찜하지 못했어요. 잠시 후 다시 눌러 주세요."); return; }
     setWished(data.wished);
     router.refresh();

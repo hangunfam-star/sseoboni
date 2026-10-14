@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "정산 계좌 · 써보니", robots:
 // 판매자 정산 계좌 — 구매자가 상품 대금을 직접 보낼 계좌
 export default async function AccountPage() {
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="bank" />정산 계좌</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="bank" />정산 계좌</h1><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   const row = await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, userId) });
   const acc = readSellerAccount(row);
   const current = row && acc ? { bank: acc.bank, holder: acc.holder, masked: maskAccount(acc.account), defaultShipping: row.defaultShipping } : null;

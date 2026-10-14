@@ -15,7 +15,7 @@ const STATUS = { ACCEPT: "ACCEPTED", DECLINE: "DECLINED", CANCEL: "CANCELLED" } 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "먼저 카카오로 로그인해 주세요." }, { status: 401 });
   const body = await req.json().catch(() => null);
   const action = typeof body?.action === "string" ? body.action : "";
   if (!(action in EVENT)) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });

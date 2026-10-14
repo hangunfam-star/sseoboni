@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!listingId || !(action in EVENT)) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
 
   const userId = await getCurrentUserId();
-  if (action !== "VIEW" && !userId) return NextResponse.json({ error: "닉네임을 정하고 시작하면 의견을 남길 수 있어요." }, { status: 401 });
+  if (action !== "VIEW" && !userId) return NextResponse.json({ error: "카카오로 로그인하면 의견을 남길 수 있어요." }, { status: 401 });
 
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) });
   if (!listing || listing.status !== "ACTIVE") return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });

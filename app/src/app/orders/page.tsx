@@ -19,7 +19,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const { tab: raw } = await searchParams;
   const tab = TABS.find((t) => t.key === raw)?.key ?? "all";
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="receipt" />내 거래</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="receipt" />내 거래</h1><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   const all = await listOrders(userId);
   const rows = all.filter((o) => tab === "all" || o.role === tab).sort((a, b) => Number(b.needsMe) - Number(a.needsMe));
   const live = rows.filter((o) => !["PURCHASED", "RETURNED", "CANCELLED"].includes(o.status));

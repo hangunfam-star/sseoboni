@@ -12,7 +12,7 @@ const REASONS = ["욕설·비방", "직거래·외부 연락 유도", "사기 �
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "먼저 카카오로 로그인해 주세요." }, { status: 401 });
   const t = await threadFor(id, userId);
   if (!t) return NextResponse.json({ error: "채팅을 찾을 수 없습니다." }, { status: 404 });
   const body = await req.json().catch(() => null);

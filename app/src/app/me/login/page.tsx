@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "로그인 연결 · 써보니", robo
 export default async function LoginLinkPage({ searchParams }: { searchParams: Promise<{ kakao?: string }> }) {
   const { kakao } = await searchParams;
   const userId = await getCurrentUserId();
-  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="shield" />로그인 연결</h1><div className="empty-card"><strong>닉네임을 정하고 시작해 주세요.</strong><Link href="/login">시작하기</Link></div></div>;
+  if (!userId) return <div className="page"><h1 className="page-title"><Icon name="shield" />로그인 연결</h1><div className="empty-card"><strong>카카오로 로그인해 주세요.</strong><Link href="/login">카카오로 로그인하기</Link></div></div>;
   const linked = hasKakao(userId);
   const on = kakaoConfigured();
   const message = kakao ? KAKAO_MESSAGES[kakao] ?? null : null;

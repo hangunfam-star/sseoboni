@@ -12,7 +12,7 @@ import { chatThreads } from "@/db/schema";
 import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
 import { conditionLabel, formatWon, illustrationKind, relativeTime } from "@/ui/presentation";
-import { ListingStatusActions, LogoutButton } from "./MyActions";
+import { ListingStatusActions, LogoutButton, NicknameEditor } from "./MyActions";
 import { listOrders } from "@/lib/orders";
 import { gradesOf } from "@/lib/trade-stats";
 import { sellerAccounts } from "@/db/schema";
@@ -40,10 +40,10 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
       <div className="page my-page">
         <h1 className="page-title">MY</h1>
         <div className="empty-card">
-          <strong>닉네임만 정하면 내 판매 상품과 찜을 모아볼 수 있어요.</strong>
-          <Link href="/login">닉네임 정하고 시작하기</Link>
+          <strong>카카오로 로그인하면 내 판매 상품과 찜을 모아볼 수 있어요.</strong>
+          <Link href="/login">카카오로 로그인하기</Link>
         </div>
-        <p className="field-hint my-recover-hint">예전에 쓰던 계정이 안 보이나요? 사이트 주소가 바뀌어 다시 들어와야 해요. 예전 링크를 쓰던 브라우저에서 다시 누르거나, 운영자에게 복구 링크를 요청해 주세요. 같은 닉네임을 새로 입력하면 새 계정이 만들어져요.</p>
+        <p className="field-hint my-recover-hint">예전에 닉네임으로 쓰던 계정이 있나요? 그 계정에 카카오를 연결했다면 카카오로 로그인하면 그대로 이어져요. 연결하지 않았다면 운영자에게 복구 링크를 요청해 주세요.</p>
       </div>
     );
   }
@@ -101,6 +101,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <span className="seller-avatar" aria-hidden="true">{Array.from(nickname)[0]}</span>
         <div>
           <h1 className="page-title my-title"><strong>{nickname}</strong><span>님의 써보니</span></h1>
+          <NicknameEditor current={me?.nickname ?? ""} />
           <p className="grade-line"><span className="grade-badge-inline"><Icon name="store" />판매 {grades.seller.name}</span><span className="grade-badge-inline grade-badge-inline--soft"><Icon name="bag" />구매 {grades.buyer.name}</span>{grades.buyer.toNext !== null && <small>다음 구매 등급까지 거래 {grades.buyer.toNext}번</small>}</p>
         </div>
       </div>

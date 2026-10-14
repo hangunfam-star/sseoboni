@@ -9,7 +9,7 @@ import { FEEDBACK_DAILY_MAX, FEEDBACK_MESSAGE_MAX, FEEDBACK_REASONS, TRY_LATER }
 // 별도 테이블 없이 FEEDBACK 이벤트의 metadata(JSON)에 남긴다. 연락처 등 개인정보는 받지 않는다.
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
-  if (!userId) return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+  if (!userId) return NextResponse.json({ error: "먼저 카카오로 로그인해 주세요." }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");

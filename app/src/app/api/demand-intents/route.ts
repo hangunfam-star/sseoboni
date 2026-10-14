@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return NextResponse.json({ error: "먼저 닉네임을 정하고 시작하세요." }, { status: 401 });
+    return NextResponse.json({ error: "먼저 카카오로 로그인해 주세요." }, { status: 401 });
   }
   const body = await req.json().catch(() => null);
   let modelId = typeof body?.modelId === "string" ? body.modelId : "";

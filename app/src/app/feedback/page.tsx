@@ -26,7 +26,7 @@ export default function FeedbackPage() {
     const d = await res.json().catch(() => ({}));
     setPending(false);
     if (!res.ok) {
-      setResult({ ok: false, text: res.status === 401 ? "닉네임을 정하고 시작한 뒤 남길 수 있어요." : d.error ?? "보내지 못했어요." });
+      setResult({ ok: false, text: res.status === 401 ? "카카오로 로그인한 뒤 남길 수 있어요." : d.error ?? "보내지 못했어요." });
       return;
     }
     setResult({ ok: true, text: "의견을 받았어요. 고맙습니다!" });
