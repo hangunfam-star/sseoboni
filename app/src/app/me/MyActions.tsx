@@ -39,8 +39,8 @@ export function ListingStatusActions({ id, status }: { id: string; status: strin
   );
 }
 
-// param: kakaoLinked 카카오 연결 여부(연결돼 있으면 다시 들어올 수 있다고 안내)
-export function LogoutButton({ kakaoLinked = false }: { kakaoLinked?: boolean }) {
+// param: kakaoLinked 카카오 연결 여부(연결돼 있으면 다시 들어올 수 있다고 안내), menu MY 메뉴 칸 모양으로 그릴지
+export function LogoutButton({ kakaoLinked = false, menu = false }: { kakaoLinked?: boolean; menu?: boolean }) {
   const router = useRouter();
   async function logout() {
     if (!confirm(kakaoLinked ? "로그아웃할까요? 카카오로 시작하면 지금 계정에 다시 들어올 수 있어요." : "로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 계속할까요?")) return;
@@ -49,6 +49,7 @@ export function LogoutButton({ kakaoLinked = false }: { kakaoLinked?: boolean })
     router.push("/login");
     router.refresh();
   }
+  if (menu) return <button type="button" className="my-menu__logout" onClick={logout}><strong>로그아웃</strong><small>{kakaoLinked ? "카카오로 다시 들어올 수 있어요" : "카카오 미연결 · 로그아웃하면 다시 못 들어와요"}</small></button>;
   return <button type="button" className="text-button" onClick={logout}>로그아웃</button>;
 }
 

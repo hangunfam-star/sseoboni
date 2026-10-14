@@ -1410,3 +1410,8 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .photo-choice span { display: grid; gap: 2px; }
 .photo-choice small { color: var(--w-sub, #6b6b70); font-size: 12px; }
 .my-head .nickname-edit__open { margin-right: 12px; }
+
+/* MY 메뉴 로그아웃 칸(자동 불러오기로 맨 아래에 닿기 어려워 메뉴로 옮김, 2026-10-14) */
+.my-menu__logout { display: grid; gap: 2px; padding: 14px; border: 0; border-radius: 18px; background: var(--w-surface); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.my-menu__logout strong { font-size: 15px; }
+.my-menu__logout small { font-size: 12px; color: var(--w-sub); }

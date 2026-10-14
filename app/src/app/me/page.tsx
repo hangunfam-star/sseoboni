@@ -122,6 +122,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <Link href={`/sellers/${userId}`}><strong><Icon name="store" />내 판매자 채널</strong><small>구매자에게 보이는 화면</small></Link>
         <Link href="/me/notifications"><strong><Icon name="inbox" />알림 · 홈 화면 추가</strong><small>휴대폰 알림 켜기, 받을 알림 고르기</small></Link>
         {showLoginLink && <Link href="/me/login"><strong><Icon name="shield" />로그인 연결</strong><small>{kakaoLinked ? "카카오 연결됨" : "카카오 미연결 · 연결하면 다른 기기에서도 들어와요"}</small></Link>}
+        <LogoutButton kakaoLinked={kakaoLinked} menu />
       </nav>
       {!hasAccount && mine.some((m) => m.status === "ACTIVE") && <p className="form-error">정산 계좌를 등록해야 구매자가 내 상품을 구매·써보기 신청할 수 있어요. <Link href="/me/account">등록하기</Link></p>}
       <Link className="chat-banner" href="/chats"><strong><Icon name="chat" />채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>
@@ -199,8 +200,6 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <AutoLoadMore key={`${tab.key}-${shown}`} href={`/me?${tab.key === "active" ? "" : `tab=${tab.key}&`}n=${shown / MY_PAGE_SIZE + 1}`} />
       )}
       <Link className="feedback-banner" href="/feedback"><strong>써보니에 의견 보내기</strong><small>망설인 이유, 바라는 점을 알려 주세요</small></Link>
-      <p className="page-lead">로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 새로 시작하면 새 계정이 만들어져요.</p>
-      <LogoutButton kakaoLinked={kakaoLinked} />
     </div>
   );
 }
