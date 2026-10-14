@@ -62,7 +62,6 @@ export function authorizeUrl(state: string, origin: string): string {
   return `${c.authBase}/oauth/authorize?${q}`;
 }
 
-// param: code 카카오가 돌려준 인가 코드, origin 사이트 주소. return: 카카오 회원번호(문자열)와 닉네임(동의한 경우만). 예외: KakaoError("token"|"profile")
 // param: raw 카카오가 준 사진 주소. return: 카카오 사진 서버의 https 주소만, 아니면 null
 export function cleanKakaoImage(raw: unknown): string | null {
   if (typeof raw !== "string" || raw.length > 500) return null;
@@ -82,7 +81,22 @@ export function photoOf(u: { kakaoImageUrl: string | null; showPhoto: boolean } 
   return u && u.showPhoto && u.kakaoImageUrl ? u.kakaoImageUrl : null;
 }
 
-export async function kakaoUserId(code: string, origin: string): Promise<{ id: string; nickname: string | null; image: string | null }> {
+type KakaoMe = { id: string; nickname: string | null; image: string | null };
+const seenCodes = new Map<string, { at: number; p: Promise<KakaoMe> }>();
+
+// param: code 인가 코드, origin 사이트 주소. return: kakaoUserId 결과. 같은 코드가 1분 안에 다시 오면(휴대폰 브라우저가 콜백을 두 번 부름) 카카오에 다시 묻지 않고 첫 결과를 함께 쓴다
+export function kakaoUserIdOnce(code: string, origin: string): Promise<KakaoMe> {
+  const now = Date.now();
+  for (const [k, v] of seenCodes) if (now - v.at > 60_000) seenCodes.delete(k);
+  const hit = seenCodes.get(code);
+  if (hit) return hit.p;
+  const p = kakaoUserId(code, origin);
+  seenCodes.set(code, { at: now, p });
+  return p;
+}
+
+// param: code 카카오가 돌려준 인가 코드, origin 사이트 주소. return: 카카오 회원번호(문자열)·닉네임·프로필 사진(동의한 경우만). 예외: KakaoError("token"|"profile")
+export async function kakaoUserId(code: string, origin: string): Promise<KakaoMe> {
   const c = cfg();
   const tokenRes = await fetch(`${c.authBase}/oauth/token`, {
     method: "POST",
@@ -90,11 +104,17 @@ export async function kakaoUserId(code: string, origin: string): Promise<{ id: s
     body: new URLSearchParams({ grant_type: "authorization_code", client_id: c.restKey, client_secret: c.clientSecret, redirect_uri: redirectUri(origin), code }),
     cache: "no-store",
   }).catch(() => null);
-  const token = tokenRes?.ok ? ((await tokenRes.json().catch(() => null)) as { access_token?: string } | null) : null;
-  if (!token?.access_token) throw new KakaoError("token");
+  const token = (await tokenRes?.json().catch(() => null)) as { access_token?: string; error?: string; error_code?: string } | null;
+  if (!tokenRes?.ok || !token?.access_token) {
+    console.error(`[kakao] token 실패 status=${tokenRes?.status ?? "network"} error=${token?.error ?? "-"} code=${token?.error_code ?? "-"}`); // 비밀값·인가 코드는 남기지 않음
+    throw new KakaoError("token");
+  }
   const meRes = await fetch(`${c.apiBase}/v2/user/me`, { headers: { Authorization: `Bearer ${token.access_token}` }, cache: "no-store" }).catch(() => null);
   const me = meRes?.ok ? ((await meRes.json().catch(() => null)) as { id?: number | string; kakao_account?: { profile?: { nickname?: string; thumbnail_image_url?: string; profile_image_url?: string; is_default_image?: boolean } }; properties?: { nickname?: string } } | null) : null;
-  if (me?.id === undefined || me.id === null || !/^\d+$/.test(String(me.id))) throw new KakaoError("profile");
+  if (me?.id === undefined || me.id === null || !/^\d+$/.test(String(me.id))) {
+    console.error(`[kakao] profile 실패 status=${meRes?.status ?? "network"}`);
+    throw new KakaoError("profile");
+  }
   const nickname = me.kakao_account?.profile?.nickname ?? me.properties?.nickname ?? null;
   const p = me.kakao_account?.profile;
   const image = p && p.is_default_image !== true ? cleanKakaoImage(p.thumbnail_image_url ?? p.profile_image_url) : null;

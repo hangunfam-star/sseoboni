@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { cleanNickname, getCurrentUserId, readSignedValue, setSessionCookie, signValue } from "@/lib/session";
-import { KakaoError, kakaoUserId, linkKakao, PENDING_COOKIE, saveKakaoImage, siteOrigin, STATE_COOKIE, STATE_MINUTES, userOfKakao, type KakaoPending, type KakaoState } from "@/lib/kakao";
+import { KakaoError, kakaoUserIdOnce, linkKakao, PENDING_COOKIE, saveKakaoImage, siteOrigin, STATE_COOKIE, STATE_MINUTES, userOfKakao, type KakaoPending, type KakaoState } from "@/lib/kakao";
 
 // GET /api/auth/kakao/callback?code=…&state=… — 카카오에서 돌아오는 곳.
 // 로그인: 연결된 계정이 있으면 그 계정으로 들어가고, 없으면 지금 들어와 있는 계정에 연결하거나 닉네임을 정해 새 계정을 만든다.
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const origin = siteOrigin(req);
   const jar = await cookies();
   const st = readSignedValue<KakaoState>(jar.get(STATE_COOKIE)?.value);
-  jar.delete({ name: STATE_COOKIE, path: "/api/auth/kakao" });
+  // 상태 쿠키는 지우지 않는다: 휴대폰 브라우저가 콜백을 두 번 부르면 두 번째도 같은 확인을 통과해야 한다(10분 뒤 만료, 다음 시작 때 새 값)
   const q = req.nextUrl.searchParams;
   const fail = (code: string, mode = st?.m) => NextResponse.redirect(`${origin}${mode === "link" ? "/me/login" : "/login"}?kakao=${code}`);
   if (!st || st.e < Date.now() || !q.get("state") || q.get("state") !== st.s) return fail("state");
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   let kakaoId: string;
   let kakaoNick: string | null = null;
   let kakaoImage: string | null = null;
-  try { const me = await kakaoUserId(code, origin); kakaoId = me.id; kakaoNick = me.nickname; kakaoImage = me.image; }
+  try { const me = await kakaoUserIdOnce(code, origin); kakaoId = me.id; kakaoNick = me.nickname; kakaoImage = me.image; }
   catch (e) { return fail(e instanceof KakaoError ? e.code : "token"); }
 
   const current = await getCurrentUserId();
