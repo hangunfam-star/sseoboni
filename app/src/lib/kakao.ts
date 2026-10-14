@@ -56,6 +56,9 @@ export function safeNext(raw: string | null | undefined, fallback = "/"): string
 export function authorizeUrl(state: string, origin: string): string {
   const c = cfg();
   const q = new URLSearchParams({ client_id: c.restKey, redirect_uri: redirectUri(origin), response_type: "code", state });
+  // 이미 연결한 사용자에게도 아직 동의 안 한 닉네임·프로필 사진을 한 번 묻는다. KAKAO_SCOPE= (빈 값)이면 묻지 않음
+  const scope = (process.env.KAKAO_SCOPE ?? "profile_nickname,profile_image").trim();
+  if (scope) q.set("scope", scope);
   return `${c.authBase}/oauth/authorize?${q}`;
 }
 
