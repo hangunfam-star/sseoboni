@@ -18,18 +18,19 @@ test("전역 스타일시트는 기본 레이아웃 계약과 역할별 강조�
   assert.match(css, /\.chip\s*\{[^}]*min-height:\s*44px/);
 });
 
-test("링크를 받은 누구나 닉네임만으로 시작하고, 닉네임은 식별에 쓰지 않는다", () => {
+test("카카오로 로그인하고 닉네임은 그 뒤에 고른다(닉네임은 식별에 쓰지 않는다)", () => {
   const session = read("src/lib/session.ts");
   assert.match(session, /randomBytes\(/);
   assert.match(session, /timingSafeEqual/);
   assert.doesNotMatch(session, /invites/);
   const api = read("src/app/api/session/route.ts");
-  assert.match(api, /createUser\(nickname\)/);
+  assert.match(api, /ALLOW_NICKNAME_LOGIN !== "1"/); // 닉네임만으로 새 계정은 막는다(격리 시험 서버만 예외)
   assert.doesNotMatch(api, /where\(eq\(users\.nickname/);
   const login = read("src/app/login/LoginForm.tsx"); // 화면 본문(page.tsx는 카카오 상태만 넘기는 서버 쪽)
   assert.match(login, /사기 전에, 써보니/);
   assert.match(login, /결제와 배송은 일어나지 않아요/);
-  assert.match(login, /JSON\.stringify\(\{ nickname \}\)/);
+  assert.match(login, /KakaoButton/);
+  assert.match(login, /useKakao: true/); // 카카오 닉네임 그대로 쓰기 / 써보니 닉네임 만들기
   assert.match(login, /disabled=\{pending\}/);
   assert.doesNotMatch(login, /초대 코드/);
 });
