@@ -13,6 +13,7 @@ import { ListThumb } from "@/components/ListThumb";
 import { getCurrentUserId } from "@/lib/session";
 import { conditionLabel, formatWon, illustrationKind, relativeTime } from "@/ui/presentation";
 import { ListingStatusActions, LogoutButton, NicknameEditor } from "./MyActions";
+import { AutoLoadMore } from "@/components/AutoLoadMore";
 import { listOrders } from "@/lib/orders";
 import { gradesOf } from "@/lib/trade-stats";
 import { sellerAccounts } from "@/db/schema";
@@ -192,7 +193,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         </div>
       )}
       {tabRows.length > shown && (
-        <Link className="more-link" href={`/me?${tab.key === "active" ? "" : `tab=${tab.key}&`}n=${shown / MY_PAGE_SIZE + 1}#my-listings`} scroll={false}>더 보기 ({tabRows.length - shown}개 더)</Link>
+        <AutoLoadMore key={`${tab.key}-${shown}`} href={`/me?${tab.key === "active" ? "" : `tab=${tab.key}&`}n=${shown / MY_PAGE_SIZE + 1}`} />
       )}
       <Link className="feedback-banner" href="/feedback"><strong>써보니에 의견 보내기</strong><small>망설인 이유, 바라는 점을 알려 주세요</small></Link>
       <p className="page-lead">로그아웃하면 이 기기에서 지금 계정으로 다시 들어올 수 없어요. 새로 시작하면 새 계정이 만들어져요.</p>

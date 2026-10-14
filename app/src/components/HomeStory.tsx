@@ -18,10 +18,24 @@ function sceneAt(t: number): number {
   return i;
 }
 
+const CLOSED_KEY = "sb_story_closed";
+
 export function HomeStory() {
   const video = useRef<HTMLVideoElement>(null);
   const [scene, setScene] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [open, setOpen] = useState(true);
+
+  // 닫아 둔 기기에서는 접힌 줄로 시작(미션 카드와 같은 방식)
+  useEffect(() => {
+    let closed = false;
+    try { closed = localStorage.getItem(CLOSED_KEY) === "1"; } catch { /* 저장소를 못 쓰면 늘 펼침 */ }
+    if (closed) void Promise.resolve().then(() => setOpen(false));
+  }, []);
+  const setStory = (next: boolean) => {
+    setOpen(next);
+    try { localStorage.setItem(CLOSED_KEY, next ? "0" : "1"); } catch { /* 기억 못 해도 동작은 함 */ }
+  };
 
   useEffect(() => {
     const v = video.current;
@@ -30,7 +44,7 @@ export function HomeStory() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       v.pause();
     }
-  }, []);
+  }, [open]);
 
   function toggle() {
     const v = video.current;
@@ -38,8 +52,22 @@ export function HomeStory() {
     if (v.paused) void v.play(); else v.pause();
   }
 
+  if (!open) {
+    return (
+      <section className="home-story home-story--closed" aria-label="써보니 소개 영상">
+        <button type="button" className="home-story__reopen" aria-expanded="false" onClick={() => setStory(true)}>
+          <span className="home-story__reopen-play" aria-hidden="true">▶</span>
+          <span className="home-story__reopen-text">써보니 소개 영상 보기</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      </section>
+    );
+  }
   return (
     <section className="home-story" aria-label="써보니 소개 영상">
+      <button type="button" className="home-story__close" aria-label="소개 영상 닫기" aria-expanded="true" onClick={() => setStory(false)}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
       <video
         ref={video}
         className="home-story__video"

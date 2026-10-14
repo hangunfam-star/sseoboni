@@ -6,6 +6,7 @@ import { listings, productModels } from "@/db/schema";
 import { HomeStory } from "@/components/HomeStory";
 import { TryFlow } from "@/components/TryFlow";
 import { MissionCard } from "@/components/MissionCard";
+import { AutoLoadMore } from "@/components/AutoLoadMore";
 import { CompareBlock } from "@/components/CompareBlock";
 import { DemoTrialStories } from "@/components/DemoTrialStories";
 import { DEMO_UNTIL_REAL } from "@/content/demo-trial";
@@ -39,7 +40,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     const fetched = await listCards({ q, categoryId: c, brand, sort, trial, limit: pg * PAGE_SIZE + 1 });
     return { rows: fetched.slice(0, pg * PAGE_SIZE), hasMore: fetched.length > pg * PAGE_SIZE };
   }
-  // param: key 늘릴 쪽 수 이름(n 일반·검색, t 써보니), pg 지금 쪽 수, anchor 돌아올 위치. return: 더 보기 링크
+  // param: key 늘릴 쪽 수 이름(n 일반·검색, t 써보니), pg 지금 쪽 수, anchor 구역 이름. return: 끝에 닿으면 다음 쪽을 저절로 불러오는 표시
   const moreLink = (hasMore: boolean, key: "n" | "t", pg: number, anchor: string) => {
     if (!hasMore) return null;
     if (pg >= 50) return <p className="field-hint">상품이 많아요. 검색어나 브랜드로 좁혀 보세요.</p>;
@@ -51,7 +52,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     const other = key === "n" ? trialPages : pages;
     if (other > 1) p.set(key === "n" ? "t" : "n", String(other));
     p.set(key, String(pg + 1));
-    return <Link className="more-link" href={`/?${p.toString()}#${anchor}`} scroll={false}>더 보기</Link>;
+    const next = `/?${p.toString()}`;
+    return <AutoLoadMore key={`${anchor}-${next}`} href={next} />;
   };
   const href = (next: { b?: string; s?: string }) => {
     const p = new URLSearchParams();
@@ -130,7 +132,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <h2 className="section-title" id="brand-title"><Icon name="tag" />브랜드로 찾기</h2>
         <nav className="brand-row" aria-label="브랜드">
           {shownBrands.map((name) => (
-            <Link key={name} className="brand-tile" href={href({ b: brand === name ? undefined : name, s: sort })} aria-current={brand === name ? "true" : undefined}>
+            <Link key={name} className="brand-tile" href={href({ b: brand === name ? undefined : name, s: sort })} scroll={false} aria-current={brand === name ? "true" : undefined}>
               <span className="brand-tile__mark" aria-hidden="true">{Array.from(name)[0]}</span>
               <span>{name}</span>
             </Link>
@@ -138,8 +140,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </nav>
       </section>
       <div className="feed-tabs" role="tablist" aria-label="정렬">
-        <Link role="tab" aria-selected={sort === "new"} className="feed-tab" href={href({ b: brand, s: "new" })}>최신순</Link>
-        <Link role="tab" aria-selected={sort === "popular"} className="feed-tab" href={href({ b: brand, s: "popular" })}>찜 많은 순</Link>
+        <Link role="tab" aria-selected={sort === "new"} className="feed-tab" href={href({ b: brand, s: "new" })} scroll={false}>최신순</Link>
+        <Link role="tab" aria-selected={sort === "popular"} className="feed-tab" href={href({ b: brand, s: "popular" })} scroll={false}>찜 많은 순</Link>
       </div>
       <section className="product-section product-section--try" id="try-items" aria-labelledby="try-items-title">
         <div className="section-head">
