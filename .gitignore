@@ -14,3 +14,4 @@ app/*.log
 *.log
 app/invites.local.json
 .codex-remote-attachments/
+ops/e2e/.out/
