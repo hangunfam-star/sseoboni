@@ -25,6 +25,7 @@ type Props = {
   disputeReasons: readonly string[];
   needsReset: boolean;           // 반송 전 초기화·로그아웃 확인이 필요한 품목
   stagePhotos: { RECEIVE: string[]; PACK: string[]; INSPECT: string[] };
+  lateArrivalBy: string | null;  // 자동 받음 뒤 늦은 받을 때 확인 마감(한국 시간 문구), 없으면 null
 };
 
 // 은행·계좌·예금주 입력(환불 받을 계좌)
@@ -115,10 +116,14 @@ export function OrderActions(p: Props) {
         </form>
       )}
 
-      {has("RECEIVED") && (
-        <form className="order-form stage-check" onSubmit={(e) => { e.preventDefault(); void send("RECEIVED", { components: arrived, matches, note }, p.kind === "TRIAL" ? "물건을 받았나요? 지금부터 써보기 시간이 시작돼요." : "물건을 받았나요?"); }}>
+      {(has("RECEIVED") || (p.role === "buyer" && p.lateArrivalBy)) && (
+        <form className="order-form stage-check" onSubmit={(e) => { e.preventDefault(); void (has("RECEIVED")
+          ? send("RECEIVED", { components: arrived, matches, note }, p.kind === "TRIAL" ? "물건을 받았나요? 지금부터 써보기 시간이 시작돼요." : "물건을 받았나요?")
+          : send("ARRIVAL_CHECK", { components: arrived, matches, note }, "받은 물건 확인을 올릴까요? 올린 뒤에는 고칠 수 없어요.")); }}>
           <h3>받은 물건 확인</h3>
-          <small className="field-hint">돌려보낼 때 이 확인과 사진으로 상태를 비교해요. 받은 그대로 적어 주세요.</small>
+          {has("RECEIVED")
+            ? <small className="field-hint">돌려보낼 때 이 확인과 사진으로 상태를 비교해요. 받은 그대로 적어 주세요.</small>
+            : <p className="stage-warn">자동으로 받은 것으로 처리됐어요. {p.lateArrivalBy}까지 확인을 올리지 않으면 판매자 등록 사진·점검표가 상태 기준이 돼요.</p>}
           {p.components.length > 0 && (
             <ul className="order-checks">
               {p.components.map((c) => <li key={c}><label><input type="checkbox" checked={Boolean(arrived[c])} onChange={(e) => setArrived({ ...arrived, [c]: e.target.checked })} /> {c} 왔어요</label></li>)}
@@ -134,7 +139,7 @@ export function OrderActions(p: Props) {
           {matches === false && <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="무엇이 다른지 적어 주세요 (5자 이상)" aria-label="다른 점" maxLength={300} />}
           <StagePhotos orderId={p.orderId} stage="RECEIVE" initial={p.stagePhotos.RECEIVE} label={p.kind === "TRIAL" ? "받은 상태 사진 (1장 이상)" : "받은 상태 사진 (선택)"} onChange={setNRecv} />
           {matches === false && <p className="stage-warn">받은 뒤 판매자와 채팅으로 확인하고, 해결이 안 되면 &apos;문제가 있어요&apos;로 분쟁을 신청할 수 있어요.</p>}
-          <button className="dark-button" type="submit" disabled={pending || matches === null || (p.kind === "TRIAL" && nRecv === 0)}>받았어요</button>
+          <button className="dark-button" type="submit" disabled={pending || matches === null || (p.kind === "TRIAL" && nRecv === 0)}>{has("RECEIVED") ? "받았어요" : "받은 물건 확인 올리기"}</button>
         </form>
       )}
 

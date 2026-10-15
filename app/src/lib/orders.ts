@@ -16,7 +16,7 @@ import { feePctNow } from "@/lib/platform-fee-store";
 import { getTrialTerms } from "@/lib/trial-terms";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { findContactInfo, type TrialTier } from "@/ui/trial-pricing";
-import { componentChecks, INSPECT_CONDITIONS, inspectConditionLabel, needsReset, readCheckAnswers, type ArrivalCheck, type CheckAnswer, type OrderPhotoStage, type PackCheck } from "@/ui/check-items";
+import { componentChecks, INSPECT_CONDITIONS, inspectConditionLabel, LATE_ARRIVAL_HOURS, needsReset, readCheckAnswers, type ArrivalCheck, type CheckAnswer, type OrderPhotoStage, type PackCheck } from "@/ui/check-items";
 import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 import {
   FINAL_STATUSES, RETURN_REASONS, kstDateOf, STATUS_LABEL, addHours, allowedActions, depositNameFor, hoursBetween, isFinal, moneyOf,
@@ -50,6 +50,35 @@ export function stagePhotos(orderId: string, stage: OrderPhotoStage): string[] {
   return db.select({ f: orderPhotos.fileName }).from(orderPhotos).where(and(eq(orderPhotos.orderId, orderId), eq(orderPhotos.stage, stage))).orderBy(orderPhotos.createdAt).all().map((r) => r.f);
 }
 const cleanNote = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+// param: o 거래. return: 자동 받음 뒤 늦은 받을 때 확인을 올릴 수 있는 마감(ISO), 아니면 null
+// 조건: 자동 받음으로 넘어갔고, 아직 확인이 없고, 받은 처리 뒤 LATE_ARRIVAL_HOURS 안이고, 반납·구매 확정 전
+export function lateArrivalUntil(o: Pick<OrderRow, "id" | "status" | "receivedAt" | "arrivalCheck">): string | null {
+  if (o.arrivalCheck || !o.receivedAt || !["TRIAL", "RECEIVED", "NEEDS_CHECK"].includes(o.status)) return null;
+  // 기한은 실제로 자동 처리한 때부터 센다(받은 시각은 기한 시각으로 기록되어 처리보다 이를 수 있음)
+  const auto = db.select({ at: orderEvents.createdAt }).from(orderEvents).where(and(eq(orderEvents.orderId, o.id), eq(orderEvents.type, "AUTO_RECEIVED"))).get();
+  if (!auto) return null;
+  const until = addHours(sqlToIso(auto.at), LATE_ARRIVAL_HOURS);
+  return Date.parse(until) > Date.now() ? until : null;
+}
+
+// param: o 거래, body 요청(components·matches·note). return: 받을 때 확인. 예외: 입력이 모자라면 TradeError
+function arrivalFrom(o: OrderRow, body: Record<string, unknown>, late: boolean): ArrivalCheck {
+  const snap: Snapshot = JSON.parse(o.snapshot);
+  if (typeof body.matches !== "boolean") throw new TradeError("설명과 같은지 골라 주세요.");
+  const note = cleanNote(body.note, 300);
+  if (findContactInfo(note)) throw new TradeError("메모에는 연락처·계좌를 적을 수 없어요.");
+  if (!body.matches && note.length < 5) throw new TradeError("설명과 다른 점을 5자 이상 적어 주세요.");
+  const photos = stagePhotos(o.id, "RECEIVE");
+  if (o.kind === "TRIAL" && photos.length === 0) throw new TradeError("받은 상태 사진을 1장 이상 올려 주세요. 돌려보낼 때 비교 기준이 돼요.");
+  return { items: componentChecks(snap.components, body.components), matches: body.matches, note, photos, ...(late ? { late: true } : {}) };
+}
+
+// param: a 받을 때 확인. return: 빠진 구성품·설명과 다름을 알리는 문구(문제 없으면 "")
+function arrivalIssues(a: ArrivalCheck): string {
+  const missing = a.items.filter((x) => !x.ok).map((x) => x.name);
+  return [missing.length ? `빠진 구성품 ${missing.join(", ")}` : "", a.matches ? "" : `설명과 다름 — ${a.note}`].filter(Boolean).join(" / ");
+}
 
 // param: tx, order, actorId(자동이면 null), type, data. 거래 기록 한 줄
 function eventTx(tx: Tx, orderId: string, actorId: string | null, type: string, data?: unknown) {
@@ -181,7 +210,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
 // ── 행동 ──
 
 // param: orderId, userId, action, body 입력값. return: 바뀐 거래. 예외: TradeError
-export async function act(orderId: string, userId: string, action: Action | "SET_REFUND_ACCOUNT", body: Record<string, unknown>): Promise<OrderRow> {
+export async function act(orderId: string, userId: string, action: Action | "SET_REFUND_ACCOUNT" | "ARRIVAL_CHECK", body: Record<string, unknown>): Promise<OrderRow> {
   await advanceOrders([orderId]);
   const o = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
   if (!o) throw new TradeError("거래를 찾을 수 없습니다.", 404);
@@ -190,6 +219,20 @@ export async function act(orderId: string, userId: string, action: Action | "SET
   const dispute = disputeOpen(o.id);
   const status = o.status as OrderStatus;
   const settings = await loadTradeSettings();
+
+  if (action === "ARRIVAL_CHECK") {
+    // 자동 받음 뒤 늦은 받을 때 확인(상태는 그대로, 기록만 남김)
+    if (role !== "buyer" || !lateArrivalUntil(o)) throw new TradeError(`받은 물건 확인은 자동 받음 뒤 ${LATE_ARRIVAL_HOURS}시간 안에만 올릴 수 있어요.`, 409);
+    const arrival = arrivalFrom(o, body, true);
+    return db.transaction((tx) => {
+      const r = moveTx(tx, o.id, status, { arrivalCheck: JSON.stringify(arrival) });
+      if (!r || o.arrivalCheck) throw new TradeError("상태가 바뀌었어요. 새로고침해 주세요.", 409);
+      eventTx(tx, o.id, userId, "ARRIVAL_CHECK_LATE");
+      const issues = arrivalIssues(arrival);
+      systemMessageTx(tx, r, `구매자가 자동 받음 뒤 받은 물건 확인을 올렸어요${issues ? `: ${issues}. 서로 확인해 주시고, 해결이 안 되면 '문제가 있어요'로 분쟁을 신청할 수 있어요` : " (설명과 같아요)"}.`, userId);
+      return r;
+    });
+  }
 
   if (action === "SET_REFUND_ACCOUNT") {
     if (role !== "buyer" || !["REFUND_DUE", "RETURN_REQUESTED", "RETURN_SHIPPED"].includes(status)) throw new TradeError("지금은 환불 계좌를 바꿀 수 없어요.", 409);
@@ -229,20 +272,13 @@ export async function act(orderId: string, userId: string, action: Action | "SET
     }
     case "RECEIVED": {
       // 받을 때 확인: 구성품이 왔는지, 설명과 같은지, (써보기면) 받은 상태 사진 1장 이상 — 반납 때 비교 기준
-      const snap: Snapshot = JSON.parse(o.snapshot);
-      if (typeof body.matches !== "boolean") throw new TradeError("설명과 같은지 골라 주세요.");
-      const note = cleanNote(body.note, 300);
-      if (findContactInfo(note)) throw new TradeError("메모에는 연락처·계좌를 적을 수 없어요.");
-      if (!body.matches && note.length < 5) throw new TradeError("설명과 다른 점을 5자 이상 적어 주세요.");
-      const photos = stagePhotos(o.id, "RECEIVE");
-      if (o.kind === "TRIAL" && photos.length === 0) throw new TradeError("받은 상태 사진을 1장 이상 올려 주세요. 돌려보낼 때 비교 기준이 돼요.");
-      const arrival: ArrivalCheck = { items: componentChecks(snap.components, body.components), matches: body.matches, note, photos };
+      const arrival = arrivalFrom(o, body, false);
       return db.transaction((tx) => {
         const r = receiveTx(tx, o, t, userId, settings) ?? fail();
         tx.update(orders).set({ arrivalCheck: JSON.stringify(arrival) }).where(eq(orders.id, o.id)).run();
-        const missing = arrival.items.filter((x) => !x.ok).map((x) => x.name);
-        if (!arrival.matches || missing.length) {
-          systemMessageTx(tx, r, `구매자가 받은 물건을 확인했어요: ${[missing.length ? `빠진 구성품 ${missing.join(", ")}` : "", arrival.matches ? "" : `설명과 다름 — ${note}`].filter(Boolean).join(" / ")}. 서로 확인해 주시고, 해결이 안 되면 '문제가 있어요'로 분쟁을 신청할 수 있어요.`, userId);
+        const issues = arrivalIssues(arrival);
+        if (issues) {
+          systemMessageTx(tx, r, `구매자가 받은 물건을 확인했어요: ${issues}. 서로 확인해 주시고, 해결이 안 되면 '문제가 있어요'로 분쟁을 신청할 수 있어요.`, userId);
         }
         return { ...r, arrivalCheck: JSON.stringify(arrival) };
       });
@@ -388,9 +424,11 @@ function receiveTx(tx: Tx, o: OrderRow, at: string, actorId: string | null, sett
   const r = moveTx(tx, o.id, "SHIPPED", set, { blockIfDispute: !actorId });
   if (!r) return null;
   eventTx(tx, o.id, actorId, actorId ? "RECEIVED" : "AUTO_RECEIVED");
-  systemMessageTx(tx, r, o.kind === "TRIAL"
+  // 자동 받음이면 구매자 확인·사진이 없다: 늦은 확인 기한과, 없으면 판매자 등록 사진·점검표가 기준이 된다는 것을 알린다
+  const autoNote = actorId ? "" : ` 구매자 확인 없이 처리돼서 ${LATE_ARRIVAL_HOURS}시간 안에 거래 화면에서 '받은 물건 확인'을 올릴 수 있어요. 올리지 않으면 판매자 등록 사진·점검표가 상태 기준이 돼요.`;
+  systemMessageTx(tx, r, (o.kind === "TRIAL"
     ? `${actorId ? "구매자가 물건을 받았어요" : `발송 뒤 ${settings.autoReceiveDays}일이 지나 받은 것으로 처리했어요`}. 지금부터 ${o.trialHours}시간 써볼 수 있어요. 마음에 들면 '살게요', 아니면 '돌려보낼게요'를 눌러 주세요.`
-    : `${actorId ? "구매자가 물건을 받았어요" : `발송 뒤 ${settings.autoReceiveDays}일이 지나 받은 것으로 처리했어요`}. 확인 뒤 '구매 확정'을 눌러 주세요. ${settings.buyAutoConfirmDays}일 뒤에는 자동으로 구매 확정돼요.`, actorId);
+    : `${actorId ? "구매자가 물건을 받았어요" : `발송 뒤 ${settings.autoReceiveDays}일이 지나 받은 것으로 처리했어요`}. 확인 뒤 '구매 확정'을 눌러 주세요. ${settings.buyAutoConfirmDays}일 뒤에는 자동으로 구매 확정돼요.`) + autoNote, actorId);
   return r;
 }
 
@@ -503,6 +541,8 @@ export async function orderView(orderId: string, userId: string, asAdmin = false
     packCheck: o.packCheck ? (JSON.parse(o.packCheck) as PackCheck) : null,
     stagePhotos: { RECEIVE: stagePhotos(o.id, "RECEIVE"), PACK: stagePhotos(o.id, "PACK"), INSPECT: stagePhotos(o.id, "INSPECT") },
     needsReset: needsReset(snap.category),
+    autoReceived: events.some((e) => e.type === "AUTO_RECEIVED"),
+    lateArrivalUntil: role === "buyer" ? lateArrivalUntil(o) : null,
     cancelReason: o.cancelReason, opsFlag: o.opsFlag,
     times: { createdAt: o.createdAt, paidAt: o.paidAt, shippedAt: o.shippedAt, receivedAt: o.receivedAt, trialEndAt: o.trialEndAt, completedAt: o.completedAt, refundSentAt: o.refundSentAt },
     deadlines: {

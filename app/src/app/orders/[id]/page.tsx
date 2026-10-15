@@ -65,7 +65,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     switch (v.status) {
       case "AWAIT_PAYMENT": return b ? `아래 계좌로 ${formatWon(v.money.payTotal)}을 보내 주세요. 입금자명은 '${v.depositName}'로 해 주세요. ${kst(v.deadlines.payBy)}까지 입금 확인이 안 되면 자동 취소돼요.` : `구매자가 ${formatWon(v.money.payTotal)}을 '${v.depositName}' 이름으로 보낼 거예요. 통장에서 확인되면 '입금 확인했어요'를 눌러 주세요.`;
       case "PAID": return b ? `판매자가 ${kst(v.deadlines.shipBy)}까지 발송할 예정이에요.` : `${kst(v.deadlines.shipBy)}까지 발송하고 송장번호를 입력해 주세요.`;
-      case "SHIPPED": return b ? `물건을 받으면 '받았어요'를 눌러 주세요.${v.kind === "TRIAL" ? " 그때부터 써보기 시간이 시작돼요." : ""} ${kst(v.deadlines.autoReceiveAt)}에는 받은 것으로 자동 처리돼요.` : "구매자가 받으면 알려 드릴게요.";
+      case "SHIPPED": return b ? `물건을 받으면 '받았어요'를 눌러 주세요.${v.kind === "TRIAL" ? " 그때부터 써보기 시간이 시작돼요." : ""} ${kst(v.deadlines.autoReceiveAt)}에는 받은 것으로 자동 처리돼요. 자동 처리되면 받은 물건 확인이 없어 판매자 등록 사진·점검표가 상태 기준이 되니, 받으면 바로 확인해 주세요.` : "구매자가 받으면 알려 드릴게요.";
       case "RECEIVED": return b ? `확인 뒤 '구매 확정'을 눌러 주세요. ${kst(v.deadlines.autoConfirmAt)}에 자동으로 구매 확정돼요.` : "구매자 확정을 기다리고 있어요.";
       case "TRIAL": return b ? `${kst(v.deadlines.trialEnd)}까지 써볼 수 있어요. 마음에 들면 '살게요', 아니면 '돌려보낼게요'를 눌러 주세요.` : `구매자가 ${kst(v.deadlines.trialEnd)}까지 써보는 중이에요.`;
       case "NEEDS_CHECK": return b ? `써보기 시간이 끝났어요. ${kst(v.deadlines.decideBy)}까지 고르지 않으면 구매로 확정돼요. 지금 돌려보내면 넘긴 시간만큼 다음 구간 체험료가 적용돼요.` : `써보기가 끝나 구매자 답을 기다려요. ${kst(v.deadlines.decideBy)}까지 답이 없으면 구매로 확정돼요.`;
@@ -105,7 +105,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         {v.opsFlag && <p className="field-hint">운영 확인: {v.opsFlag}</p>}
         {v.dispute?.status === "OPEN" && <p className="form-error">분쟁 확인 중 ({v.dispute.reason}) · 운영자가 확인할 때까지 금액 확정과 자동 처리를 멈췄어요.</p>}
         {v.dispute?.status === "RESOLVED" && <p className="field-hint">분쟁 정리: {v.dispute.resolution}</p>}
-        <OrderActions orderId={v.id} role={v.role} kind={v.kind} status={v.status} today={kstToday()} actions={v.actions} tiers={v.tiers} trialHours={v.trialHours} components={v.snapshot.components} needsReset={v.needsReset} stagePhotos={v.stagePhotos}
+        <OrderActions orderId={v.id} role={v.role} kind={v.kind} status={v.status} today={kstToday()} actions={v.actions} tiers={v.tiers} trialHours={v.trialHours} components={v.snapshot.components} needsReset={v.needsReset} stagePhotos={v.stagePhotos} lateArrivalBy={v.lateArrivalUntil ? kst(v.lateArrivalUntil) : null}
           refundAmount={v.refundAmount} needsRefundAccount={v.status === "REFUND_DUE" && !v.refundTo} price={v.price}
           disputeOpen={v.dispute?.status === "OPEN"} canDispute={!["AWAIT_PAYMENT", "CANCELLED"].includes(v.status)} disputeReasons={DISPUTE_REASONS} />
       </section>
@@ -160,7 +160,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
-      {(v.snapshot.checks?.length || v.arrivalCheck || v.packCheck || v.inspection) && (
+      {(v.snapshot.checks?.length || v.arrivalCheck || v.packCheck || v.inspection || v.autoReceived) && (
         <section className="order-box" aria-labelledby="check-record-title">
           <h2 id="check-record-title"><Icon name="checklist" />상태 확인 기록</h2>
           <div className="check-compare">
@@ -169,8 +169,14 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 <dl className="check-list">{v.snapshot.checks.map((c) => <div key={c.key}><dt>{c.label}</dt><dd>{c.value}</dd></div>)}</dl>
               </div>
             )}
+            {!v.arrivalCheck && v.autoReceived && (
+              <div className="stage-check"><h3>받을 때</h3>
+                <p><b className="stage-warn">자동 받음 · 구매자 확인·사진 없음</b></p>
+                <p>{v.lateArrivalUntil ? `${kst(v.lateArrivalUntil)}까지 구매자가 확인을 올릴 수 있어요. 없으면 판매자 등록 사진·점검표가 상태 기준이에요.` : "판매자 등록 사진·점검표가 상태 기준이에요."}</p>
+              </div>
+            )}
             {v.arrivalCheck && (
-              <div className="stage-check"><h3>받을 때 (구매자)</h3>
+              <div className="stage-check"><h3>받을 때 (구매자{v.arrivalCheck.late ? " · 자동 받음 뒤 늦게 확인" : ""})</h3>
                 <p>{v.arrivalCheck.matches ? "설명과 같아요" : <b className="stage-warn">설명과 달라요 — {v.arrivalCheck.note}</b>}</p>
                 {v.arrivalCheck.items.length > 0 && <p>{v.arrivalCheck.items.map((x) => `${x.name} ${x.ok ? "✓" : "✗ 안 옴"}`).join(" · ")}</p>}
                 <StagePhotoList orderId={v.id} files={v.arrivalCheck.photos} label="받은 상태 사진" />

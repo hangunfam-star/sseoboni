@@ -83,7 +83,9 @@ export function readCheckAnswers(s: string | null | undefined): CheckAnswer[] {
 }
 
 // ── 거래 단계별 확인 ──
-export type ArrivalCheck = { items: { name: string; ok: boolean }[]; matches: boolean; note: string; photos: string[] };
+export type ArrivalCheck = { items: { name: string; ok: boolean }[]; matches: boolean; note: string; photos: string[]; late?: boolean }; // late: 자동 받음 뒤 늦게 올린 확인
+// 자동 받음(구매자 확인 없이 받은 것으로 처리) 뒤 구매자가 받은 물건 확인을 늦게 올릴 수 있는 시간(사용자 결정 2026-10-15, A안)
+export const LATE_ARRIVAL_HOURS = 24;
 export type PackCheck = { items: { name: string; ok: boolean }[]; reset: boolean | null; note: string; photos: string[] };
 export const INSPECT_CONDITIONS = [
   { key: "SAME", label: "보낼 때와 같아요" },

@@ -3,8 +3,9 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderPhotos, orders } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { MAX_PHOTO_BYTES, savePhoto } from "@/lib/photos";
+import { MAX_PHOTO_BYTES, removeOrderPhotoFile, savePhoto } from "@/lib/photos";
 import { ORDER_PHOTO_MAX, ORDER_PHOTO_STAGES, type OrderPhotoStage } from "@/ui/check-items";
+import { lateArrivalUntil } from "@/lib/orders";
 
 // 단계별로 누가·어느 상태에서 사진을 올릴 수 있는지(받을 때=구매자·배송 중, 포장=구매자·반납 신청, 검수=판매자·반송 중)
 const RULE: Record<OrderPhotoStage, { role: "buyer" | "seller"; status: string }> = {
@@ -21,7 +22,9 @@ async function guard(id: string, userId: string | null, stage: unknown) {
   const role = o?.buyerId === userId ? "buyer" : o?.sellerId === userId ? "seller" : null;
   if (!o || !role) return NextResponse.json({ error: "거래를 찾을 수 없습니다." }, { status: 404 });
   const rule = RULE[stage as OrderPhotoStage];
-  if (rule.role !== role || rule.status !== o.status) return NextResponse.json({ error: "지금은 이 사진을 올릴 수 없어요. 새로고침해 주세요." }, { status: 409 });
+  // 받을 때 사진은 자동 받음 뒤 늦은 확인 기한 안에도 올릴 수 있다
+  const lateReceive = stage === "RECEIVE" && role === "buyer" && lateArrivalUntil(o) !== null;
+  if (!lateReceive && (rule.role !== role || rule.status !== o.status)) return NextResponse.json({ error: "지금은 이 사진을 올릴 수 없어요. 새로고침해 주세요." }, { status: 409 });
   return null;
 }
 
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const saved: string[] = [];
   for (const f of files) {
     try {
-      const s = await savePhoto(Buffer.from(await f.arrayBuffer()));
+      const s = await savePhoto(Buffer.from(await f.arrayBuffer()), "order");
       db.insert(orderPhotos).values({ orderId: id, stage: stage as string, userId: userId!, fileName: s.fileName, width: s.width, height: s.height }).run();
       saved.push(s.fileName);
     } catch {
@@ -61,5 +64,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const file = req.nextUrl.searchParams.get("file") ?? "";
   const r = db.delete(orderPhotos).where(and(eq(orderPhotos.orderId, id), eq(orderPhotos.stage, stage!), eq(orderPhotos.fileName, file), eq(orderPhotos.userId, userId!))).run();
   if (r.changes === 0) return NextResponse.json({ error: "사진을 찾을 수 없습니다." }, { status: 404 });
+  await removeOrderPhotoFile(file); // 기록과 함께 실제 파일도 지운다
   return NextResponse.json({ deleted: file });
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/session";
 import { act, orderView, TradeError } from "@/lib/orders";
 
-const ACTIONS = ["CONFIRM_PAYMENT", "SHIP", "RECEIVED", "EXTEND", "PURCHASE", "RETURN", "RETURN_SHIPPED", "INSPECT", "REFUND_SENT", "REFUND_RECEIVED", "CANCEL", "SET_REFUND_ACCOUNT"] as const;
+const ACTIONS = ["CONFIRM_PAYMENT", "SHIP", "RECEIVED", "EXTEND", "PURCHASE", "RETURN", "RETURN_SHIPPED", "INSPECT", "REFUND_SENT", "REFUND_RECEIVED", "CANCEL", "SET_REFUND_ACCOUNT", "ARRIVAL_CHECK"] as const;
 
 // GET /api/orders/[id] — 참여자만
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

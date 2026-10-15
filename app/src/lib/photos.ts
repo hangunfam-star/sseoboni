@@ -12,20 +12,23 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const MAX_EDGE = 1600;
 const FILE_RE = /^[a-f0-9]{24}\.webp$/;
 
-// return: 사진 저장 폴더(저장소 밖으로 나가지 않는 고정 하위 경로)
-function uploadsDir(): string {
-  return path.join(process.cwd(), "runtime-data", "uploads");
+// 상품 사진(공개)과 거래 증거 사진(당사자만)은 다른 폴더에 둔다 — 공개 사진 주소는 상품 폴더만 읽는다
+export type PhotoKind = "listing" | "order";
+
+// param: kind 사진 종류. return: 사진 저장 폴더(저장소 밖으로 나가지 않는 고정 하위 경로)
+function uploadsDir(kind: PhotoKind = "listing"): string {
+  return path.join(process.cwd(), "runtime-data", kind === "order" ? "order-uploads" : "uploads");
 }
 
-// param: name 저장된 파일 이름. return: 안전한 이름이면 절대경로, 아니면 null
-export function photoPath(name: string): string | null {
-  return FILE_RE.test(name) ? path.join(uploadsDir(), name) : null;
+// param: name 저장된 파일 이름, kind 사진 종류. return: 안전한 이름이면 절대경로, 아니면 null
+export function photoPath(name: string, kind: PhotoKind = "listing"): string | null {
+  return FILE_RE.test(name) ? path.join(uploadsDir(kind), name) : null;
 }
 
 export { photoUrl } from "@/lib/photo-url";
 
-// param: data 업로드 바이트. return: 저장한 파일 정보. 예외: 이미지가 아니면 throw
-export async function savePhoto(data: Buffer): Promise<{ fileName: string; width: number; height: number }> {
+// param: data 업로드 바이트, kind 사진 종류. return: 저장한 파일 정보. 예외: 이미지가 아니면 throw
+export async function savePhoto(data: Buffer, kind: PhotoKind = "listing"): Promise<{ fileName: string; width: number; height: number }> {
   const img = sharp(data, { failOn: "error" }).rotate(); // EXIF 방향만 반영하고 메타데이터는 버린다
   const meta = await img.metadata();
   if (!meta.format || !["jpeg", "png", "webp", "heif", "avif"].includes(meta.format)) throw new Error("unsupported");
@@ -34,15 +37,22 @@ export async function savePhoto(data: Buffer): Promise<{ fileName: string; width
     .webp({ quality: 82 })
     .toBuffer({ resolveWithObject: true });
   const fileName = `${randomBytes(12).toString("hex")}.webp`;
-  await mkdir(uploadsDir(), { recursive: true });
-  await writeFile(path.join(uploadsDir(), fileName), out);
+  await mkdir(uploadsDir(kind), { recursive: true });
+  await writeFile(path.join(uploadsDir(kind), fileName), out);
   return { fileName, width: info.width, height: info.height };
 }
 
-export async function readPhoto(name: string): Promise<Buffer | null> {
-  const p = photoPath(name);
+// param: name 파일 이름, kind 사진 종류. return: 사진 바이트, 없으면 null
+export async function readPhoto(name: string, kind: PhotoKind = "listing"): Promise<Buffer | null> {
+  const p = photoPath(name, kind);
   if (!p) return null;
   try { return await readFile(p); } catch { return null; }
+}
+
+// param: name 거래 증거 사진 파일 이름. return: 없음. 파일이 이미 없어도 오류 없이 넘어간다
+export async function removeOrderPhotoFile(name: string): Promise<void> {
+  const p = photoPath(name, "order");
+  if (p) await unlink(p).catch(() => undefined);
 }
 
 export type PhotoRow = { fileName: string; width: number; height: number };

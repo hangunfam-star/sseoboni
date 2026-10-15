@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const allowed = o && ((userId && (o.buyerId === userId || o.sellerId === userId)) || (await isAdmin()));
   if (!allowed) return NextResponse.json({ error: "사진을 찾을 수 없습니다." }, { status: 404 });
   const row = db.select({ f: orderPhotos.fileName }).from(orderPhotos).where(and(eq(orderPhotos.orderId, id), eq(orderPhotos.fileName, file))).get();
-  const data = row ? await readPhoto(row.f) : null;
+  const data = row ? await readPhoto(row.f, "order") : null;
   if (!data) return NextResponse.json({ error: "사진을 찾을 수 없습니다." }, { status: 404 });
   return new NextResponse(new Uint8Array(data), { headers: { "Content-Type": "image/webp", "Cache-Control": "private, max-age=3600" } });
 }
