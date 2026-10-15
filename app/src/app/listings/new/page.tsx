@@ -6,10 +6,11 @@ import { priceProblem } from "@/ui/listing-price";
 import { CONDITION_GRADES, conditionLabel, demandLabel } from "@/ui/presentation";
 import { SELL_CATEGORIES } from "@/ui/categories";
 import { ComponentPicker } from "@/components/ComponentPicker";
+import { CheckFields } from "@/components/CheckFields";
 import { CUSTOM_MODEL as CUSTOM, ModelPicker } from "@/components/ModelPicker";
 import { EMPTY_TERMS, TrialTermsFields, termsPayload, type TermsDraft } from "@/components/TrialTermsFields";
 
-type ProductModel = { id: string; brand: string; modelName: string; seekers: number };
+type ProductModel = { id: string; brand: string; modelName: string; seekers: number; categoryName: string | null };
 
 const MAX_PHOTOS = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -33,6 +34,7 @@ export default function NewListingPage() {
   const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
   const [feePct, setFeePct] = useState(3);
   const [components, setComponents] = useState<string[]>(["본체"]);
+  const [checks, setChecks] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
@@ -45,6 +47,7 @@ export default function NewListingPage() {
 
   const isCustom = modelId === CUSTOM;
   const selected = models.find((m) => m.id === modelId);
+  const category = isCustom ? (customCategory || null) : selected?.categoryName ?? null; // 점검표 항목을 고르는 기준
   const label = selected ? demandLabel(selected.seekers) : null;
   const hint = label && `이 모델을 ${label.startsWith("찾는 사람 ") ? `${selected!.seekers}명이 찾고 있어요` : "찾는 사람이 있어요"}`;
 
@@ -80,6 +83,7 @@ export default function NewListingPage() {
         customModel: isCustom ? { brand: customBrand, modelName: customModelName, category: customCategory } : undefined,
         title, price: price.replace(/,/g, ""), conditionGrade, description, tryWillingness, components,
         trialTerms: tryWillingness === "YES" ? termsPayload(terms) : undefined,
+        checkItems: checks,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -127,6 +131,7 @@ export default function NewListingPage() {
           ))}
         </div>
         {photos.length === 0 && <p className="field-hint">실제 상품 사진을 올려 주세요. 첫 사진이 대표 사진이 돼요. 사진 속 위치 정보는 저장하지 않아요.</p>}
+        <p className="photo-angles" aria-label="찍으면 좋은 사진">정면 · 뒷면 · 옆면 · 흠집 부위 · 구성품 전체 — 받을 때 비교하는 기준이 돼요</p>
 
         <label className="field">
           <span>모델</span>
@@ -191,6 +196,8 @@ export default function NewListingPage() {
           </div>
           {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} feePct={feePct} />}
         </fieldset>
+
+        {(modelId || isCustom) && <CheckFields category={category} value={checks} onChange={setChecks} required={tryWillingness === "YES"} />}
 
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="dark-button" type="submit" disabled={pending || priceProblem(price) !== null}>{pending ? "등록 중…" : "등록하기"}</button>

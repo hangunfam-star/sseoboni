@@ -10,6 +10,8 @@ import { saveTrialTermsTx } from "@/lib/trial-terms";
 import { parseTrialTerms } from "@/ui/trial-pricing";
 import { feePctNow } from "@/lib/platform-fee-store";
 import { PRICE_MAX, PRICE_MIN } from "@/ui/listing-price";
+import { categoryNameOf } from "@/lib/models";
+import { parseCheckAnswers } from "@/ui/check-items";
 
 const TRY_EVENT = { YES: "SELLER_TRY_YES", CONDITIONAL: "SELLER_TRY_CONDITIONAL", NO: "SELLER_TRY_NO" } as const;
 
@@ -92,6 +94,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "존재하지 않는 상품 모델입니다." }, { status: 400 });
     }
   }
+  // 판매자 점검표: 써보기 허용이면 모든 항목 필수, 아니면 채운 항목만 저장
+  const checks = parseCheckAnswers(body?.checkItems, modelId ? categoryNameOf(modelId) : custom?.category, tryWillingness === "YES");
+  if (typeof checks === "string") return NextResponse.json({ error: checks }, { status: 400 });
 
   // Gate 2 승인 전까지 써보기(trial)는 항상 비활성 — §101 Validation MVP 원칙.
   // 판매자의 써보기 허용 의향은 이벤트로만 기록한다(판매자 WTA 신호).
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
     const row = tx
       .insert(listings)
-      .values({ sellerId: userId, modelId, title, price, conditionGrade, description, directSaleEnabled: true, trialEnabled: false })
+      .values({ sellerId: userId, modelId, title, price, conditionGrade, description, directSaleEnabled: true, trialEnabled: false, checkItems: checks.length ? JSON.stringify(checks) : null })
       .returning()
       .get();
     for (const name of components) tx.insert(listingComponents).values({ listingId: row.id, name }).run();

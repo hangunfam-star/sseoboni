@@ -75,6 +75,7 @@ export const listings = sqliteTable("listings", {
   trialPolicyId: text("trial_policy_id"),
   status: text("status").notNull().default("ACTIVE"), // ACTIVE | SOLD | HIDDEN | REMOVED
   isTest: integer("is_test", { mode: "boolean" }).notNull().default(false), // 운영자 시험용 상품(신청 막음, 작은 "시험용" 표시)
+  checkItems: text("check_items"), // 판매자 점검표 JSON [{key,label,value}] — 써보기 상품은 필수(src/ui/check-items.ts)
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 
@@ -231,7 +232,9 @@ export const orders = sqliteTable("orders", {
   returnCarrier: text("return_carrier"),
   returnTracking: text("return_tracking"),
   returnHandoverAt: text("return_handover_at"), // 구매자가 택배사에 맡긴 날(YYYY-MM-DD)
-  inspection: text("inspection"), // JSON: 구성품별 반환 여부·메모
+  inspection: text("inspection"), // JSON: 구성품별 반환 여부·상태(SAME|DAMAGED|BROKEN)·메모·사진
+  arrivalCheck: text("arrival_check"), // 받을 때 구매자 확인 JSON: 구성품·설명 일치·메모·사진
+  packCheck: text("pack_check"), // 반송 전 구매자 확인 JSON: 구성품 동봉·초기화·메모·사진
   refundKind: text("refund_kind"), // RETURN | CANCEL
   refundAmount: integer("refund_amount"),
   feePct: real("fee_pct"), // 구매 확정 시점 수수료율
@@ -261,6 +264,18 @@ export const orders = sqliteTable("orders", {
   index("orders_listing").on(t.listingId),
   index("orders_status").on(t.status),
 ]);
+
+// 거래 단계별 증거 사진(받을 때·반송 포장·판매자 검수). 거래 당사자와 운영자만 본다.
+export const orderPhotos = sqliteTable("order_photos", {
+  id: text("id").primaryKey().$defaultFn(cuid),
+  orderId: text("order_id").notNull().references(() => orders.id),
+  stage: text("stage").notNull(), // RECEIVE | PACK | INSPECT
+  userId: text("user_id").notNull().references(() => users.id),
+  fileName: text("file_name").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [index("order_photos_order").on(t.orderId)]);
 
 // 거래 기록(시간순). 상태 변화·금액 확정을 남긴다.
 export const orderEvents = sqliteTable("order_events", {

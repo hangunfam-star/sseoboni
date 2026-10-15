@@ -20,6 +20,7 @@ import { questionsFor } from "@/ui/trade-rules";
 import { sellerAccounts } from "@/db/schema";
 import { readSellerAccount } from "@/lib/seller-account";
 import { Avatar } from "@/components/Avatar";
+import { readCheckAnswers } from "@/ui/check-items";
 import { isTestListing, TEST_LISTING_BADGE, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 import { photoOf } from "@/lib/kakao";
 import type { Metadata } from "next";
@@ -201,6 +202,13 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <section className="listing-section">
             <h2><Icon name="box" />구성품</h2>
             <ul className="component-list">{components.map((c) => <li key={c.id}>{c.name}</li>)}</ul>
+          </section>
+        )}
+        {readCheckAnswers(listing.checkItems).length > 0 && (
+          <section className="listing-section" aria-labelledby="seller-check-title">
+            <h2 id="seller-check-title"><Icon name="checklist" />판매자 점검표</h2>
+            <dl className="check-list">{readCheckAnswers(listing.checkItems).map((c) => <div key={c.key}><dt>{c.label}</dt><dd>{c.value}</dd></div>)}</dl>
+            <small className="field-hint">받을 때와 돌려보낼 때 이 점검표로 상태를 비교해요.</small>
           </section>
         )}
         <section className="listing-section">

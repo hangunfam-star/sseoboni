@@ -1425,3 +1425,35 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 
 /* 시험용 상품 작은 표시(2026-10-15) */
 .test-chip { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: #eeeef1; color: #6b6b70; font-size: 11px; font-weight: 700; line-height: 1.6; vertical-align: middle; white-space: nowrap; }
+
+/* 판매자 점검표·거래 단계 확인(2026-10-15) */
+.check-fields { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.check-fields legend { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+.check-fields legend small { font-weight: 600; font-size: 12px; color: var(--w-sub, #6b6b70); margin-left: 6px; }
+.check-row { display: grid; gap: 6px; }
+.check-row__label { font-size: 13px; font-weight: 700; }
+.check-row__label b { color: #d64545; }
+.check-row__options { display: flex; flex-wrap: wrap; gap: 6px; }
+.check-row__options button { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--color-line, #e3e3e6); background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.check-row__options button[aria-pressed="true"] { background: var(--color-ink, #111); border-color: var(--color-ink, #111); color: #fff; }
+.check-row input { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--color-line, #e3e3e6); font: inherit; }
+.photo-angles { font-size: 12px; color: var(--w-sub, #6b6b70); margin: 4px 0 0; }
+.check-list { display: grid; gap: 6px; margin: 0; }
+.check-list > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--w-divider, #eee); }
+.check-list dt { color: var(--w-sub, #6b6b70); font-size: 13px; }
+.check-list dd { margin: 0; font-weight: 700; font-size: 13px; text-align: right; }
+.stage-check { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--w-surface, #f5f5f7); }
+.stage-check h3 { margin: 0; font-size: 15px; }
+.stage-photos { display: flex; flex-wrap: wrap; gap: 6px; }
+.stage-photos img, .stage-photos a { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; display: block; }
+.stage-photo-add { width: 72px; height: 72px; border-radius: 10px; border: 1.5px dashed #c9c9cf; display: grid; place-items: center; font-size: 12px; color: #6b6b70; cursor: pointer; background: #fff; }
+.stage-photo-add input { display: none; }
+.stage-warn { color: #b3261e; font-size: 13px; font-weight: 700; }
+.check-compare { display: grid; gap: 12px; }
+@media (min-width: 720px) { .check-compare { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.stage-photo-box { display: grid; gap: 6px; }
+.stage-photo { position: relative; }
+.stage-photo img { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; display: block; }
+.stage-photo__remove { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: #111; color: #fff; font-size: 13px; line-height: 1; cursor: pointer; }
+.stage-check p { margin: 0; font-size: 13px; }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ComponentPicker } from "@/components/ComponentPicker";
 import { EMPTY_TERMS, TrialTermsFields, termsPayload, type TermsDraft } from "@/components/TrialTermsFields";
+import { CheckFields } from "@/components/CheckFields";
 import { photoUrl } from "@/lib/photo-url";
 import { priceProblem } from "@/ui/listing-price";
 import { CONDITION_GRADES, conditionLabel } from "@/ui/presentation";
@@ -33,6 +34,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [conditionGrade, setConditionGrade] = useState("A");
   const [description, setDescription] = useState("");
   const [components, setComponents] = useState<string[]>([]);
+  const [checks, setChecks] = useState<Record<string, string>>({});
+  const [category, setCategory] = useState<string | null>(null);
   const [tryWillingness, setTryWillingness] = useState("");
   const [savedTry, setSavedTry] = useState("");
   const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
@@ -53,6 +56,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
       setConditionGrade(d.listing.conditionGrade);
       setDescription(d.listing.description);
       setComponents(d.components.map((c: { name: string }) => c.name));
+      setCategory(d.category ?? null);
+      setChecks(Object.fromEntries((d.checkItems ?? []).map((c: { key: string; value: string }) => [c.key, c.value])));
       setPhotos(d.photos.map((p: { fileName: string }) => p.fileName));
       setTryWillingness(d.tryWillingness ?? "");
       setSavedTry(d.tryWillingness ?? "");
@@ -106,6 +111,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         title, price, conditionGrade, description, components,
         ...(tryWillingness && tryWillingness !== savedTry ? { tryWillingness } : {}),
         ...(tryWillingness === "YES" ? { trialTerms: termsPayload(terms) } : {}),
+        checkItems: checks,
       }),
     });
     const d = await res.json().catch(() => ({}));
@@ -200,6 +206,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           </div>
           {tryWillingness === "YES" && <TrialTermsFields value={terms} onChange={setTerms} price={Number(price) || 0} feePct={feePct} />}
         </fieldset>
+        <CheckFields category={category} value={checks} onChange={setChecks} required={tryWillingness === "YES"} />
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="dark-button" type="submit" disabled={busy || priceProblem(price) !== null}>{busy ? "저장 중…" : "저장하기"}</button>
         <button className="text-button listing-delete" type="button" onClick={() => void removeListing()} disabled={busy}>상품 삭제</button>

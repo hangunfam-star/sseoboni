@@ -66,3 +66,10 @@ export function parseComponents(v: unknown): string[] | string {
   if (names.some((n) => n.length > 30)) return "구성품 이름은 30자 이하로 입력하세요.";
   return names;
 }
+
+// param: modelId 상품 모델. return: 모델의 종류 이름(없으면 null) — 점검표 항목을 고를 때 쓴다
+export function categoryNameOf(modelId: string): string | null {
+  const m = db.select({ c: productModels.categoryId }).from(productModels).where(eq(productModels.id, modelId)).get();
+  if (!m) return null;
+  return db.select({ n: categories.name }).from(categories).where(eq(categories.id, m.c)).get()?.n ?? null;
+}

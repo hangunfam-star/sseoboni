@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BANKS, CARRIERS, RETURN_REASONS, type Action } from "@/ui/trade-rules";
 import { formatWon } from "@/ui/presentation";
+import { INSPECT_CONDITIONS } from "@/ui/check-items";
+import { StagePhotos } from "@/components/StagePhotos";
 
 type Props = {
   orderId: string;
@@ -21,6 +23,8 @@ type Props = {
   disputeOpen: boolean;
   canDispute: boolean;
   disputeReasons: readonly string[];
+  needsReset: boolean;           // 반송 전 초기화·로그아웃 확인이 필요한 품목
+  stagePhotos: { RECEIVE: string[]; PACK: string[]; INSPECT: string[] };
 };
 
 // 은행·계좌·예금주 입력(환불 받을 계좌)
@@ -50,6 +54,14 @@ export function OrderActions(p: Props) {
   const [note, setNote] = useState("");
   const [bank, setBank] = useState({ bank: "", account: "", holder: "" });
   const [checks, setChecks] = useState<Record<string, boolean>>({});
+  const [arrived, setArrived] = useState<Record<string, boolean>>({});
+  const [matches, setMatches] = useState<boolean | null>(null);
+  const [packed, setPacked] = useState<Record<string, boolean>>({});
+  const [reset, setReset] = useState(false);
+  const [condition, setCondition] = useState("");
+  const [nRecv, setNRecv] = useState(p.stagePhotos.RECEIVE.length);
+  const [nPack, setNPack] = useState(p.stagePhotos.PACK.length);
+  const [nInsp, setNInsp] = useState(p.stagePhotos.INSPECT.length);
   const [extendTo, setExtendTo] = useState<number | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [disputeOpenForm, setDisputeOpenForm] = useState(false);
@@ -104,7 +116,26 @@ export function OrderActions(p: Props) {
       )}
 
       {has("RECEIVED") && (
-        <button type="button" className="dark-button" disabled={pending} onClick={() => send("RECEIVED", {}, p.kind === "TRIAL" ? "물건을 받았나요? 지금부터 써보기 시간이 시작돼요." : "물건을 받았나요?")}>받았어요</button>
+        <form className="order-form stage-check" onSubmit={(e) => { e.preventDefault(); void send("RECEIVED", { components: arrived, matches, note }, p.kind === "TRIAL" ? "물건을 받았나요? 지금부터 써보기 시간이 시작돼요." : "물건을 받았나요?"); }}>
+          <h3>받은 물건 확인</h3>
+          <small className="field-hint">돌려보낼 때 이 확인과 사진으로 상태를 비교해요. 받은 그대로 적어 주세요.</small>
+          {p.components.length > 0 && (
+            <ul className="order-checks">
+              {p.components.map((c) => <li key={c}><label><input type="checkbox" checked={Boolean(arrived[c])} onChange={(e) => setArrived({ ...arrived, [c]: e.target.checked })} /> {c} 왔어요</label></li>)}
+            </ul>
+          )}
+          <div className="check-row">
+            <span className="check-row__label">설명·점검표와 같나요? <b aria-hidden="true">*</b></span>
+            <div className="check-row__options" role="group" aria-label="설명과 같은지">
+              <button type="button" aria-pressed={matches === true} onClick={() => setMatches(true)}>같아요</button>
+              <button type="button" aria-pressed={matches === false} onClick={() => setMatches(false)}>달라요</button>
+            </div>
+          </div>
+          {matches === false && <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="무엇이 다른지 적어 주세요 (5자 이상)" aria-label="다른 점" maxLength={300} />}
+          <StagePhotos orderId={p.orderId} stage="RECEIVE" initial={p.stagePhotos.RECEIVE} label={p.kind === "TRIAL" ? "받은 상태 사진 (1장 이상)" : "받은 상태 사진 (선택)"} onChange={setNRecv} />
+          {matches === false && <p className="stage-warn">받은 뒤 판매자와 채팅으로 확인하고, 해결이 안 되면 &apos;문제가 있어요&apos;로 분쟁을 신청할 수 있어요.</p>}
+          <button className="dark-button" type="submit" disabled={pending || matches === null || (p.kind === "TRIAL" && nRecv === 0)}>받았어요</button>
+        </form>
       )}
 
       {(has("PURCHASE") || has("RETURN")) && (
@@ -144,7 +175,16 @@ export function OrderActions(p: Props) {
       )}
 
       {has("RETURN_SHIPPED") && (
-        <form className="order-form" onSubmit={(e) => { e.preventDefault(); void send("RETURN_SHIPPED", { carrier, tracking, handoverDate: handover }); }}>
+        <form className="order-form stage-check" onSubmit={(e) => { e.preventDefault(); void send("RETURN_SHIPPED", { carrier, tracking, handoverDate: handover, packed, reset, packNote: note }); }}>
+          <h3>보내기 전 확인</h3>
+          {p.components.length > 0 && (
+            <ul className="order-checks">
+              {p.components.map((c) => <li key={c}><label><input type="checkbox" checked={Boolean(packed[c])} onChange={(e) => setPacked({ ...packed, [c]: e.target.checked })} /> {c} 넣었어요</label></li>)}
+            </ul>
+          )}
+          {p.needsReset && <label className="order-inline"><input type="checkbox" checked={reset} onChange={(e) => setReset(e.target.checked)} /> 초기화·계정 로그아웃을 했어요 <b aria-hidden="true">*</b></label>}
+          <StagePhotos orderId={p.orderId} stage="PACK" initial={p.stagePhotos.PACK} label="포장 전 물건 사진 (1장 이상)" onChange={setNPack} />
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="판매자에게 남길 말 (선택)" aria-label="반송 메모" maxLength={200} />
           <strong>반송 정보 입력</strong>
           <select value={carrier} onChange={(e) => setCarrier(e.target.value)} aria-label="반송 택배사" required>
             <option value="">택배사 선택</option>
@@ -153,13 +193,14 @@ export function OrderActions(p: Props) {
           <input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="송장번호" aria-label="반송 송장번호" maxLength={30} required />
           <label className="order-inline">택배를 맡긴 날 <input type="date" value={handover} max={today} onChange={(e) => setHandover(e.target.value)} aria-label="택배를 맡긴 날" required /></label>
           <small className="field-hint">반송 기한은 택배를 맡긴 날로 판단해요. 택배가 늦게 도착해도 구매자 지각이 아니에요.</small>
-          <button className="dark-button" type="submit" disabled={pending}>반송했어요</button>
+          <button className="dark-button" type="submit" disabled={pending || nPack === 0 || (p.needsReset && !reset)}>반송했어요</button>
         </form>
       )}
 
       {has("INSPECT") && (
-        <form className="order-form" onSubmit={(e) => { e.preventDefault(); void send("INSPECT", { components: checks, note }, "검수를 마칠까요? 환불 대기로 넘어가요."); }}>
-          <strong>돌아온 물건 검수</strong>
+        <form className="order-form stage-check" onSubmit={(e) => { e.preventDefault(); void send("INSPECT", { components: checks, condition, note }, "검수를 마칠까요? 환불 대기로 넘어가요."); }}>
+          <h3>돌아온 물건 검수</h3>
+          <small className="field-hint">위 &apos;상태 확인 기록&apos;의 받을 때·보낼 때 사진과 비교해 주세요.</small>
           {p.components.length === 0 ? <p className="field-hint">등록된 구성품이 없어요. 상태를 확인하고 메모를 남겨 주세요.</p> : (
             <ul className="order-checks">
               {p.components.map((c) => (
@@ -167,9 +208,16 @@ export function OrderActions(p: Props) {
               ))}
             </ul>
           )}
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="검수 메모 (선택)" aria-label="검수 메모" maxLength={300} />
+          <div className="check-row">
+            <span className="check-row__label">돌아온 상태 <b aria-hidden="true">*</b></span>
+            <div className="check-row__options" role="group" aria-label="돌아온 상태">
+              {INSPECT_CONDITIONS.map((c) => <button key={c.key} type="button" aria-pressed={condition === c.key} onClick={() => setCondition(c.key)}>{c.label}</button>)}
+            </div>
+          </div>
+          <StagePhotos orderId={p.orderId} stage="INSPECT" initial={p.stagePhotos.INSPECT} label={condition && condition !== "SAME" ? "문제가 보이는 사진 (1장 이상)" : "검수 사진 (선택)"} onChange={setNInsp} />
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={condition && condition !== "SAME" ? "어떤 문제인지 적어 주세요 (5자 이상)" : "검수 메모 (선택)"} aria-label="검수 메모" maxLength={300} />
           <small className="field-hint">빠진 구성품이나 훼손이 있으면 검수 뒤 &apos;문제가 있어요&apos;로 분쟁을 신청하세요. 환불액은 운영자 확인 없이 줄일 수 없어요.</small>
-          <button className="dark-button" type="submit" disabled={pending}>검수 완료</button>
+          <button className="dark-button" type="submit" disabled={pending || !condition || (condition !== "SAME" && (nInsp === 0 || note.trim().length < 5))}>검수 완료</button>
         </form>
       )}
 

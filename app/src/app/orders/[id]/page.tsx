@@ -15,6 +15,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categories } from "@/db/schema";
 import { OrderActions } from "./OrderActions";
+import { StagePhotoList } from "@/components/StagePhotos";
+import { inspectConditionLabel } from "@/ui/check-items";
 import { TradeReviewForm, TrialReviewForm } from "./ReviewForms";
 
 export const metadata: Metadata = { title: "거래 · 써보니", robots: { index: false, follow: false } };
@@ -103,7 +105,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         {v.opsFlag && <p className="field-hint">운영 확인: {v.opsFlag}</p>}
         {v.dispute?.status === "OPEN" && <p className="form-error">분쟁 확인 중 ({v.dispute.reason}) · 운영자가 확인할 때까지 금액 확정과 자동 처리를 멈췄어요.</p>}
         {v.dispute?.status === "RESOLVED" && <p className="field-hint">분쟁 정리: {v.dispute.resolution}</p>}
-        <OrderActions orderId={v.id} role={v.role} kind={v.kind} status={v.status} today={kstToday()} actions={v.actions} tiers={v.tiers} trialHours={v.trialHours} components={v.snapshot.components}
+        <OrderActions orderId={v.id} role={v.role} kind={v.kind} status={v.status} today={kstToday()} actions={v.actions} tiers={v.tiers} trialHours={v.trialHours} components={v.snapshot.components} needsReset={v.needsReset} stagePhotos={v.stagePhotos}
           refundAmount={v.refundAmount} needsRefundAccount={v.status === "REFUND_DUE" && !v.refundTo} price={v.price}
           disputeOpen={v.dispute?.status === "OPEN"} canDispute={!["AWAIT_PAYMENT", "CANCELLED"].includes(v.status)} disputeReasons={DISPUTE_REASONS} />
       </section>
@@ -158,6 +160,41 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </section>
       )}
 
+      {(v.snapshot.checks?.length || v.arrivalCheck || v.packCheck || v.inspection) && (
+        <section className="order-box" aria-labelledby="check-record-title">
+          <h2 id="check-record-title"><Icon name="checklist" />상태 확인 기록</h2>
+          <div className="check-compare">
+            {v.snapshot.checks && v.snapshot.checks.length > 0 && (
+              <div className="stage-check"><h3>판매자 점검표 (신청 때)</h3>
+                <dl className="check-list">{v.snapshot.checks.map((c) => <div key={c.key}><dt>{c.label}</dt><dd>{c.value}</dd></div>)}</dl>
+              </div>
+            )}
+            {v.arrivalCheck && (
+              <div className="stage-check"><h3>받을 때 (구매자)</h3>
+                <p>{v.arrivalCheck.matches ? "설명과 같아요" : <b className="stage-warn">설명과 달라요 — {v.arrivalCheck.note}</b>}</p>
+                {v.arrivalCheck.items.length > 0 && <p>{v.arrivalCheck.items.map((x) => `${x.name} ${x.ok ? "✓" : "✗ 안 옴"}`).join(" · ")}</p>}
+                <StagePhotoList orderId={v.id} files={v.arrivalCheck.photos} label="받은 상태 사진" />
+              </div>
+            )}
+            {v.packCheck && (
+              <div className="stage-check"><h3>보낼 때 (구매자)</h3>
+                {v.packCheck.items.length > 0 && <p>{v.packCheck.items.map((x) => `${x.name} ${x.ok ? "✓" : "✗ 못 넣음"}`).join(" · ")}</p>}
+                {v.packCheck.reset && <p>초기화·로그아웃 했어요</p>}
+                {v.packCheck.note && <p>{v.packCheck.note}</p>}
+                <StagePhotoList orderId={v.id} files={v.packCheck.photos} label="포장 전 사진" />
+              </div>
+            )}
+            {v.inspection && (
+              <div className="stage-check"><h3>검수 (판매자)</h3>
+                {v.inspection.condition && <p>{v.inspection.condition === "SAME" ? inspectConditionLabel(v.inspection.condition) : <b className="stage-warn">{inspectConditionLabel(v.inspection.condition)}</b>}</p>}
+                {v.inspection.items.length > 0 && <p>{v.inspection.items.map((x) => `${x.name} ${x.returned ? "✓" : "✗ 없음"}`).join(" · ")}</p>}
+                {v.inspection.note && <p>{v.inspection.note}</p>}
+                <StagePhotoList orderId={v.id} files={v.inspection.photos ?? []} label="검수 사진" />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
       <section className="order-box" aria-labelledby="log-title">
         <h2 id="log-title"><Icon name="clock" />거래 기록</h2>
         <ol className="order-log">{v.events.map((e, i) => <li key={i}><time>{kst(e.at)}</time> {EVENT_TEXT[e.type] ?? e.type} <small>{WHO[e.by]}</small></li>)}</ol>

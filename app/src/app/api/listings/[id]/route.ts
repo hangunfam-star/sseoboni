@@ -10,6 +10,8 @@ import { photosFor } from "@/lib/photos";
 import { CONDITION_GRADES } from "@/ui/presentation";
 import { PRICE_MAX, PRICE_MIN } from "@/ui/listing-price";
 import { getCurrentUserId } from "@/lib/session";
+import { categoryNameOf } from "@/lib/models";
+import { parseCheckAnswers, readCheckAnswers } from "@/ui/check-items";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 
 // GET /api/listings/[id] — 상세 (P0 필수). ACTIVE가 아니면 판매자 본인에게만 보인다.
@@ -31,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ? db.get<{ t: string }>(sql`select event_type as t from market_validation_events where listing_id = ${id} and event_type like 'SELLER_TRY_%' order by created_at desc, rowid desc limit 1`)?.t ?? null
     : null;
   const trialTerms = await getTrialTerms(id);
-  return NextResponse.json({ listing, model, components, photos, isOwner, tryWillingness: latestTry ? latestTry.replace("SELLER_TRY_", "") : null, trialTerms });
+  return NextResponse.json({ listing, model, category: categoryNameOf(listing.modelId), checkItems: readCheckAnswers(listing.checkItems), components, photos, isOwner, tryWillingness: latestTry ? latestTry.replace("SELLER_TRY_", "") : null, trialTerms });
 }
 
 // PATCH /api/listings/[id] — 판매자 본인만. 보낸 항목만 고친다.
@@ -105,6 +107,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return { error: "가격을 낮추면 체험비 + 수수료가 새 가격을 넘지 않게 체험비도 고쳐 주세요." };
     }
     if (effective === "YES" && !terms && existingMax === null) return { error: "써보기 조건을 입력해 주세요." };
+    // 판매자 점검표: 보냈으면 검사해 저장. 써보기를 새로 켜면서 점검표가 비어 있으면 막는다.
+    const cat = categoryNameOf(listing.modelId);
+    if ("checkItems" in body) {
+      const checks = parseCheckAnswers(body.checkItems, cat, effective === "YES");
+      if (typeof checks === "string") return { error: checks };
+      set.checkItems = checks.length ? JSON.stringify(checks) : null;
+    } else if (tryWillingness === "YES" && readCheckAnswers(listing.checkItems).length === 0) {
+      return { error: "써보기 상품은 점검표를 모두 채워야 해요." };
+    }
 
     const row = Object.keys(set).length > 0
       ? tx.update(listings).set(set).where(set.status ? and(eq(listings.id, id), ne(listings.status, "RESERVED")) : eq(listings.id, id)).returning().get()

@@ -11,7 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "test:ui": "tsx --test src/ui/navigation.test.ts src/ui/presentation.test.ts src/ui/trial-pricing.test.ts src/ui/trade-rules.test.ts src/ui/market-contract.test.ts src/ui/notify.test.ts"
+    "test:ui": "tsx --test src/ui/navigation.test.ts src/ui/presentation.test.ts src/ui/trial-pricing.test.ts src/ui/trade-rules.test.ts src/ui/market-contract.test.ts src/ui/notify.test.ts src/ui/check-items.test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",

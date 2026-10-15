@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import { db } from "@/db/client";
 import {
-  categories, chatMessages, chatThreads, disputes, listingComponents, listings, orderEvents, orders, productModels,
+  categories, chatMessages, chatThreads, disputes, listingComponents, listings, orderEvents, orderPhotos, orders, productModels,
   sellerAccounts, trialProposals, users, xpAwards,
 } from "@/db/schema";
 import { nextSeqTx } from "@/lib/chat";
@@ -16,6 +16,7 @@ import { feePctNow } from "@/lib/platform-fee-store";
 import { getTrialTerms } from "@/lib/trial-terms";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
 import { findContactInfo, type TrialTier } from "@/ui/trial-pricing";
+import { componentChecks, INSPECT_CONDITIONS, inspectConditionLabel, needsReset, readCheckAnswers, type ArrivalCheck, type CheckAnswer, type OrderPhotoStage, type PackCheck } from "@/ui/check-items";
 import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 import {
   FINAL_STATUSES, RETURN_REASONS, kstDateOf, STATUS_LABEL, addHours, allowedActions, depositNameFor, hoursBetween, isFinal, moneyOf,
@@ -35,6 +36,7 @@ export type BankTo = { bank: string; account: string; holder: string };
 export type Snapshot = {
   title: string; price: number; conditionGrade: string; description: string; components: string[]; photo: string | null;
   brand: string | null; modelName: string | null; modelId: string; category: string | null; conditionNote: string | null;
+  checks?: CheckAnswer[]; // 신청 때의 판매자 점검표(2026-10-15부터)
 };
 
 export class TradeError extends Error {
@@ -42,6 +44,12 @@ export class TradeError extends Error {
 }
 
 // ── 공통 도우미 ──
+
+// param: orderId, stage. return: 그 단계에 올린 사진 파일 이름(올린 순서)
+export function stagePhotos(orderId: string, stage: OrderPhotoStage): string[] {
+  return db.select({ f: orderPhotos.fileName }).from(orderPhotos).where(and(eq(orderPhotos.orderId, orderId), eq(orderPhotos.stage, stage))).orderBy(orderPhotos.createdAt).all().map((r) => r.f);
+}
+const cleanNote = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 // param: tx, order, actorId(자동이면 null), type, data. 거래 기록 한 줄
 function eventTx(tx: Tx, orderId: string, actorId: string | null, type: string, data?: unknown) {
@@ -147,7 +155,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
   const snapshot: Snapshot = {
     title: listing.title, price: listing.price, conditionGrade: listing.conditionGrade, description: listing.description,
     components: comps.map((c) => c.name), photo, brand: model?.brand ?? null, modelName: model?.modelName ?? null, modelId: listing.modelId,
-    category: category?.name ?? null, conditionNote: terms?.conditionNote ?? null,
+    category: category?.name ?? null, conditionNote: terms?.conditionNote ?? null, checks: readCheckAnswers(listing.checkItems),
   };
   const shippingFee = terms?.shippingOneWay ?? account.defaultShipping;
   const trialFee = tiers && hours ? tiers.find((t) => t.hours === hours)!.fee : null;
@@ -219,8 +227,26 @@ export async function act(orderId: string, userId: string, action: Action | "SET
         return r;
       });
     }
-    case "RECEIVED":
-      return db.transaction((tx) => receiveTx(tx, o, t, userId, settings) ?? fail());
+    case "RECEIVED": {
+      // 받을 때 확인: 구성품이 왔는지, 설명과 같은지, (써보기면) 받은 상태 사진 1장 이상 — 반납 때 비교 기준
+      const snap: Snapshot = JSON.parse(o.snapshot);
+      if (typeof body.matches !== "boolean") throw new TradeError("설명과 같은지 골라 주세요.");
+      const note = cleanNote(body.note, 300);
+      if (findContactInfo(note)) throw new TradeError("메모에는 연락처·계좌를 적을 수 없어요.");
+      if (!body.matches && note.length < 5) throw new TradeError("설명과 다른 점을 5자 이상 적어 주세요.");
+      const photos = stagePhotos(o.id, "RECEIVE");
+      if (o.kind === "TRIAL" && photos.length === 0) throw new TradeError("받은 상태 사진을 1장 이상 올려 주세요. 돌려보낼 때 비교 기준이 돼요.");
+      const arrival: ArrivalCheck = { items: componentChecks(snap.components, body.components), matches: body.matches, note, photos };
+      return db.transaction((tx) => {
+        const r = receiveTx(tx, o, t, userId, settings) ?? fail();
+        tx.update(orders).set({ arrivalCheck: JSON.stringify(arrival) }).where(eq(orders.id, o.id)).run();
+        const missing = arrival.items.filter((x) => !x.ok).map((x) => x.name);
+        if (!arrival.matches || missing.length) {
+          systemMessageTx(tx, r, `구매자가 받은 물건을 확인했어요: ${[missing.length ? `빠진 구성품 ${missing.join(", ")}` : "", arrival.matches ? "" : `설명과 다름 — ${note}`].filter(Boolean).join(" / ")}. 서로 확인해 주시고, 해결이 안 되면 '문제가 있어요'로 분쟁을 신청할 수 있어요.`, userId);
+        }
+        return { ...r, arrivalCheck: JSON.stringify(arrival) };
+      });
+    }
     case "EXTEND": {
       const tiers: TrialTier[] = JSON.parse(o.tiers ?? "[]");
       const next = tiers.find((x) => x.hours === body.hours);
@@ -265,10 +291,20 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       // 날짜는 한국 날짜로 비교한다(화면 기본값도 한국 날짜)
       const today = kstDateOf(t);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > today || day < kstDateOf(o.returnRequestedAt ?? t)) throw new TradeError("택배를 맡긴 날짜를 확인해 주세요(반납 신청일~오늘).");
+      // 반송 전 확인: 구성품을 넣었는지, (전자기기면) 초기화·로그아웃, 포장 사진 1장 이상
+      const snap: Snapshot = JSON.parse(o.snapshot);
+      const resetNeeded = needsReset(snap.category);
+      if (resetNeeded && body.reset !== true) throw new TradeError("초기화·로그아웃을 하고 체크해 주세요. 계정이 남아 있으면 판매자가 쓸 수 없어요.");
+      const packNote = cleanNote(body.packNote, 200);
+      if (findContactInfo(packNote)) throw new TradeError("메모에는 연락처·계좌를 적을 수 없어요.");
+      const packPhotos = stagePhotos(o.id, "PACK");
+      if (packPhotos.length === 0) throw new TradeError("포장 전 물건 사진을 1장 이상 올려 주세요.");
+      const pack: PackCheck = { items: componentChecks(snap.components, body.packed), reset: resetNeeded ? true : null, note: packNote, photos: packPhotos };
       return db.transaction((tx) => {
-        const r = moveTx(tx, o.id, "RETURN_REQUESTED", { status: "RETURN_SHIPPED", returnShippedAt: t, returnCarrier: body.carrier as string, returnTracking: (body.tracking as string).trim(), returnHandoverAt: day }) ?? fail();
+        const r = moveTx(tx, o.id, "RETURN_REQUESTED", { status: "RETURN_SHIPPED", returnShippedAt: t, returnCarrier: body.carrier as string, returnTracking: (body.tracking as string).trim(), returnHandoverAt: day, packCheck: JSON.stringify(pack) }) ?? fail();
         eventTx(tx, o.id, userId, "RETURN_SHIPPED", { carrier: body.carrier, handoverDate: day });
-        systemMessageTx(tx, r, `구매자가 반송했어요(${body.carrier}, 맡긴 날 ${day}). 받으면 구성품을 확인하고 검수를 마쳐 주세요.`, userId);
+        const notPacked = pack.items.filter((x) => !x.ok).map((x) => x.name);
+        systemMessageTx(tx, r, `구매자가 반송했어요(${body.carrier}, 맡긴 날 ${day}).${notPacked.length ? ` 구매자가 넣지 못했다고 한 구성품: ${notPacked.join(", ")}.` : ""} 받으면 구성품과 상태를 확인하고 검수를 마쳐 주세요.`, userId);
         return r;
       });
     }
@@ -279,12 +315,19 @@ export async function act(orderId: string, userId: string, action: Action | "SET
       const note = typeof body.note === "string" ? body.note.trim().slice(0, 300) : "";
       if (findContactInfo(note)) throw new TradeError("메모에는 연락처·계좌를 적을 수 없어요.");
       const missing = items.filter((x) => !x.returned).map((x) => x.name);
+      // 상태: 보낼 때와 같음 / 새 흠집·손상 / 작동 이상. 같지 않으면 내용(5자 이상)과 사진 1장 이상이 필요하다
+      const condition = INSPECT_CONDITIONS.find((c) => c.key === body.condition)?.key;
+      if (!condition) throw new TradeError("돌아온 물건 상태를 골라 주세요.");
+      const inspectPhotos = stagePhotos(o.id, "INSPECT");
+      if (condition !== "SAME" && note.length < 5) throw new TradeError("어떤 문제가 있는지 5자 이상 적어 주세요.");
+      if (condition !== "SAME" && inspectPhotos.length === 0) throw new TradeError("문제가 보이는 사진을 1장 이상 올려 주세요.");
+      const problem = condition !== "SAME" || missing.length > 0;
       return db.transaction((tx) => {
-        const r = moveTx(tx, o.id, "RETURN_SHIPPED", { status: "REFUND_DUE", inspectedAt: t, inspection: JSON.stringify({ items, note }) }, LOCK) ?? fail();
-        eventTx(tx, o.id, userId, "INSPECTED", { missing });
-        systemMessageTx(tx, r, missing.length
-          ? `판매자가 검수를 마쳤어요. 빠진 구성품: ${missing.join(", ")}. 환불 예정액 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원은 그대로이고, 다툼이 있으면 분쟁을 신청할 수 있어요.`
-          : `판매자가 검수를 마쳤어요. 구성품이 모두 돌아왔어요. ${settings.refundDays}일 안에 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불할 예정이에요.`, userId);
+        const r = moveTx(tx, o.id, "RETURN_SHIPPED", { status: "REFUND_DUE", inspectedAt: t, inspection: JSON.stringify({ items, condition, note, photos: inspectPhotos }) }, LOCK) ?? fail();
+        eventTx(tx, o.id, userId, "INSPECTED", { missing, condition });
+        systemMessageTx(tx, r, problem
+          ? `판매자가 검수를 마쳤어요. ${[missing.length ? `빠진 구성품: ${missing.join(", ")}` : "", condition !== "SAME" ? `상태: ${inspectConditionLabel(condition)} — ${note}` : ""].filter(Boolean).join(" / ")}. 환불 예정액 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원은 그대로이고, 차감이 필요하면 '문제가 있어요'로 분쟁을 신청해 운영자가 정해요.`
+          : `판매자가 검수를 마쳤어요. 구성품이 모두 돌아왔고 상태도 보낼 때와 같아요. ${settings.refundDays}일 안에 ${(o.refundAmount ?? 0).toLocaleString("ko-KR")}원을 환불할 예정이에요.`, userId);
         return r;
       });
     }
@@ -455,7 +498,11 @@ export async function orderView(orderId: string, userId: string, asAdmin = false
     refundTo: showRefund ? refundTo : null,
     shipCarrier: o.shipCarrier, shipTracking: o.shipTracking, returnReason: o.returnReason, returnNote: o.returnNote,
     returnCarrier: o.returnCarrier, returnTracking: o.returnTracking, returnHandoverAt: o.returnHandoverAt,
-    inspection: o.inspection ? (JSON.parse(o.inspection) as { items: { name: string; returned: boolean }[]; note: string }) : null,
+    inspection: o.inspection ? (JSON.parse(o.inspection) as { items: { name: string; returned: boolean }[]; condition?: string; note: string; photos?: string[] }) : null,
+    arrivalCheck: o.arrivalCheck ? (JSON.parse(o.arrivalCheck) as ArrivalCheck) : null,
+    packCheck: o.packCheck ? (JSON.parse(o.packCheck) as PackCheck) : null,
+    stagePhotos: { RECEIVE: stagePhotos(o.id, "RECEIVE"), PACK: stagePhotos(o.id, "PACK"), INSPECT: stagePhotos(o.id, "INSPECT") },
+    needsReset: needsReset(snap.category),
     cancelReason: o.cancelReason, opsFlag: o.opsFlag,
     times: { createdAt: o.createdAt, paidAt: o.paidAt, shippedAt: o.shippedAt, receivedAt: o.receivedAt, trialEndAt: o.trialEndAt, completedAt: o.completedAt, refundSentAt: o.refundSentAt },
     deadlines: {

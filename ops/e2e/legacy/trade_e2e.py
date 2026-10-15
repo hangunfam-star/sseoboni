@@ -34,8 +34,12 @@ with sync_playwright() as p:
     other, otherId = ctx("구경꾼", 375)
     mid = {m["modelName"]: m["id"] for m in seller.request.get(B + "/api/models").json()["models"]}["MacBook Air M2 13인치"]
     TERMS = {"tiers": [{"hours": 24, "fee": 1000}, {"hours": 48, "fee": 2000}, {"hours": 72, "fee": 3000}], "shippingOneWay": 3000, "conditionNote": ""}
+    CHECKS = {"battery": "90% 이상", "screen": "불량 없음", "keys": "모두 정상", "charge": "정상", "look": "흠집 거의 없음", "reset": "보내기 전에 초기화해요"}
+    PHOTO = r"E:\PROJECTS\04_써보니\app\public\icons\icon-192.png"
+    def upload(ctx_, oid_, stage):
+        r_ = ctx_.request.post(f"{B}/api/orders/{oid_}/photos", multipart={"stage": stage, "photo": {"name": "p.png", "mimeType": "image/png", "buffer": open(PHOTO, "rb").read()}}); assert r_.ok, r_.text()
     def listing(title, yes=True, owner=seller, price=100000):
-        d = {"modelId": mid, "title": title, "price": price, "conditionGrade": "A", "description": "거래 시험 데이터", "tryWillingness": "YES" if yes else "NO", "components": ["본체", "충전기"]}
+        d = {"modelId": mid, "title": title, "price": price, "conditionGrade": "A", "description": "거래 시험 데이터", "tryWillingness": "YES" if yes else "NO", "components": ["본체", "충전기"], "checkItems": CHECKS}
         if yes: d["trialTerms"] = TERMS
         r = owner.request.post(B + "/api/listings", data=d); assert r.ok, r.text(); return r.json()["listing"]["id"]
     def accept(pg): pg.on("dialog", lambda d: d.accept())
@@ -109,7 +113,11 @@ with sync_playwright() as p:
     check("발송 → 배송 중", q("select status from orders where id=?", oid)[0][0] == "SHIPPED")
 
     bp.reload(wait_until="networkidle")
+    check("써보기는 받은 상태 사진 없으면 받았어요 못 누름", bp.get_by_role("button", name="받았어요").is_disabled())
+    bp.get_by_label(re.compile("본체 왔어요")).check(); bp.get_by_label(re.compile("충전기 왔어요")).check(); bp.get_by_role("button", name="같아요").click()
+    bp.locator(".stage-photo-add input").set_input_files(PHOTO); bp.wait_for_selector(".stage-photo img")
     bp.get_by_role("button", name="받았어요").click(); bp.wait_for_function("document.body.innerText.includes('써보는 중')", timeout=20000)
+    check("받을 때 확인 저장(구성품·같아요·사진 1장)", '"matches": true' in (q("select arrival_check from orders where id=?", oid)[0][0] or "").replace('":true', '": true') and q("select count(*) from order_photos where order_id=? and stage='RECEIVE'", oid)[0][0] == 1)
     o = q("select * from orders where id=?", oid)[0]
     check("받음 → 써보는 중, 체험 끝 = 받은 때 + 48시간", o["status"] == "TRIAL" and abs((datetime.fromisoformat(o["trial_end_at"].replace("Z", "+00:00")) - datetime.fromisoformat(o["received_at"].replace("Z", "+00:00"))).total_seconds() - 48 * 3600) < 2)
     bp.locator(".order-form", has_text="더 써보기").get_by_role("button", name=re.compile("^72시간")).click()
@@ -126,11 +134,17 @@ with sync_playwright() as p:
     o = q("select * from orders where id=?", oid)[0]
     check("반납 신청: 환불 예정 97,000원, 완료 아님", o["status"] == "RETURN_REQUESTED" and o["refund_amount"] == 97000)
     bp.get_by_label("반송 택배사").select_option("우체국택배"); bp.get_by_label("반송 송장번호").fill("6070001112223")
+    check("포장 사진·초기화 없으면 반송했어요 못 누름", bp.get_by_role("button", name="반송했어요").is_disabled())
+    bp.get_by_label(re.compile("본체 넣었어요")).check(); bp.get_by_label(re.compile("충전기 넣었어요")).check(); bp.get_by_label(re.compile("초기화·계정 로그아웃")).check()
+    bp.locator(".stage-photo-add input").set_input_files(PHOTO); bp.wait_for_selector(".stage-photo img")
     bp.get_by_role("button", name="반송했어요").click(); bp.wait_for_function("document.body.innerText.includes('반송 중 · 검수 대기')", timeout=20000)
+    check("보내기 전 확인 저장(초기화·사진)", '"reset": true' in (q("select pack_check from orders where id=?", oid)[0][0] or "").replace('":true', '": true'))
     check("반송 → 맡긴 날 기록", q("select return_handover_at from orders where id=?", oid)[0][0] is not None)
 
     sp.reload(wait_until="networkidle")
+    check("판매자 화면에 상태 확인 기록(받을 때·보낼 때 사진)", sp.locator("#check-record-title").count() == 1 and sp.locator(".check-compare img").count() >= 2)
     sp.get_by_label(re.compile("본체 돌아왔어요")).check(); sp.get_by_label(re.compile("충전기 돌아왔어요")).check()
+    sp.get_by_role("button", name="보낼 때와 같아요").click()
     sp.get_by_role("button", name="검수 완료").click(); sp.wait_for_function("document.body.innerText.includes('환불 대기')", timeout=20000)
     check("판매자: 검수 뒤 환불 계좌 보임", "12345678901234" in sp.inner_text("body"))
     sp.get_by_role("button", name=re.compile("환불 보냈어요")).click(); sp.wait_for_function("document.body.innerText.includes('환불 보냄')", timeout=20000)
@@ -186,7 +200,7 @@ with sync_playwright() as p:
     sm.get_by_label("택배사").select_option("한진택배"); sm.get_by_label("송장번호").fill("998877665544"); sm.get_by_role("button", name="발송했어요").click()
     sm.wait_for_function("document.body.innerText.includes('배송 중')", timeout=20000)
     check("판매자 모바일 거래 화면 넘침 없음", not overflow(sm))
-    pp.reload(wait_until="networkidle"); pp.get_by_role("button", name="받았어요").click(); pp.wait_for_function("document.body.innerText.includes('구매 확정 대기')", timeout=20000)
+    pp.reload(wait_until="networkidle"); pp.get_by_role("button", name="같아요").click(); pp.get_by_role("button", name="받았어요").click(); pp.wait_for_function("document.body.innerText.includes('구매 확정 대기')", timeout=20000)
     pp.get_by_role("button", name="구매 확정").click(); pp.wait_for_function("document.querySelector('h1').innerText.includes('구매 완료')", timeout=20000)
     o2 = q("select * from orders where id=?", oid2)[0]
     check("구매 완료: 상품 판매완료, 수수료 0원(베타)·정식 3% 기록", o2["status"] == "PURCHASED" and q("select status from listings where id=?", l2)[0][0] == "SOLD" and o2["fee_amount"] == 0 and o2["virtual_fee"] == 3000, (o2["fee_amount"], o2["virtual_fee"]))
@@ -238,12 +252,12 @@ with sync_playwright() as p:
     a4 = buyer.request.post(B + "/api/orders", data={"listingId": l4, "kind": "TRIAL", "hours": 24, "shipTo": ship}).json()["orderId"]
     seller.request.patch(f"{B}/api/orders/{a4}", data={"action": "CONFIRM_PAYMENT"})
     seller.request.patch(f"{B}/api/orders/{a4}", data={"action": "SHIP", "carrier": "CJ대한통운", "tracking": "444455556666"})
-    buyer.request.patch(f"{B}/api/orders/{a4}", data={"action": "RECEIVED"})
+    upload(buyer, a4, "RECEIVE"); buyer.request.patch(f"{B}/api/orders/{a4}", data={"action": "RECEIVED", "components": {"본체": True, "충전기": True}, "matches": True})
     x("update orders set received_at=?, trial_end_at=? where id=?", iso(-30), iso(-6), a4)
     r = buyer.request.patch(f"{B}/api/orders/{a4}", data={"action": "RETURN", "reason": "HEAVY", "refundAccount": {"bank": "신한", "account": "11122233344", "holder": "김구매"}})
     o = q("select * from orders where id=?", a4)[0]
     check("24시간 구간에서 30시간째 반납 → 48시간 체험료 2,000원", r.ok and o["trial_fee"] == 2000 and o["refund_amount"] == 98000, (r.status, o["trial_fee"]))
-    buyer.request.patch(f"{B}/api/orders/{a4}", data={"action": "RETURN_SHIPPED", "carrier": "우체국택배", "tracking": "7778889990001", "handoverDate": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")})
+    upload(buyer, a4, "PACK"); buyer.request.patch(f"{B}/api/orders/{a4}", data={"action": "RETURN_SHIPPED", "reset": True, "packed": {"본체": True, "충전기": True}, "carrier": "우체국택배", "tracking": "7778889990001", "handoverDate": datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")})
 
     # 5) 분쟁: 금액 확정 멈춤 → 운영자 정리(환불액 조정) → 재개
     bp.goto(f"{B}/orders/{a4}", wait_until="networkidle")
@@ -262,7 +276,7 @@ with sync_playwright() as p:
     li.get_by_label("처리 결과").fill("판매자와 확인해 체험료를 받지 않기로 했어요"); li.get_by_label("환불액 조정").fill("100000")
     li.get_by_role("button", name="분쟁 정리").click(); ap.wait_for_timeout(2500)
     check("분쟁 정리·환불액 조정", q("select status from disputes where order_id=?", a4)[0][0] == "RESOLVED" and q("select refund_amount from orders where id=?", a4)[0][0] == 100000)
-    check("정리 뒤 검수 가능", seller.request.patch(f"{B}/api/orders/{a4}", data={"action": "INSPECT", "components": {"본체": True, "충전기": False}, "note": "충전기 없음"}).ok)
+    check("정리 뒤 검수 가능", seller.request.patch(f"{B}/api/orders/{a4}", data={"action": "INSPECT", "components": {"본체": True, "충전기": False}, "condition": "SAME", "note": "충전기 없음"}).ok)
     ap.screenshot(path=f"{OUT}/pc_admin_trade.png", full_page=True)
 
     # 6) 입금 뒤 판매자 취소 → 환불 계좌 → 전액 환불 → 취소(경험치 없음)

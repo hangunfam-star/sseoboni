@@ -8,7 +8,8 @@ export async function GET() {
     where: (m, { eq }) => eq(m.active, true),
   });
   const demand = new Map((await modelDemand()).map((d) => [d.modelId, d]));
+  const cats = new Map((await db.query.categories.findMany()).map((c) => [c.id, c.name]));
   return NextResponse.json({
-    models: models.map((m) => ({ ...m, seekers: demand.get(m.id)?.seekers ?? 0, onSale: demand.get(m.id)?.onSale ?? 0 })),
+    models: models.map((m) => ({ ...m, categoryName: cats.get(m.categoryId) ?? null, seekers: demand.get(m.id)?.seekers ?? 0, onSale: demand.get(m.id)?.onSale ?? 0 })),
   });
 }
