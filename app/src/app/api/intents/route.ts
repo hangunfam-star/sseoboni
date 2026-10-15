@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   const listing = await db.query.listings.findFirst({ where: and(eq(listings.id, listingId), eq(listings.status, "ACTIVE")) });
   if (!listing) return NextResponse.json({ error: "판매 중인 상품이 아닙니다." }, { status: 404 });
-  if (isTestListing(listing.title)) return NextResponse.json({ error: TEST_LISTING_MESSAGE }, { status: 409 }); // 시험 상품은 시장검증 기록에 섞지 않는다
+  if (isTestListing(listing)) return NextResponse.json({ error: TEST_LISTING_MESSAGE }, { status: 409 }); // 시험 상품은 시장검증 기록에 섞지 않는다
 
   const eventType = EVENT[kind];
   const exists = await db.query.marketValidationEvents.findFirst({

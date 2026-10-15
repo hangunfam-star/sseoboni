@@ -12,6 +12,7 @@ export const PAGE_SIZE = 20;
 export type CardRow = {
   id: string;
   title: string;
+  isTest?: boolean; // 운영자 시험용 상품(작은 "시험용" 표시)
   price: number;
   conditionGrade: string;
   createdAt: string;
@@ -45,6 +46,7 @@ export async function listCards(opts: { q?: string; categoryId?: string; brand?:
     .select({
       id: listings.id,
       title: listings.title,
+      isTest: listings.isTest,
       price: listings.price,
       conditionGrade: listings.conditionGrade,
       createdAt: listings.createdAt,

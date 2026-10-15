@@ -1423,5 +1423,5 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .model-picker__list li:hover, .model-picker__list li.is-active { background: var(--w-surface); }
 .model-picker__ok { color: #1f7a4d; }
 
-/* 시험용 상품 안내(2026-10-15) */
-.test-listing-note { margin: 12px 16px 96px; }
+/* 시험용 상품 작은 표시(2026-10-15) */
+.test-chip { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: #eeeef1; color: #6b6b70; font-size: 11px; font-weight: 700; line-height: 1.6; vertical-align: middle; white-space: nowrap; }

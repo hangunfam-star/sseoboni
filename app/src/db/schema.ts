@@ -74,6 +74,7 @@ export const listings = sqliteTable("listings", {
   trialEnabled: integer("trial_enabled", { mode: "boolean" }).notNull().default(false), // Gate2 전까지 UI에서 항상 false
   trialPolicyId: text("trial_policy_id"),
   status: text("status").notNull().default("ACTIVE"), // ACTIVE | SOLD | HIDDEN | REMOVED
+  isTest: integer("is_test", { mode: "boolean" }).notNull().default(false), // 운영자 시험용 상품(신청 막음, 작은 "시험용" 표시)
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 

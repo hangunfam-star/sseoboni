@@ -20,7 +20,7 @@ import { questionsFor } from "@/ui/trade-rules";
 import { sellerAccounts } from "@/db/schema";
 import { readSellerAccount } from "@/lib/seller-account";
 import { Avatar } from "@/components/Avatar";
-import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
+import { isTestListing, TEST_LISTING_BADGE, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 import { photoOf } from "@/lib/kakao";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -140,7 +140,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const modelReviews = await trialReviewsByModel(listing.modelId, 5);
 
   // 조회 이벤트: 판매자 본인 조회는 제외, 같은 사람의 30분 안 재조회는 1회로 센다.
-  if (!isOwner && !isTestListing(listing.title)) await recordListingView(id, listing.modelId, userId); // 시험용 상품 조회는 시장검증 기록에 넣지 않는다
+  if (!isOwner && !isTestListing(listing)) await recordListingView(id, listing.modelId, userId); // 시험용 상품 조회는 시장검증 기록에 넣지 않는다
 
   let wished = false;
   const intents = { TRY: false, BUY: false };
@@ -171,7 +171,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       </div>
       <div className="listing-sheet">
         <p className="listing-meta">{[category?.name, model?.brand].filter(Boolean).join(" · ")}</p>
-        <h1>{listing.title}</h1>
+        <h1>{listing.title}{isTestListing(listing) && <span className="test-chip" title={TEST_LISTING_MESSAGE}>{TEST_LISTING_BADGE}</span>}</h1>
         <p className="listing-sub">{[model?.modelName, relativeTime(listing.createdAt)].filter(Boolean).join(" · ")}</p>
         <div className="attr-strip">
           <div><span className="attr-strip__icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3 6 6 .9-4.5 4.3 1 6.3L12 16.6 6.5 19.5l1-6.3L3 8.9 9 8z" /></svg></span><strong>{conditionLabel(listing.conditionGrade)}</strong><small>상태</small></div>
@@ -237,8 +237,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         </div>
         {seekers && <p className="listing-stats">{seekers}</p>}
       </div>
-      {isTestListing(listing.title) && <p className="form-error test-listing-note" role="note">{TEST_LISTING_MESSAGE}</p>}
-      {!isOwner && listing.status === "ACTIVE" && !isTestListing(listing.title) && (
+      {!isOwner && listing.status === "ACTIVE" && !isTestListing(listing) && (
         <IntentActionBar listingId={id} wished={wished} priceLabel={formatWon(listing.price)} initial={intents} price={listing.price} terms={terms} sellerNo={sellerNo} mine={mine} feePct={feePct}
           trade={{ open: trade.tradeOpen, accountReady: readSellerAccount(account) !== null, shippingFee, questionOptions: questionsFor(category?.name ?? null), graceHours: trade.decisionGraceHours, paymentWaitHours: trade.paymentWaitHours }} />
       )}

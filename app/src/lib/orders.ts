@@ -105,7 +105,7 @@ export async function createOrder(buyerId: string, input: CreateInput): Promise<
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, input.listingId) });
   if (!listing || (listing.status !== "ACTIVE" && listing.status !== "RESERVED")) throw new TradeError("상품을 찾을 수 없습니다.", 404);
   if (listing.sellerId === buyerId) throw new TradeError("내 상품은 신청할 수 없어요.");
-  if (isTestListing(listing.title)) throw new TradeError(TEST_LISTING_MESSAGE, 409);
+  if (isTestListing(listing)) throw new TradeError(TEST_LISTING_MESSAGE, 409);
   if (listing.status === "RESERVED") throw new TradeError("다른 분과 거래 중인 상품이에요.", 409);
   const account = await db.query.sellerAccounts.findFirst({ where: eq(sellerAccounts.userId, listing.sellerId) });
   if (!account) throw new TradeError("판매자가 아직 정산 계좌를 등록하지 않아 거래할 수 없어요. 채팅으로 알려 주세요.", 409);

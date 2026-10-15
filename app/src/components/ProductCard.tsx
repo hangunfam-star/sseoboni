@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ProductIllustration } from "@/components/ProductIllustration";
 import { photoUrl } from "@/lib/photo-url";
 import type { CardRow } from "@/lib/queries";
+import { TEST_LISTING_BADGE } from "@/ui/test-listing";
 import { conditionLabel, formatWon, illustrationKind, relativeTime, tryBadgeLabel, tryWantLabel } from "@/ui/presentation";
 
 // 홈·찜 피드용 사진 중심 카드
@@ -18,7 +19,7 @@ export function ProductCard(props: CardRow) {
       </div>
       <div className="product-card__body">
         <small className="product-card__model">{[props.brand, props.modelName].filter(Boolean).join(" ")}</small>
-        <h3>{props.title}</h3>
+        <h3>{props.title}{props.isTest && <span className="test-chip">{TEST_LISTING_BADGE}</span>}</h3>
         <strong>{formatWon(props.price)}</strong>
         {tryWantLabel(props.tryWanters) && <small className="try-count">{tryWantLabel(props.tryWanters)}</small>}
         {meta && <small>{meta}</small>}
@@ -36,7 +37,7 @@ export function ProductRow(props: CardRow) {
         : <ProductIllustration className="product-row__photo" seed={props.id} kind={illustrationKind(props.categoryName, props.modelName)} size={70} />}
       <div className="product-row__body">
         {tryBadgeLabel(props.tryOk) && <span className="try-badge try-badge--inline">{tryBadgeLabel(props.tryOk)}</span>}
-        <h3>{props.title}</h3>
+        <h3>{props.title}{props.isTest && <span className="test-chip">{TEST_LISTING_BADGE}</span>}</h3>
         <small>{[props.brand, props.modelName].filter(Boolean).join(" ")} · {conditionLabel(props.conditionGrade)} · {relativeTime(props.createdAt)}</small>
         <strong>{formatWon(props.price)}</strong>
         {tryWantLabel(props.tryWanters) && <small className="try-count">{tryWantLabel(props.tryWanters)}</small>}
