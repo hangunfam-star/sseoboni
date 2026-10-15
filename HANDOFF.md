@@ -126,7 +126,7 @@ bash ops/deploy.sh --migrate   # drizzle에 새 마이그레이션이 있을 때
 ```
 - 커밋·푸시된 HEAD의 `app/`만 보낸다. `app/`에 커밋 안 한 변경이 있으면 멈춘다.
 - 서버 접속 키: `~/.ssh/id_ed25519_mwwork`(이 PC). 사용자 폴더 이름이 한글이라 ssh가 known_hosts를 못 찾는 문제가 있어 스크립트가 영문 임시 경로로 복사해 쓴다(2026-10-15 발견).
-- **`ops/deploy.sh`는 2026-10-15에 옮겨 만든 것으로 아직 실제 배포에 쓰지 않았다.** 그전까지 같은 내용의 스크립트(이 대화 임시 폴더)로 배포해 왔다.
+- `ops/deploy.sh`는 2026-10-15에 옮겨 만들었고, 같은 날 커밋 `0e1ba7a` 배포에 실제로 써서 빌드 성공·`/login` 200을 확인했다. `--migrate`는 옮긴 뒤 아직 안 써 봤다(그전 같은 내용 스크립트로 0015까지 적용).
 - 배포 뒤 확인(읽기만): `/login` 200, 바뀐 화면의 HTML·CSS에 새 요소가 있는지, 필요하면 로그인 없는 Playwright 확인.
 - 롤백(코드): 되돌릴 커밋을 `git revert`로 새 커밋으로 만들고 푸시한 뒤 `bash ops/deploy.sh`.
 - 롤백(DB): `/opt/sseoboni/backups/dev.db.before-*` 중 하나로 되돌린다(컨테이너 멈춤 → `/opt/sseoboni/data/dev.db` 교체 → 재시작). 그 뒤 생긴 데이터가 사라지므로 사용자 승인 필요.
