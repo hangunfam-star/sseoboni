@@ -122,10 +122,10 @@ python ops/e2e/suites/test_photo.py "$(cygpath -w ops/e2e/.out/copy.db)" "$(cygp
 | test_dup.py | 카카오 콜백 두 번 와도 로그인 | 5/5 (이전 위치) |
 | test_model.py | 모델 입력·자동 채움 | 23/23 (이전 위치) |
 | test_nicklock.py | 닉네임 변경 막기 | 8/8 (이전 위치) |
-| test_test_listings.py | 시험용 상품 작은 표시·막기·기록 제외 (실행 전 `node app/scripts/seed-test-listings.cjs u_2f2845deba396e0cfae738ac --db <copy.db>` 필요) | 14/14 (2026-10-15, 새 위치) |
+| test_test_listings.py | 시험용 상품 작은 표시·막기·기록 제외 (실행 전 `node app/scripts/seed-test-listings.cjs u_2f2845deba396e0cfae738ac --db <copy.db>` 필요). 비용 조회·찜·공유·채팅도 기록 안 남는지 포함 | 20/20 (2026-10-15, Codex v1.5 지적 수정 뒤) |
 | test_story_brand_auto.py | 상단 영상 접기·브랜드 위치 유지·자동 불러오기 (인자: 캡처 폴더 하나) | 23/23 (이전 위치) |
 
-`ops/e2e/legacy/`: 예전 큰 시험(거래 전체 `trade_e2e.py` 76, 알림 전체 `test_notify.py` 51+51, 계정 복구 `test_recover.py` 27+27, 카카오 `test_kakao_only.py`·`test_nick_choice.py`, Codex 지적 수정 `test_fix.py`). 닉네임 로그인을 쓰므로 `NICK=1 bash ops/e2e/run_isolated.sh`로 띄운다. **새 위치에서는 아직 다시 돌려 보지 않았다(미실행)** — 일부는 인자·추가 서버(복구 시험은 3201 이동 서버)가 필요하니 각 파일 첫 줄 주석을 본다.
+`ops/e2e/legacy/`: 예전 큰 시험(거래 전체 `trade_e2e.py` 76, 알림 전체 `test_notify.py` 51+51, 계정 복구 `test_recover.py` 27+27, 카카오 `test_kakao_only.py`·`test_nick_choice.py`, Codex 지적 수정 `test_fix.py`). 대부분 닉네임 로그인을 쓰므로 `NICK=1 bash ops/e2e/run_isolated.sh`로 띄운다. `test_kakao_only.py`만 `NICK=0`(기본)으로 띄운다. 인자·추가 서버(복구 시험은 3201 이동 서버)는 각 파일 첫 줄 주석을 본다. 2026-10-15 Codex 독립 검수에서 새 위치 실행: 거래 76/76, 알림 102/102, 복구 54/54 통과. `test_kakao_only.py`는 닉네임 변경 막기 정책에 맞게 고친 뒤 29/29(Claude).
 
 주의: 계정 만들기는 IP당 1시간 20개 제한(메모리)이라 큰 시험을 여러 개 돌리면 서버를 다시 띄운다. 개발 서버 첫 컴파일이 느려 run_isolated.sh가 주요 화면을 미리 연다.
 

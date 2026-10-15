@@ -6,6 +6,7 @@ import { getCurrentUserId } from "@/lib/session";
 import { getTrialTerms } from "@/lib/trial-terms";
 import { computeTrialCost } from "@/ui/trial-pricing";
 import { feePctNow } from "@/lib/platform-fee-store";
+import { isTestListing, TEST_LISTING_MESSAGE } from "@/ui/test-listing";
 
 // POST /api/trial-cost { listingId, action: VIEW | STILL_TRY | DECLINE, hours }
 // 판매자 조건으로 계산한 예상 비용을 본 것·"이 조건으로 써볼래요"·"부담돼요"를 기록한다(§59). 결제·신청은 없다.
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) });
   if (!listing || listing.status !== "ACTIVE") return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });
+  if (isTestListing(listing)) return NextResponse.json({ error: TEST_LISTING_MESSAGE }, { status: 409 }); // 시험용 상품은 시장검증 기록에 섞지 않는다
   if (listing.sellerId === userId) return NextResponse.json({ ok: true, skipped: "owner" });
 
   const terms = await getTrialTerms(listingId);

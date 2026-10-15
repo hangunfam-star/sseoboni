@@ -3,6 +3,7 @@ import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listings, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
+import { isTestListing } from "@/ui/test-listing";
 
 const METHODS = ["SHARE_SHEET", "COPY_LINK"] as const;
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!method) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, id) });
   if (!listing || listing.status !== "ACTIVE") return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });
+  if (isTestListing(listing)) return NextResponse.json({ ok: true, counted: false }); // 시험용 상품 공유는 기록하지 않는다
   const userId = await getCurrentUserId();
   if (userId) {
     const recent = await db.query.marketValidationEvents.findFirst({

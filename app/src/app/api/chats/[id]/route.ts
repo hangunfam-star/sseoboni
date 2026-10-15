@@ -7,6 +7,7 @@ import { getCurrentUserId } from "@/lib/session";
 import { findContactInfo } from "@/ui/trial-pricing";
 import { markNotificationsRead, markViewing, notifyTx } from "@/lib/notify";
 import { users } from "@/db/schema";
+import { isTestListing } from "@/ui/test-listing";
 
 // GET /api/chats/[id]?after=순번 — 참여자만. after 다음 메시지를 순번 순으로(최대 200개, hasMore로 남은 것 알림).
 // 읽음은 돌려준 메시지 중 마지막 순번까지만 표시한다(보여 주지 않은 메시지는 읽음 처리하지 않음).
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const me = tx.select({ nickname: users.nickname }).from(users).where(eq(users.id, userId)).get()?.nickname ?? "상대";
     // 알림·잠금 화면에는 메시지 원문을 싣지 않는다(주소 등 민감한 내용 노출 방지) — 내용은 채팅방에서만
     notifyTx(tx, other, { category: "CHAT", title: `새 채팅 · ${listing?.title ?? "채팅"}`, body: `${me}님이 메시지를 보냈어요.`, url: `/chats/${id}` });
-    tx.insert(marketValidationEvents).values({ eventType: "CHAT_MESSAGE_SENT", listingId: t.thread.listingId, modelId: listing?.modelId, userId, metadata: JSON.stringify({ threadId: id, role: t.role, length: text.length }) }).run();
+    if (!isTestListing(listing)) tx.insert(marketValidationEvents).values({ eventType: "CHAT_MESSAGE_SENT", listingId: t.thread.listingId, modelId: listing?.modelId, userId, metadata: JSON.stringify({ threadId: id, role: t.role, length: text.length }) }).run();
     return msg;
   });
   if (!saved) return NextResponse.json({ error: "메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내 주세요." }, { status: 429 });

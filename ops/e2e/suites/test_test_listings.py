@@ -38,6 +38,18 @@ with sync_playwright() as p:
         r2 = post("/api/proposals", {"listingId": lid, "hours": 24, "offerFee": 5000})
         r3 = post("/api/orders", {"listingId": lid, "kind": "BUY"})
         check(f"{tag} 의향·제안·신청 API 모두 막힘(409)", (r1.status, r2.status, r3.status) == (409, 409, 409), (r1.status, r2.status, r3.status))
+        # Codex v1.5 결함 1: 비용 조회 3가지 행동도 409(기록 없음)
+        before = q("select count(*) from market_validation_events")[0][0]
+        rc = [post("/api/trial-cost", {"listingId": lid, "action": a, "hours": 24}).status for a in ("VIEW", "STILL_TRY", "DECLINE")]
+        check(f"{tag} 비용 조회·그래도 써볼래요·부담돼요 모두 409", rc == [409, 409, 409], rc)
+        # 찜·공유·채팅은 동작하되 시장검증 기록은 남지 않음
+        w1 = post("/api/wishlists", {"listingId": lid}); w2 = post("/api/wishlists", {"listingId": lid})
+        sh = post(f"/api/listings/{lid}/share", {"method": "COPY_LINK"})
+        ch = post("/api/chats", {"listingId": lid}); tid = ch.json().get("threadId") if ch.ok else None
+        cm = post(f"/api/chats/{tid}", {"body": "시험 메시지예요"}) if tid else None
+        check(f"{tag} 찜 넣고 빼기·공유·채팅 시작·메시지 동작", w1.ok and w2.ok and sh.ok and ch.ok and cm is not None and cm.status == 201, (w1.status, w2.status, sh.status, ch.status, cm.status if cm else None))
+        after = q("select count(*) from market_validation_events")[0][0]
+        check(f"{tag} 위 행동 뒤 시장검증 기록 수 그대로", after == before, (before, after))
         c.close()
     check("시험 뒤에도 시장검증 기록 없음", q("select count(*) from market_validation_events where listing_id in (select id from listings where is_test=1)")[0][0] == 0)
     check("화면 오류 없음", not errs, errs[:2])

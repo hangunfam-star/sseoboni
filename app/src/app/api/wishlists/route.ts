@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { listings, wishlists, marketValidationEvents } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
 import { and, eq } from "drizzle-orm";
+import { isTestListing } from "@/ui/test-listing";
 
 // GET /api/wishlists — 내 찜 목록
 export async function GET() {
@@ -30,9 +31,10 @@ export async function POST(req: NextRequest) {
     .where(and(eq(wishlists.userId, userId), eq(wishlists.listingId, listingId)));
 
   if (existing.length > 0) {
+    const testItem = isTestListing(await db.query.listings.findFirst({ where: eq(listings.id, listingId) })); // 시험용 상품은 기록에 넣지 않는다
     db.transaction((tx) => {
       tx.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.listingId, listingId))).run();
-      tx.insert(marketValidationEvents).values({ eventType: "WISHLIST_REMOVE", listingId, userId }).run();
+      if (!testItem) tx.insert(marketValidationEvents).values({ eventType: "WISHLIST_REMOVE", listingId, userId }).run();
     });
     return NextResponse.json({ wished: false });
   }
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   db.transaction((tx) => {
     tx.insert(wishlists).values({ userId, listingId }).run();
-    tx.insert(marketValidationEvents).values({ eventType: "WISHLIST_ADD", listingId, modelId: listing.modelId, userId }).run();
+    if (!isTestListing(listing)) tx.insert(marketValidationEvents).values({ eventType: "WISHLIST_ADD", listingId, modelId: listing.modelId, userId }).run();
   });
   return NextResponse.json({ wished: true });
 }

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 닉네임으로 시작 없애고 카카오 로그인만(격리 3200 + 가짜 카카오 3299, 닉네임 새 계정 허용 끔). argv[1] 복사 DB, argv[2] 캡처
+# 실행: 이 시험만 NICK=0(기본) — bash ops/e2e/run_isolated.sh. NICK=1로 띄우면 "닉네임만으로 새 계정 막힘"이 실패한다.
 import sys, sqlite3, urllib.request, time
 sys.stdout.reconfigure(encoding="utf-8")
 from playwright.sync_api import sync_playwright
@@ -42,17 +43,13 @@ with sync_playwright() as p:
         pg.fill("input", f"카카오첫{tag}"); pg.keyboard.press("Enter"); pg.wait_for_url(B + "/", timeout=60000)
         u = uid(c)
         check(f"{tag} 가입 완료·카카오 연결", u and q("select count(*) from social_accounts where user_id=?", u)[0][0] == 1)
-        # MY 닉네임 바꾸기
+        # 닉네임은 한 번 정하면 못 바꿈(사용자 결정 2026-10-14): MY에 바꾸기 버튼 없음, 서버도 403, DB 그대로
         pg.goto(B + "/me", wait_until="load")
-        pg.get_by_role("button", name="닉네임 바꾸기").click(); pg.locator("#nickname-edit-input").wait_for()
-        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-        check(f"{tag} Esc로 취소", pg.locator("#nickname-edit-input").count() == 0)
-        pg.get_by_role("button", name="닉네임 바꾸기").click(); pg.get_by_role("button", name="취소").click(); pg.wait_for_timeout(300)
-        check(f"{tag} 취소 버튼", pg.locator("#nickname-edit-input").count() == 0)
-        pg.get_by_role("button", name="닉네임 바꾸기").click(); pg.fill("#nickname-edit-input", "나"); pg.get_by_role("button", name="저장").click(); pg.wait_for_timeout(800)
-        check(f"{tag} 1글자 저장 오류", "2~12자" in pg.locator(".nickname-edit").inner_text())
-        pg.fill("#nickname-edit-input", f"바뀐이름{tag}"); pg.keyboard.press("Enter"); pg.wait_for_timeout(1500)
-        check(f"{tag} 닉네임 바뀜·화면 반영", q("select nickname from users where id=?", u)[0][0] == f"바뀐이름{tag}" and f"바뀐이름{tag}" in pg.locator(".my-title").inner_text())
+        check(f"{tag} MY에 닉네임 바꾸기 버튼 없음", pg.get_by_role("button", name="닉네임 바꾸기").count() == 0 and pg.locator("#nickname-edit-input").count() == 0)
+        check(f"{tag} MY 제목에 정한 닉네임", f"카카오첫{tag}" in pg.locator(".my-title").inner_text())
+        r = pg.request.post(B + "/api/session", data={"nickname": f"바뀐이름{tag}"})
+        check(f"{tag} 서버로 직접 바꿔도 403", r.status == 403, r.status)
+        check(f"{tag} DB 닉네임 그대로", q("select nickname from users where id=?", u)[0][0] == f"카카오첫{tag}")
         pg.screenshot(path=f"{OUT}/{tag}_my_nickname.png")
         # 다시 로그인하면 닉네임 단계 없이 바로
         c2 = ctx(); p2 = c2.new_page(); p2.set_default_timeout(60000); fake(id=base + 1)

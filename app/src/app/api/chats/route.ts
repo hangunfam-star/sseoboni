@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { chatThreads, listings, marketValidationEvents } from "@/db/schema";
 import { CHAT_START_DAILY_MAX, listThreads, unreadThreads } from "@/lib/chat";
 import { getCurrentUserId } from "@/lib/session";
+import { isTestListing } from "@/ui/test-listing";
 
 // GET /api/chats — 내 채팅방 목록과 안 읽은 채팅방 수
 export async function GET() {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
       .where(and(eq(chatThreads.buyerId, userId), sql`${chatThreads.createdAt} > datetime('now','-1 day')`)).get()?.n ?? 0;
     if (today >= CHAT_START_DAILY_MAX) return "LIMIT" as const;
     const thread = tx.insert(chatThreads).values({ listingId, buyerId: userId, sellerId: listing.sellerId }).returning().get();
-    tx.insert(marketValidationEvents).values({ eventType: "CHAT_STARTED", listingId, modelId: listing.modelId, userId }).run();
+    if (!isTestListing(listing)) tx.insert(marketValidationEvents).values({ eventType: "CHAT_STARTED", listingId, modelId: listing.modelId, userId }).run();
     return { thread, created: true };
   });
   if (!result) return NextResponse.json({ error: "판매 중인 상품에만 새 채팅을 열 수 있어요." }, { status: 409 });
