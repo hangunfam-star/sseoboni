@@ -9,4 +9,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- PROJECT_WORK_RULES:v1.0 -->
-모든 작업 전에 `E:\PROJECT_CONTROL_CENTER\00_공통\PROJECT_WORK_RULES.md`를 읽고 따른다. GPT는 제품 코드를 직접 수정하지 않고 작업 관리·독립 검수·보고·문서화만 담당한다.
+모든 작업 전에 `E:\PROJECT_CONTROL_CENTER\00_공통\PROJECT_WORK_RULES.md`를 읽고 따른다. GPT(Codex)는 작업 관리·독립 검수·보고·문서화 위주로 진행하고, 필요한 경우 제품 코드를 직접 고칠 수 있다(사용자 결정 2026-10-15). 코드를 고칠 때는 `../HANDOFF.md` 0장의 공동 작업 규칙을 따르고, 자기가 고친 부분은 스스로 검수 통과 판정하지 않는다(다른 쪽이 확인).
