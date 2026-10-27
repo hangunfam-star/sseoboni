@@ -17,7 +17,8 @@ export const users = sqliteTable("users", {
   nickname: text("nickname"), // 화면 표시용 이름(로그인 식별에 쓰지 않음)
   kakaoImageUrl: text("kakao_image_url"), // 카카오 프로필 사진 주소(동의했고 기본 사진이 아닐 때만, 카카오 로그인마다 갱신)
   showPhoto: integer("show_photo", { mode: "boolean" }).notNull().default(true), // 프로필 사진을 써보니에 보일지(사용자가 MY에서 바꿈)
-  status: text("status").notNull().default("ACTIVE"),
+  status: text("status").notNull().default("ACTIVE"), // ACTIVE | WITHDRAWN(탈퇴) | SYSTEM
+  withdrawnAt: text("withdrawn_at"), // 탈퇴한 시각(탈퇴 1단계, 2026-10-26)
   identityVerified: integer("identity_verified", { mode: "boolean" }).notNull().default(false),
   phoneVerified: integer("phone_verified", { mode: "boolean" }).notNull().default(false),
   buyerTrustLevel: integer("buyer_trust_level").notNull().default(0),

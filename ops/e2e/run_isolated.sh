@@ -19,6 +19,8 @@ echo '{"tradeOpen": true}' > "$OUT/ts.json"
 (nohup python "$ROOT/ops/e2e/fake_kakao.py" 3299 > "$OUT/fake_kakao.log" 2>&1 &)
 (nohup node "$ROOT/ops/e2e/fake_push.cjs" "$(cygpath -w "$ROOT/app")" 3298 > "$OUT/fake_push.log" 2>&1 &)
 EXTRA=""; [ "$NICK" = "1" ] && EXTRA="ALLOW_NICKNAME_LOGIN=1"
+[ "$WITHDRAW" = "1" ] && EXTRA="$EXTRA WITHDRAW_ENABLED=1"   # 탈퇴 시험: WITHDRAW=1 bash ops/e2e/run_isolated.sh (기본은 꺼짐)
+[ -n "$WITHDRAW_FAULT" ] && EXTRA="$EXTRA WITHDRAW_FAULT=$WITHDRAW_FAULT"   # 탈퇴 오류 주입 시험(T13) 전용
 (env DATABASE_URL="file:$(cygpath -w "$OUT/copy.db")" TRADE_SETTINGS_FILE="$(cygpath -w "$OUT/ts.json")" \
   KAKAO_REST_KEY=testkey KAKAO_CLIENT_SECRET=testsecret KAKAO_AUTH_BASE=http://localhost:3299 KAKAO_API_BASE=http://localhost:3299 KAKAO_REDIRECT_URI= \
   $EXTRA nohup npx next dev -p 3200 > "$OUT/dev.log" 2>&1 &)

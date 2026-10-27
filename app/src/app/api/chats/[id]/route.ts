@@ -42,7 +42,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (contact) return NextResponse.json({ error: `${contact}는 채팅으로 주고받을 수 없어요. 안전을 위해 써보니 안에서만 이야기해 주세요.` }, { status: 400 });
 
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, t.thread.listingId) });
+  const other = t.role === "buyer" ? t.thread.sellerId : t.thread.buyerId;
   const saved = db.transaction((tx) => {
+    // 상대가 탈퇴했으면 메시지·알림 모두 만들지 않는다(탈퇴 1단계)
+    if (tx.select({ status: users.status }).from(users).where(eq(users.id, other)).get()?.status === "WITHDRAWN") return "WITHDRAWN" as const;
     const recent = tx.select({ n: sql<number>`count(*)` }).from(chatMessages)
       .where(and(eq(chatMessages.senderId, userId), sql`${chatMessages.createdAt} > datetime('now', ${`-${CHAT_RATE.minutes} minutes`})`)).get()?.n ?? 0;
     if (recent >= CHAT_RATE.count) return null;
@@ -51,13 +54,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // 내 메시지는 내 읽음 커서에 영향을 주지 않는다(내 메시지는 안 읽음 계산에서 빠짐).
     // 시장검증 기록에는 메시지 본문을 남기지 않는다(개인정보 최소화).
     // 상대에게 채팅 알림(같은 방 안 읽은 알림이 5분 안에 있으면 내용만 바꿈)
-    const other = t.role === "buyer" ? t.thread.sellerId : t.thread.buyerId;
     const me = tx.select({ nickname: users.nickname }).from(users).where(eq(users.id, userId)).get()?.nickname ?? "상대";
     // 알림·잠금 화면에는 메시지 원문을 싣지 않는다(주소 등 민감한 내용 노출 방지) — 내용은 채팅방에서만
     notifyTx(tx, other, { category: "CHAT", title: `새 채팅 · ${listing?.title ?? "채팅"}`, body: `${me}님이 메시지를 보냈어요.`, url: `/chats/${id}` });
     if (!isTestListing(listing)) tx.insert(marketValidationEvents).values({ eventType: "CHAT_MESSAGE_SENT", listingId: t.thread.listingId, modelId: listing?.modelId, userId, metadata: JSON.stringify({ threadId: id, role: t.role, length: text.length }) }).run();
     return msg;
   });
+  if (saved === "WITHDRAWN") return NextResponse.json({ error: "탈퇴한 사용자와는 대화할 수 없어요." }, { status: 409 });
   if (!saved) return NextResponse.json({ error: "메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내 주세요." }, { status: 429 });
   return NextResponse.json({ message: { id: saved.id, seq: saved.seq, senderId: saved.senderId, body: saved.body, kind: saved.kind, createdAt: saved.createdAt } }, { status: 201 });
 }

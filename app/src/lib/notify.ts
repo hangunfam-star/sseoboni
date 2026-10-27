@@ -6,7 +6,7 @@
 import webpush from "web-push";
 import { and, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { notificationPrefs, notifications, pushSubscriptions, wishlists } from "@/db/schema";
+import { notificationPrefs, notifications, pushSubscriptions, users, wishlists } from "@/db/schema";
 import { quietUntil } from "@/ui/notify-rules";
 
 export type NotifyCategory = "TRADE" | "CHAT" | "INTEREST" | "REVIEW";
@@ -38,6 +38,9 @@ export function isViewing(userId: string, url: string, now = Date.now()): boolea
 
 // param: tx 트랜잭션(또는 db), userId 받는 사람, n 알림 내용. return: 만들었으면 true(설정으로 끔·중복이면 false)
 export function notifyTx(tx: Runner, userId: string, n: NotifyInput): boolean {
+  // 탈퇴한 사람(ACTIVE가 아닌 사용자)에게는 알림 줄을 만들지 않는다(탈퇴 1단계)
+  const who = tx.select({ status: users.status }).from(users).where(eq(users.id, userId)).get();
+  if (who && who.status !== "ACTIVE") return false;
   const prefs = prefsOf(userId, tx);
   if ((n.category === "CHAT" && !prefs.chat) || (n.category === "INTEREST" && !prefs.interest) || (n.category === "REVIEW" && !prefs.review)) return false;
   const now = Date.now();

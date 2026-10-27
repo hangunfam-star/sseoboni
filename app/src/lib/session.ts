@@ -32,11 +32,12 @@ export function cleanNickname(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const v = raw.normalize("NFC").replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim();
   const len = Array.from(v).length;
+  if (v.replace(/\s/g, "") === "탈퇴한사용자") return null; // 탈퇴자 표시 이름과 헷갈리지 않게(탈퇴 1단계)
   return len >= NICKNAME_MIN && len <= NICKNAME_MAX ? v : null;
 }
 
-// return: 검증된 userId 또는 null (서명·만료·사용자 존재·ACTIVE 상태 확인)
-export async function getCurrentUserId(): Promise<string | null> {
+// return: 서명·만료가 맞는 세션 쿠키의 userId(사용자 상태는 보지 않음), 아니면 null
+async function signedUserId(): Promise<string | null> {
   const key = secret();
   if (!key) return null;
   const raw = (await cookies()).get(COOKIE_NAME)?.value;
@@ -48,10 +49,24 @@ export async function getCurrentUserId(): Promise<string | null> {
   const given = Buffer.from(sig);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   if (!/^\d+$/.test(exp) || Number(exp) < Date.now()) return null;
+  return userId;
+}
 
+// return: 검증된 userId 또는 null (서명·만료·사용자 존재·ACTIVE 상태 확인)
+export async function getCurrentUserId(): Promise<string | null> {
+  const userId = await signedUserId();
+  if (!userId) return null;
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
   if (!user || user.status !== "ACTIVE") return null;
   return userId;
+}
+
+// return: 유효한 세션 쿠키의 주인이 이미 탈퇴했으면 true(탈퇴를 두 번 누른 경우를 세션 만료와 구분하려고 씀)
+export async function sessionUserWithdrawn(): Promise<boolean> {
+  const userId = await signedUserId();
+  if (!userId) return false;
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  return user?.status === "WITHDRAWN";
 }
 
 // param: nickname 정리된 닉네임. return: 새로 만든 사용자(무작위 id)

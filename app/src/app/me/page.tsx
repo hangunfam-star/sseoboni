@@ -18,6 +18,7 @@ import { photoOf } from "@/lib/kakao";
 import { AutoLoadMore } from "@/components/AutoLoadMore";
 import { listOrders } from "@/lib/orders";
 import { gradesOf } from "@/lib/trade-stats";
+import { withdrawEnabled } from "@/lib/withdraw";
 import { sellerAccounts } from "@/db/schema";
 import { readSellerAccount } from "@/lib/seller-account";
 import { hasKakao, kakaoConfigured } from "@/lib/kakao";
@@ -122,6 +123,7 @@ export default async function MyPage({ searchParams }: { searchParams: Promise<{
         <Link href="/me/notifications"><strong><Icon name="inbox" />알림 · 홈 화면 추가</strong><small>휴대폰 알림 켜기, 받을 알림 고르기</small></Link>
         {showLoginLink && <Link href="/me/login"><strong><Icon name="shield" />로그인 연결</strong><small>{kakaoLinked ? "카카오 연결됨" : "카카오 미연결 · 연결하면 다른 기기에서도 들어와요"}</small></Link>}
         <LogoutButton kakaoLinked={kakaoLinked} menu />
+        {withdrawEnabled() && <Link href="/me/account#withdraw-title"><strong><Icon name="user" />탈퇴하기</strong><small>탈퇴 안내 보기 · 정산 계좌 화면 아래</small></Link>}
       </nav>
       {!hasAccount && mine.some((m) => m.status === "ACTIVE") && <p className="form-error">정산 계좌를 등록해야 구매자가 내 상품을 구매·써보기 신청할 수 있어요. <Link href="/me/account">등록하기</Link></p>}
       <Link className="chat-banner" href="/chats"><strong><Icon name="chat" />채팅</strong><small>{unreadChats > 0 ? `안 읽은 채팅 ${unreadChats}개` : "구매자·판매자와 나눈 대화"}</small></Link>

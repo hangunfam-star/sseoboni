@@ -1204,6 +1204,22 @@ h1 .ti, .page-title .ti { width: .9em; height: .9em; }
 .chat-banner strong { display: inline-flex; align-items: center; }
 .my-listing__delete { color: #b2402f !important; }
 .listing-delete, .account-delete { color: #b2402f; }
+/* 탈퇴(정산 계좌 화면 맨 아래) */
+.withdraw-box { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--color-line, #e6e6e6); display: grid; gap: 12px; }
+.withdraw-box form { display: grid; gap: 12px; }
+.withdraw-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.withdraw-blockers { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.withdraw-submit { background: #b2402f; }
+.withdraw-submit:disabled:not([aria-busy="true"]) { cursor: not-allowed; } /* 문구 입력 전: 로딩처럼 보이지 않게 */
+/* 탈퇴 완료 화면: 화면 가운데 한 장의 카드 */
+.withdrawn-page { min-height: 70vh; align-content: center; }
+.withdrawn-card { display: grid; justify-items: center; gap: 14px; padding: 32px 22px 24px; border-radius: var(--radius-card); background: var(--color-fill); text-align: center; }
+.withdrawn-badge { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--color-ink); color: #fff; }
+.withdrawn-badge svg { width: 26px; height: 26px; }
+.withdrawn-title { margin: 4px 0 0; font-size: 24px; font-weight: 800; color: var(--color-ink); }
+.withdrawn-lead { margin: 0; font-size: 15px; color: var(--color-muted); }
+.withdrawn-list { margin: 6px 0 4px; padding: 14px 16px 14px 32px; width: 100%; box-sizing: border-box; border-radius: 14px; background: #fff; text-align: left; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; color: var(--color-ink); }
+.withdrawn-home { margin-top: 6px; }
 .order-box h2 small, .section-title small { margin-left: 6px; }
 
 /* 상세 찜 칸: 구매자는 눌러서 찜(2026-10-09) */
