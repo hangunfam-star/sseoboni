@@ -1,0 +1,32 @@
+-- 0019 전체 되돌리기: 직접 실행 금지. ops/withdraw2_rollback.cjs가 0건 검사 뒤에만 실행한다.
+DROP TRIGGER IF EXISTS `wd_ins_wishlists`;
+DROP TRIGGER IF EXISTS `wd_ins_demand_intents`;
+DROP TRIGGER IF EXISTS `wd_ins_seller_accounts`;
+DROP TRIGGER IF EXISTS `wd_ins_push_subscriptions`;
+DROP TRIGGER IF EXISTS `wd_ins_notification_prefs`;
+DROP TRIGGER IF EXISTS `wd_ins_notifications`;
+DROP TRIGGER IF EXISTS `wd_ins_login_links`;
+DROP TRIGGER IF EXISTS `wd_ins_social_accounts`;
+DROP TRIGGER IF EXISTS `wd_ins_chat_threads`;
+DROP TRIGGER IF EXISTS `wd_ins_trial_proposals`;
+DROP TRIGGER IF EXISTS `wd_ins_orders`;
+DROP TRIGGER IF EXISTS `wd_ins_order_photos`;
+DROP TRIGGER IF EXISTS `wd_ins_disputes`;
+DROP TRIGGER IF EXISTS `wd_ins_reviews`;
+DROP TRIGGER IF EXISTS `wd_ins_trial_reviews`;
+DROP TRIGGER IF EXISTS `wd_ins_xp_awards`;
+DROP TRIGGER IF EXISTS `wd_ins_chat_messages`;
+DROP TRIGGER IF EXISTS `wd_ins_listings`;
+DROP TRIGGER IF EXISTS `wd_upd_listings_status`;
+DROP TRIGGER IF EXISTS `wd_upd_listings_retained`;
+DROP TRIGGER IF EXISTS `wd_ins_listing_photos`;
+DROP TRIGGER IF EXISTS `wd_ins_listing_components`;
+DROP TRIGGER IF EXISTS `wd_ins_listing_trial_terms`;
+DROP TRIGGER IF EXISTS `wd_upd_listing_trial_terms`;
+DROP TRIGGER IF EXISTS `wd_ins_market_validation_events`;
+DROP TRIGGER IF EXISTS `wd_upd_market_validation_events`;
+DROP TRIGGER IF EXISTS `wd_upd_users`;
+DROP INDEX IF EXISTS `withdrawals_stage`;
+DROP TABLE IF EXISTS `withdrawals`;
+-- 0019 기록만 지운다(created_at = _journal.json의 0019_withdraw2 when). 더 새 기록이 있으면 ops/withdraw2_rollback.cjs가 실행 전에 거절한다
+DELETE FROM __drizzle_migrations WHERE created_at = 1793185788953;

@@ -14,7 +14,7 @@ export default function WithdrawnPage() {
         <p className="withdrawn-lead">그동안 써보니를 써 주셔서 고마워요.</p>
         <ul className="withdrawn-list">
           <li>판매 중이던 상품은 내려갔어요.</li>
-          <li>거래·채팅·후기 기록은 &quot;탈퇴한 사용자&quot;로 남아요.</li>
+          <li>후기는 &quot;탈퇴한 사용자&quot;로 남아요. 거래 기록은 법에 따라 따로 보관했다가 기간이 지나면 지워요.</li>
           <li>같은 카카오 계정으로 다시 들어오면 새 계정으로 시작해요.</li>
         </ul>
         <Link className="dark-button withdrawn-home" href="/">처음 화면으로</Link>

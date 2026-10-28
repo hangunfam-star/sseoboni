@@ -6,6 +6,8 @@ import { listings, orders, reviews } from "@/db/schema";
 import { advanceOrders, disputeOpen } from "@/lib/orders";
 import { notifyTx, sendPending } from "@/lib/notify";
 import { loadTradeSettings } from "@/lib/trade-settings-store";
+import { dailyRetainedBackup, purgeRetained } from "@/lib/retain";
+import { cleanupOrphans, retainPending } from "@/lib/withdraw";
 import { FINAL_STATUSES, sqlToIso, type OrderStatus } from "@/ui/trade-rules";
 
 const H = 3600_000;
@@ -92,6 +94,12 @@ export async function runJobs(): Promise<Record<string, number | string>> {
   await step("review", reviewReminders);
   await step("digest", () => dailyDigest());
   await step("push", () => sendPending(200));
+  // 탈퇴 2단계: WITHDRAW_ENABLED와 상관없이 돈다(이미 탈퇴한 사용자의 보관 이동·법정 파기, K8)
+  await step("retain", async () => retainPending());
+  await step("purge", async () => purgeRetained().done);
+  // 보관 백업 세트: 마지막 세트가 24시간 넘었을 때만 하나 만든다(잠금 안, 파기 중 키는 뺀다)
+  await step("retainBackup", async () => (dailyRetainedBackup() ? 1 : 0));
+  await step("orphans", async () => cleanupOrphans());
   return out;
 }
 

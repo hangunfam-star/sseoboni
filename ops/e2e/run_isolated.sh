@@ -20,6 +20,11 @@ echo '{"tradeOpen": true}' > "$OUT/ts.json"
 (nohup node "$ROOT/ops/e2e/fake_push.cjs" "$(cygpath -w "$ROOT/app")" 3298 > "$OUT/fake_push.log" 2>&1 &)
 EXTRA=""; [ "$NICK" = "1" ] && EXTRA="ALLOW_NICKNAME_LOGIN=1"
 [ "$WITHDRAW" = "1" ] && EXTRA="$EXTRA WITHDRAW_ENABLED=1"   # 탈퇴 시험: WITHDRAW=1 bash ops/e2e/run_isolated.sh (기본은 꺼짐)
+# 탈퇴 2단계 보관 키(시험용, .out 아래 무작위 값 — 운영 값 아님). 없으면 탈퇴 POST가 사전 점검에서 503
+if [ "$WITHDRAW" = "1" ]; then
+  [ -s "$OUT/retain_secret.txt" ] || node -e "process.stdout.write(require('crypto').randomBytes(48).toString('base64'))" > "$OUT/retain_secret.txt"
+  EXTRA="$EXTRA RETAIN_SECRET=$(cat "$OUT/retain_secret.txt")"
+fi
 [ -n "$WITHDRAW_FAULT" ] && EXTRA="$EXTRA WITHDRAW_FAULT=$WITHDRAW_FAULT"   # 탈퇴 오류 주입 시험(T13) 전용
 (env DATABASE_URL="file:$(cygpath -w "$OUT/copy.db")" TRADE_SETTINGS_FILE="$(cygpath -w "$OUT/ts.json")" \
   KAKAO_REST_KEY=testkey KAKAO_CLIENT_SECRET=testsecret KAKAO_AUTH_BASE=http://localhost:3299 KAKAO_API_BASE=http://localhost:3299 KAKAO_REDIRECT_URI= \

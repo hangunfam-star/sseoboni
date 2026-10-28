@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listingPhotos, listings } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { deletePhoto, MAX_PHOTO_BYTES, MAX_PHOTOS, photoCount, photoUrl, savePhoto } from "@/lib/photos";
+import { commitPhoto, deletePhoto, discardStaged, MAX_PHOTO_BYTES, MAX_PHOTOS, photoCount, photoUrl, savePhoto } from "@/lib/photos";
 
 // POST /api/listings/[id]/photos (multipart, 필드명 photo, 여러 장) — 판매자 본인만, 상품당 최대 5장
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,11 +30,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const saved = [];
   for (const [i, f] of files.entries()) {
+    let staged: string | null = null;
     try {
+      // staging 저장 → DB 줄 → 원래 폴더로 옮김. 줄 넣기가 실패하면(탈퇴 직후 등) 저장한 파일을 지운다
       const s = await savePhoto(Buffer.from(await f.arrayBuffer()));
+      staged = s.fileName;
       await db.insert(listingPhotos).values({ listingId: id, fileName: s.fileName, width: s.width, height: s.height, sortOrder: already + i });
+      staged = null;
+      // DB 줄이 들어갔으면 옮기기 실패는 정기 정리(cleanupUploadOrphans)가 마무리한다 — 다시 올려 중복되지 않게 성공으로 돌려준다
+      await commitPhoto(s.fileName).catch((e) => console.error("[photos] commitPhoto 실패(정기 정리가 마무리)", s.fileName, e));
       saved.push({ url: photoUrl(s.fileName), width: s.width, height: s.height });
     } catch {
+      if (staged) await discardStaged(staged);
       return NextResponse.json({ error: "사진 파일을 읽지 못했어요. JPG·PNG·HEIC 사진으로 다시 올려 주세요.", saved }, { status: 400 });
     }
   }

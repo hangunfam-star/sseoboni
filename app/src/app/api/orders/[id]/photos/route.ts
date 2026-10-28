@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderPhotos, orders } from "@/db/schema";
 import { getCurrentUserId } from "@/lib/session";
-import { MAX_PHOTO_BYTES, removeOrderPhotoFile, savePhoto } from "@/lib/photos";
+import { commitPhoto, discardStaged, MAX_PHOTO_BYTES, removeOrderPhotoFile, savePhoto } from "@/lib/photos";
 import { ORDER_PHOTO_MAX, ORDER_PHOTO_STAGES, type OrderPhotoStage } from "@/ui/check-items";
 import { lateArrivalUntil } from "@/lib/orders";
 
@@ -43,11 +43,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (files.some((f) => f.size > MAX_PHOTO_BYTES)) return NextResponse.json({ error: "사진 한 장은 10MB 이하로 올려 주세요." }, { status: 400 });
   const saved: string[] = [];
   for (const f of files) {
+    let staged: string | null = null;
     try {
+      // staging 저장 → DB 줄 → 원래 폴더로 옮김. 줄 넣기가 실패하면 저장한 파일을 지운다
       const s = await savePhoto(Buffer.from(await f.arrayBuffer()), "order");
+      staged = s.fileName;
       db.insert(orderPhotos).values({ orderId: id, stage: stage as string, userId: userId!, fileName: s.fileName, width: s.width, height: s.height }).run();
+      staged = null;
+      // DB 줄이 들어갔으면 옮기기 실패는 정기 정리가 마무리한다 — 다시 올려 중복되지 않게 성공으로 돌려준다
+      await commitPhoto(s.fileName, "order").catch((e) => console.error("[photos] commitPhoto 실패(정기 정리가 마무리)", s.fileName, e));
       saved.push(s.fileName);
     } catch {
+      if (staged) await discardStaged(staged, "order");
       return NextResponse.json({ error: "사진 파일을 읽지 못했어요. JPG·PNG·HEIC 사진으로 다시 올려 주세요.", saved }, { status: 400 });
     }
   }

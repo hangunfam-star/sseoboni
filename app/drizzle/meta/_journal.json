@@ -134,6 +134,13 @@
       "when": 1793015397953,
       "tag": "0018_withdraw",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793185788953,
+      "tag": "0019_withdraw2",
+      "breakpoints": true
     }
   ]
 }

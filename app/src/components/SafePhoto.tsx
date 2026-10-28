@@ -18,6 +18,7 @@ export function SafePhoto({ src, alt, sizes, className, fallback }: { src: strin
       alt={alt}
       fill
       sizes={sizes}
+      unoptimized // 탈퇴로 지운 사진이 /_next/image 캐시에 남지 않게 원본 API를 바로 쓴다
       onError={() => {
         if (attempt < RETRY_MS.length) setTimeout(() => setAttempt((a) => a + 1), RETRY_MS[attempt]);
         else setFailed(true);

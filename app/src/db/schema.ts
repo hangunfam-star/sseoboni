@@ -400,6 +400,17 @@ export const notificationPrefs = sqliteTable("notification_prefs", {
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
 });
 
+// 탈퇴 2단계(docs/review/WITHDRAW_PLAN_v12.md): 탈퇴자별 보관 이동 상태. 보관값은 runtime-data/retained.db에 있다.
+// stage: RETAIN_PENDING → RETAINING(lease) → WIPE_PENDING → RETAINED. 보관분이 모두 파기되면 줄을 지운다.
+export const withdrawals = sqliteTable("withdrawals", {
+  userId: text("user_id").primaryKey().references(() => users.id),
+  stage: text("stage").notNull(),
+  withdrawnAt: text("withdrawn_at").notNull().default(sql`(current_timestamp)`),
+  leaseOwner: text("lease_owner"), // 처리 중인 실행의 무작위 값
+  leaseUntil: integer("lease_until"), // 처리 중 표시 기한(ms)
+  updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => [index("withdrawals_stage").on(t.stage)]);
+
 // 예전 주소 로그인 이어받기 표(carry)의 1회용 번호. 해시만 저장하고, 처음 넣는 데 성공한 요청만 쓴다(재시작·여러 인스턴스에도 한 번만).
 export const carryNonces = sqliteTable("carry_nonces", {
   nonceHash: text("nonce_hash").primaryKey(),

@@ -18,7 +18,7 @@ export function PhotoGallery({ photos, title }: { photos: { fileName: string; wi
     <div className="gallery">
       <div className="gallery__track" ref={track} onScroll={onScroll}>
         {photos.map((p, i) => (
-          <Image key={p.fileName} src={photoUrl(p.fileName)} width={p.width} height={p.height} sizes="(max-width: 480px) 100vw, 480px" alt={`${title} 사진 ${i + 1}`} priority={i === 0} />
+          <Image key={p.fileName} src={photoUrl(p.fileName)} width={p.width} height={p.height} sizes="(max-width: 480px) 100vw, 480px" alt={`${title} 사진 ${i + 1}`} priority={i === 0} unoptimized /* 지운 사진이 /_next/image 캐시에 남지 않게 */ />
         ))}
       </div>
       {photos.length > 1 && <span className="gallery__count" aria-live="polite">{index + 1} / {photos.length}</span>}
